@@ -4,9 +4,10 @@
   "version": "0.1.0",
   "identifier": "com.tauri.dev",
   "build": {
-    "frontendDist": "y",
-    "beforeDevCommand": "npm run dev",
-    "beforeBuildCommand": "npm run build"
+    "frontendDist": "../dist",
+    "devUrl": "http://localhost:1420",
+    "beforeDevCommand": "yarn && yarn dev",
+    "beforeBuildCommand": "yarn && yarn build"
   },
   "app": {
     "windows": [
