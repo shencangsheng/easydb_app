@@ -1,3 +1,4 @@
+use tauri::Listener;
 use crate::commands::greet::greet;
 
 mod commands;
@@ -16,6 +17,11 @@ pub fn run() {
       Ok(())
     })
       .invoke_handler(tauri::generate_handler![greet])
+      .on_page_load(|window, _| {
+          window.listen("tauri://error", |event| {
+              println!("Error event received: {:?}", event);
+          });
+      })
       .run(tauri::generate_context!())
     .expect("error while running tauri application");
 }

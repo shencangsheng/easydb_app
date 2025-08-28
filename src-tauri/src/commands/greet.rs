@@ -1,3 +1,4 @@
+use polars::prelude::*;
 use tauri::command;
 
 #[command]
