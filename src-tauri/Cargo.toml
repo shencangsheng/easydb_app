@@ -1,10 +1,10 @@
 [package]
-name = "app"
+name = "EasyDB"
 version = "0.1.0"
-description = "A Tauri App"
-authors = ["you"]
-license = ""
-repository = ""
+description = "EasyDB APP"
+authors = ["shencangsheng"]
+license = "MIT"
+repository = "https://github.com/shencangsheng/easydb_app"
 edition = "2021"
 rust-version = "1.89.0"
 
@@ -23,5 +23,6 @@ serde = { version = "1.0", features = ["derive"] }
 log = "0.4"
 tauri = { version = "2.7.0", features = [] }
 tauri-plugin-log = "2"
-polars = { version = "0.50.0", features = ["lazy", "temporal", "describe", "json", "parquet", "dtype-datetime", "sql", "serde-lazy", "default"] }
+polars = { version = "0.50.0", features = ["polars-time", "lazy", "temporal", "describe", "json", "parquet", "dtype-datetime", "sql", "serde-lazy", "default", "csv", "dtype-date", "dtype-time", "polars-sql"] }
 derive_more = { version = "2.0.1", features = ["full"] }
+sqlparser = "0.53"
