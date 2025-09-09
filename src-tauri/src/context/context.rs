@@ -1,8 +1,10 @@
 use crate::context::error::AppError;
-use crate::context::schema::EasyDBResult;
-use crate::sql::parse::{get_function_args, get_path, parse_statements};
+use crate::context::schema::AppResult;
+use crate::sql::parse::{get_function_args, parse_statements};
 use polars::frame::DataFrame;
-use polars::prelude::{LazyCsvReader, LazyFileListReader, LazyFrame, LazyJsonLineReader, PlPath};
+use polars::prelude::{
+    JsonReader, LazyCsvReader, LazyFileListReader, LazyFrame, LazyJsonLineReader, PlPath,
+};
 use polars::sql::SQLContext;
 use sqlparser::ast::SetExpr::Select;
 use sqlparser::ast::{
@@ -13,7 +15,7 @@ pub fn get_sql_context() -> SQLContext {
     SQLContext::new()
 }
 
-pub fn collect(ctx: &mut SQLContext, sql: &String) -> EasyDBResult<DataFrame> {
+pub fn collect(ctx: &mut SQLContext, sql: &String) -> AppResult<DataFrame> {
     ctx.execute(sql)?.collect().map_err(AppError::from)
 }
 
@@ -25,10 +27,36 @@ pub fn get_json_reader(path: PlPath) -> LazyJsonLineReader {
     LazyJsonLineReader::new(path)
 }
 
+pub fn get_path(args: &mut Option<TableFunctionArgs>) -> AppResult<PlPath> {
+    if args.is_none() {
+        return Err(AppError::BadRequest {
+            message: "The file path is missing.".to_string(),
+        });
+    }
+
+    let value = &args
+        .as_ref()
+        .unwrap()
+        .args
+        .get(0)
+        .ok_or(AppError::BadRequest {
+            message: "The file path is missing.".to_string(),
+        })?;
+
+    match value {
+        FunctionArg::Unnamed(FunctionArgExpr::Expr(Expr::Value(Value::SingleQuotedString(
+            value,
+        )))) => Ok(PlPath::new(value)),
+        _ => Err(AppError::BadRequest {
+            message: "The file path is missing.".to_string(),
+        }),
+    }
+}
+
 pub fn read_csv(
     mut reader: LazyCsvReader,
     args: &mut Option<TableFunctionArgs>,
-) -> EasyDBResult<LazyFrame> {
+) -> AppResult<LazyFrame> {
     let args = get_function_args(args);
 
     if let Some(args) = args {
@@ -55,17 +83,12 @@ pub fn read_csv(
 pub fn read_json(
     mut reader: LazyJsonLineReader,
     args: &mut Option<TableFunctionArgs>,
-) -> EasyDBResult<LazyFrame> {
+) -> AppResult<LazyFrame> {
     let args = get_function_args(args);
-
     reader.finish().map_err(|e| e.into())
 }
 
-pub fn register_table(
-    ctx: &mut SQLContext,
-    sql: &str,
-    limit: Option<String>,
-) -> EasyDBResult<String> {
+pub fn register(ctx: &mut SQLContext, sql: &str, limit: Option<String>) -> AppResult<String> {
     let mut ast = parse_statements(sql)?;
 
     let statement = ast.get_mut(0).ok_or(AppError::BadRequest {

@@ -2,17 +2,12 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
+    <!-- <link rel="icon" type="image/svg+xml" href="/vite.svg" /> -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>文档</title>
+    <title>EasyDB</title>
   </head>
   <body>
-    <h1>这是来自 Tauri 的欢迎！</h1>
-    <button id="greet">点击我</button>
-    <script>
-      const button = document.getElementById("greet");
-      button.addEventListener("click", () => {
-        import("/src/main.ts").then((mod) => mod.callGreet());
-      });
-    </script>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

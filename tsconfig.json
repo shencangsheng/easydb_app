@@ -11,7 +11,8 @@
       "@/*": ["src/*"]
     },
     "allowImportingTsExtensions": true,
-    "noEmit": true
+    "noEmit": true,
+    "jsx": "react-jsx"
   },
-  "include": ["src/**/*", "src/pages/notebook/index.tsx"]
+  "include": ["src/**/*"]
 }

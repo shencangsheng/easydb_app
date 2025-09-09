@@ -1,5 +1,5 @@
-use crate::context::context::{collect, register_table};
-use crate::context::schema::EasyDBResult;
+use crate::context::context::{collect, register};
+use crate::context::schema::AppResult;
 use polars::sql::SQLContext;
 use serde::Serialize;
 use tauri::command;
@@ -11,10 +11,10 @@ pub struct FetchResult {
 }
 
 #[command]
-pub fn fetch(sql: String) -> EasyDBResult<FetchResult> {
+pub fn fetch(sql: String) -> AppResult<FetchResult> {
     let mut context = SQLContext::new();
 
-    let new_sql = register_table(&mut context, &sql, Some("200".to_string()))?;
+    let new_sql = register(&mut context, &sql, Some("200".to_string()))?;
 
     let df = collect(&mut context, &new_sql)?;
 

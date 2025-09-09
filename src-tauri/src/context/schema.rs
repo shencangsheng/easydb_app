@@ -1,4 +1,4 @@
 use crate::context::error::AppError;
 
-pub type EasyDBResult<T> = Result<T, AppError>;
+pub type AppResult<T> = Result<T, AppError>;
 

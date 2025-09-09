@@ -1,11 +1,11 @@
 import { invoke } from "@tauri-apps/api/core";
 
-export async function callGreet() {
+export async function call(sql: string) {
   try {
     const response = await invoke("fetch", {
-      sql: "select * from read_tsv('/Users/shencangsheng/Downloads/nightly-VariantSummaries.tsv', infer_schema(false))",
+      sql: sql,
     });
-    console.log(response);
+    return response;
   } catch (error) {
     console.error("Error invoking greet:", error);
   }
