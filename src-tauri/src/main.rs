@@ -28,7 +28,7 @@ fn main() {
             SELECT *
             FROM read_tsv('/Users/shencangsheng/Downloads/nightly-VariantSummaries.tsv', infer_schema(false))"#;
 
-    let new_sql = register_table(&mut context, sql).unwrap();
+    let new_sql = register_table(&mut context, sql, Some("200".to_string())).unwrap();
 
     println!("{}", new_sql);
 
@@ -37,11 +37,6 @@ fn main() {
         .unwrap()
         .collect()
         .unwrap();
-
-    df.iter().for_each(|row| {
-        println!("{:?}", row);
-    });
-
     //
     // let path: PlPath = Local(Arc::from(Path::new("/Users/shencangsheng/Code Repository/easy_db/example/order_*.csv")));
 

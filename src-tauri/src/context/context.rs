@@ -54,7 +54,11 @@ pub fn read_csv(
     reader.finish().map_err(|e| e.into())
 }
 
-pub fn register_table(ctx: &mut SQLContext, sql: &str) -> EasyDBResult<String> {
+pub fn register_table(
+    ctx: &mut SQLContext,
+    sql: &str,
+    limit: Option<String>,
+) -> EasyDBResult<String> {
     let mut ast = parse_statements(sql)?;
 
     let statement = ast.get_mut(0).ok_or(AppError::BadRequest {
@@ -91,6 +95,9 @@ pub fn register_table(ctx: &mut SQLContext, sql: &str) -> EasyDBResult<String> {
                 }
                 table_count += 1;
             }
+        }
+        if limit.is_some() && query.limit.is_none() {
+            query.limit = Some(Expr::Value(Value::Number(limit.unwrap(), true)));
         }
         return Ok(query.to_string());
     } else {
