@@ -18,12 +18,14 @@ use sqlparser::parser::Parser;
 
 mod context;
 
-fn main() {
-    let mut context = SQLContext::new();
+mod sql;
 
-    // let path: PlPath = Local(Arc::from(Path::new("/Users/shencangsheng/Code Repository/easy_db/example/order_*.csv")));
+fn main() {
+    // let mut context = SQLContext::new();
     //
-    // // let sink = SinkTarget::Path(path);
+    // let path: PlPath = Local(Arc::from(Path::new("/Users/shencangsheng/Code Repository/easy_db/example/order_*.csv")));
+
+    // let sink = SinkTarget::Path(path);
     //
     // let lf = LazyCsvReader::new(path)
     //     .with_try_parse_dates(true)
@@ -47,7 +49,7 @@ fn main() {
 
     let sql = r#"
             SELECT *
-            FROM read_tsv('/tmp/test.tsv', setnull(11))"#;
+            FROM read_tsv('/tmp/test.tsv', setnull(false))"#;
 
     let mut parser = Parser::new(&GenericDialect);
 
