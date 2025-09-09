@@ -1,11 +1,8 @@
 use crate::context::error::AppError;
 use crate::context::schema::EasyDBResult;
-use polars::prelude::{CsvParseOptions, LazyCsvReader, LazyFileListReader, LazyFrame, PlPath};
-use polars::sql::SQLContext;
-use sqlparser::ast::FunctionArg::Named;
-use sqlparser::ast::SetExpr::Select;
+use polars::prelude::PlPath;
 use sqlparser::ast::{
-    Expr, FunctionArg, FunctionArgExpr, FunctionArgOperator, Statement, TableFactor,
+    Expr, FunctionArg, FunctionArgExpr, Statement,
     TableFunctionArgs, Value,
 };
 use sqlparser::dialect::GenericDialect;

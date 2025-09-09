@@ -2,29 +2,27 @@ use crate::context::error::AppError;
 use crate::context::schema::EasyDBResult;
 use crate::sql::parse::{get_function_args, get_path, parse_statements};
 use polars::frame::DataFrame;
-use polars::prelude::{LazyCsvReader, LazyFileListReader, LazyFrame, PlPath};
+use polars::prelude::{LazyCsvReader, LazyFileListReader, LazyFrame, LazyJsonLineReader, PlPath};
 use polars::sql::SQLContext;
 use sqlparser::ast::SetExpr::Select;
 use sqlparser::ast::{
     Expr, FunctionArg, FunctionArgExpr, Statement, TableFactor, TableFunctionArgs, Value,
 };
-use sqlparser::dialect::GenericDialect;
-use sqlparser::parser::Parser;
 
 pub fn get_sql_context() -> SQLContext {
     SQLContext::new()
 }
 
-pub fn get_data_frame(ctx: &mut SQLContext, sql: &str) -> EasyDBResult<DataFrame> {
+pub fn collect(ctx: &mut SQLContext, sql: &String) -> EasyDBResult<DataFrame> {
     ctx.execute(sql)?.collect().map_err(AppError::from)
-}
-
-pub fn parse_sql() -> Parser<'static> {
-    Parser::new(&GenericDialect)
 }
 
 pub fn get_csv_reader(path: PlPath) -> LazyCsvReader {
     LazyCsvReader::new(path)
+}
+
+pub fn get_json_reader(path: PlPath) -> LazyJsonLineReader {
+    LazyJsonLineReader::new(path)
 }
 
 pub fn read_csv(
@@ -39,7 +37,7 @@ pub fn read_csv(
                 match name.value.as_str() {
                     "infer_schema" => {
                         if let FunctionArgExpr::Expr(Expr::Value(Value::Boolean(value))) = arg {
-                            if (!value) {
+                            if !value {
                                 reader = reader.with_infer_schema_length(Some(0));
                             }
                         }
@@ -50,6 +48,15 @@ pub fn read_csv(
             }
         }
     }
+
+    reader.finish().map_err(|e| e.into())
+}
+
+pub fn read_json(
+    mut reader: LazyJsonLineReader,
+    args: &mut Option<TableFunctionArgs>,
+) -> EasyDBResult<LazyFrame> {
+    let args = get_function_args(args);
 
     reader.finish().map_err(|e| e.into())
 }
@@ -80,6 +87,7 @@ pub fn register_table(
                             reader = reader.with_separator(b'\t');
                             Some(read_csv(reader, args)?)
                         }
+                        "read_json" => Some(read_json(get_json_reader(path), args)?),
                         _ => None,
                     };
 

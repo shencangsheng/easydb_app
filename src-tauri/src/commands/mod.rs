@@ -1,1 +1,1 @@
-pub mod greet;
+pub mod query;

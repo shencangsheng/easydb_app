@@ -1,7 +1,11 @@
 use tauri::Listener;
-use crate::commands::greet::greet;
+use crate::commands::query::fetch;
 
 mod commands;
+
+mod context;
+
+mod sql;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -16,7 +20,7 @@ pub fn run() {
       }
       Ok(())
     })
-      .invoke_handler(tauri::generate_handler![greet])
+      .invoke_handler(tauri::generate_handler![fetch])
       .on_page_load(|window, _| {
           window.listen("tauri://error", |event| {
               println!("Error event received: {:?}", event);
