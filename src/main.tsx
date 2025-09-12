@@ -35,13 +35,18 @@ function App() {
           value={input}
           onChange={(e) => setInput(e.target.value)}
           style={{
-            padding: "8px",
+            padding: "12px",
             border: "1px solid #ccc",
             borderRadius: "4px",
             flex: "1",
-            minHeight: "80px",
+            minHeight: "120px",
             resize: "vertical",
+            fontSize: "18px",
+            fontFamily: "monospace",
           }}
+          autoCapitalize="none" // 禁用自动首字母大写
+          autoCorrect="off" // 禁用自动校正
+          spellCheck="false" // 禁用拼写检查
         />
         <button
           onClick={handleConfirm}
