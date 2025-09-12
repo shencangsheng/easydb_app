@@ -6,11 +6,11 @@ version = 4
 name = "EasyDB"
 version = "0.1.0"
 dependencies = [
+ "backtrace",
  "derive_more 2.0.1",
  "log",
  "polars",
  "serde",
- "serde_json",
  "sqlparser",
  "tauri",
  "tauri-build",

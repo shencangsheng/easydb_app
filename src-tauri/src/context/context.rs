@@ -2,14 +2,17 @@ use crate::context::error::AppError;
 use crate::context::schema::AppResult;
 use crate::sql::parse::{get_function_args, parse_statements};
 use polars::frame::DataFrame;
+use polars::io::SerReader;
 use polars::prelude::{
-    JsonReader, LazyCsvReader, LazyFileListReader, LazyFrame, LazyJsonLineReader, PlPath,
+    IntoLazy, JsonReader, LazyCsvReader, LazyFileListReader, LazyFrame, LazyJsonLineReader, PlPath,
 };
 use polars::sql::SQLContext;
 use sqlparser::ast::SetExpr::Select;
 use sqlparser::ast::{
     Expr, FunctionArg, FunctionArgExpr, Statement, TableFactor, TableFunctionArgs, Value,
 };
+use std::fs::File;
+use std::path::Path;
 
 pub fn get_sql_context() -> SQLContext {
     SQLContext::new()
@@ -23,7 +26,11 @@ pub fn get_csv_reader(path: PlPath) -> LazyCsvReader {
     LazyCsvReader::new(path)
 }
 
-pub fn get_json_reader(path: PlPath) -> LazyJsonLineReader {
+pub fn get_json_reader(path: PlPath) -> AppResult<JsonReader<'static, File>> {
+    Ok(JsonReader::new(File::open(path.to_str())?))
+}
+
+pub fn get_ndjson_reader(path: PlPath) -> LazyJsonLineReader {
     LazyJsonLineReader::new(path)
 }
 
@@ -81,11 +88,24 @@ pub fn read_csv(
 }
 
 pub fn read_json(
+    mut reader: JsonReader<'static, File>,
+    args: &mut Option<TableFunctionArgs>,
+) -> AppResult<DataFrame> {
+    let args = get_function_args(args);
+    reader.finish().map_err(|e| e.into())
+}
+
+pub fn read_ndjson(
     mut reader: LazyJsonLineReader,
     args: &mut Option<TableFunctionArgs>,
 ) -> AppResult<LazyFrame> {
     let args = get_function_args(args);
     reader.finish().map_err(|e| e.into())
+}
+
+enum FrameType {
+    Lazy(LazyFrame),
+    Data(DataFrame),
 }
 
 pub fn register(ctx: &mut SQLContext, sql: &str, limit: Option<String>) -> AppResult<String> {
@@ -103,14 +123,19 @@ pub fn register(ctx: &mut SQLContext, sql: &str, limit: Option<String>) -> AppRe
                 if let TableFactor::Table { name, args, .. } = &mut table_with_joins.relation {
                     let table_name = format!("t{}", table_count);
                     let path = get_path(args)?;
-                    let lazy_frame: Option<LazyFrame> = match name.to_string().as_str() {
-                        "read_csv" => Some(read_csv(get_csv_reader(path), args)?),
+                    let lazy_frame: Option<FrameType> = match name.to_string().as_str() {
+                        "read_csv" => Some(FrameType::Lazy(read_csv(get_csv_reader(path), args)?)),
                         "read_tsv" => {
                             let mut reader = get_csv_reader(path);
                             reader = reader.with_separator(b'\t');
-                            Some(read_csv(reader, args)?)
+                            Some(FrameType::Lazy(read_csv(reader, args)?))
                         }
-                        "read_json" => Some(read_json(get_json_reader(path), args)?),
+                        "read_ndjson" => {
+                            Some(FrameType::Lazy(read_ndjson(get_ndjson_reader(path), args)?))
+                        }
+                        "read_json" => {
+                            Some(FrameType::Data(read_json(get_json_reader(path)?, args)?))
+                        }
                         _ => None,
                     };
 
@@ -122,7 +147,12 @@ pub fn register(ctx: &mut SQLContext, sql: &str, limit: Option<String>) -> AppRe
 
                     *name = sqlparser::ast::ObjectName(vec![table_name.as_str().into()]);
                     *args = None;
-                    ctx.register(table_name.as_str(), lazy_frame.unwrap());
+                    if let Some(frame) = lazy_frame {
+                        match frame {
+                            FrameType::Lazy(lazy) => ctx.register(table_name.as_str(), lazy),
+                            FrameType::Data(data) => ctx.register(table_name.as_str(), data.lazy()),
+                        }
+                    }
                 }
                 table_count += 1;
             }
