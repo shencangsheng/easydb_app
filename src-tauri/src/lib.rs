@@ -6,6 +6,8 @@ mod commands;
 mod context;
 
 mod sql;
+mod reader;
+mod utils;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {

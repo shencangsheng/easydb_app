@@ -12,7 +12,6 @@ use sqlparser::ast::{
     Expr, FunctionArg, FunctionArgExpr, Statement, TableFactor, TableFunctionArgs, Value,
 };
 use std::fs::File;
-use std::path::Path;
 
 pub fn get_sql_context() -> SQLContext {
     SQLContext::new()

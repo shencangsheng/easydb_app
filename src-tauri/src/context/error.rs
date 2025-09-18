@@ -1,9 +1,11 @@
 use crate::context::error::AppError::{BadRequest, InternalServer};
 use backtrace::Backtrace;
 use derive_more::with_trait::{Display, Error};
+use glob::{GlobError, PatternError};
 use polars::error::PolarsError;
 use sqlparser::parser::ParserError;
 use std::fmt;
+use calamine::XlsxError;
 use tauri::ipc::InvokeError;
 
 #[derive(Debug, Display, Error, Clone)]
@@ -56,6 +58,33 @@ impl From<std::io::Error> for AppError {
     fn from(error: std::io::Error) -> Self {
         AppError::log_backtrace();
         InternalServer {
+            message: error.to_string(),
+        }
+    }
+}
+
+impl From<PatternError> for AppError {
+    fn from(error: PatternError) -> Self {
+        AppError::log_backtrace();
+        BadRequest {
+            message: error.to_string(),
+        }
+    }
+}
+
+impl From<GlobError> for AppError {
+    fn from(error: GlobError) -> Self {
+        AppError::log_backtrace();
+        BadRequest {
+            message: error.to_string(),
+        }
+    }
+}
+
+impl From<XlsxError> for AppError {
+    fn from(error: XlsxError) -> Self {
+        AppError::log_backtrace();
+        BadRequest {
             message: error.to_string(),
         }
     }
