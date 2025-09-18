@@ -1,5 +1,6 @@
 use crate::context::error::AppError;
 use crate::context::schema::AppResult;
+use crate::reader::excel::ExcelReader;
 use crate::sql::parse::{get_function_args, parse_statements};
 use polars::frame::DataFrame;
 use polars::io::SerReader;
@@ -23,6 +24,9 @@ pub fn collect(ctx: &mut SQLContext, sql: &String) -> AppResult<DataFrame> {
 
 pub fn get_csv_reader(path: PlPath) -> LazyCsvReader {
     LazyCsvReader::new(path)
+}
+pub fn get_excel_reader(path: PlPath) -> ExcelReader {
+    ExcelReader::new(path)
 }
 
 pub fn get_json_reader(path: PlPath) -> AppResult<JsonReader<'static, File>> {
@@ -86,6 +90,34 @@ pub fn read_csv(
     reader.finish().map_err(|e| e.into())
 }
 
+pub fn read_excel(
+    mut reader: ExcelReader,
+    args: &mut Option<TableFunctionArgs>,
+) -> AppResult<DataFrame> {
+    let args = get_function_args(args);
+
+    if let Some(args) = args {
+        for arg in args {
+            if let FunctionArg::Named { name, arg, .. } = arg {
+                match name.value.as_str() {
+                    "sheet_name" => {
+                        if let FunctionArgExpr::Expr(Expr::Value(Value::SingleQuotedString(
+                            value,
+                        ))) = arg
+                        {
+                            reader = reader.with_sheet_name(value.to_string());
+                        }
+                        break;
+                    }
+                    _ => {}
+                }
+            }
+        }
+    }
+
+    reader.finish().map_err(|e| e.into())
+}
+
 pub fn read_json(
     mut reader: JsonReader<'static, File>,
     args: &mut Option<TableFunctionArgs>,
@@ -134,6 +166,9 @@ pub fn register(ctx: &mut SQLContext, sql: &str, limit: Option<String>) -> AppRe
                         }
                         "read_json" => {
                             Some(FrameType::Data(read_json(get_json_reader(path)?, args)?))
+                        }
+                        "read_excel" => {
+                            Some(FrameType::Data(read_excel(get_excel_reader(path), args)?))
                         }
                         _ => None,
                     };

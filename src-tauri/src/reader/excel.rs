@@ -11,15 +11,15 @@ pub struct ExcelReadOptions {}
 
 pub struct ExcelParseOptions {}
 
-pub struct ExcelReaderBuilder {
+pub struct ExcelReader {
     path: PlPath,
     sheet_name: String,
     infer_schema_length: usize,
     try_parse_dates: bool,
 }
 
-impl ExcelReaderBuilder {
-    fn new(path: PlPath) -> Self {
+impl ExcelReader {
+    pub fn new(path: PlPath) -> Self {
         Self {
             path,
             sheet_name: "Sheet1".to_string(),
@@ -28,7 +28,12 @@ impl ExcelReaderBuilder {
         }
     }
 
-    fn finish(self) -> AppResult<DataFrame> {
+    pub fn with_sheet_name(mut self, sheet_name: String) -> Self {
+        self.sheet_name = sheet_name;
+        self
+    }
+
+    pub fn finish(self) -> AppResult<DataFrame> {
         let mut schemas: Option<Vec<Field>> = None;
         let mut records: Vec<Vec<AnyValue>> = Vec::new();
 
@@ -106,7 +111,9 @@ pub fn infer_field_schema(
             return Ok(rows
                 .iter()
                 .enumerate()
-                .map(|(i, cell)| Field::new(format!("t{}", i + 1).into(), PLDataType::String))
+                .map(|(i, cell)| {
+                    Field::new(format!("t{}", i + 1).into(), convert_arrow_data_type(cell))
+                })
                 .collect());
         } else {
             return Err(AppError::BadRequest {
@@ -145,21 +152,6 @@ pub fn infer_field_schema(
         .collect();
 
     Ok(fields)
-}
-
-pub fn get_schema(r: &Range<Data>) -> AppResult<Vec<Field>> {
-    let schema = r.rows().next().map(|row| {
-        row.iter()
-            .map(|cell| {
-                let data_type = convert_arrow_data_type(cell);
-                Field::new(cell.to_string().into(), data_type)
-            })
-            .collect()
-    });
-
-    schema.ok_or(AppError::BadRequest {
-        message: "Header not found".to_string(),
-    })
 }
 
 fn convert_arrow_data_type(cell: &Data) -> PLDataType {
