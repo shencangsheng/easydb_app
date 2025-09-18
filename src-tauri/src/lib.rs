@@ -1,13 +1,13 @@
 use tauri::Listener;
 use crate::commands::query::fetch;
 
-mod commands;
+pub mod commands;
 
-mod context;
+pub mod context;
 
-mod sql;
-mod reader;
-mod utils;
+pub mod sql;
+pub  mod reader;
+pub mod utils;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {

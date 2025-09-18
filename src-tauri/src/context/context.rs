@@ -109,6 +109,13 @@ pub fn read_excel(
                         }
                         break;
                     }
+                    "infer_schema" => {
+                        if let FunctionArgExpr::Expr(Expr::Value(Value::Boolean(value))) = arg {
+                            if !value {
+                                reader = reader.with_infer_schema_length(0);
+                            }
+                        }
+                    }
                     _ => {}
                 }
             }
@@ -194,10 +201,10 @@ pub fn register(ctx: &mut SQLContext, sql: &str, limit: Option<String>) -> AppRe
         if limit.is_some() && query.limit.is_none() {
             query.limit = Some(Expr::Value(Value::Number(limit.unwrap(), true)));
         }
-        return Ok(query.to_string());
+        Ok(query.to_string())
     } else {
-        return Err(AppError::BadRequest {
+        Err(AppError::BadRequest {
             message: "Only supports Select statements.".to_string(),
-        });
+        })
     }
 }

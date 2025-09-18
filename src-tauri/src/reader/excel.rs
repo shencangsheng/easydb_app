@@ -33,6 +33,11 @@ impl ExcelReader {
         self
     }
 
+    pub fn with_infer_schema_length(mut self, infer_schema_length: usize) -> Self {
+        self.infer_schema_length = infer_schema_length;
+        self
+    }
+
     pub fn finish(self) -> AppResult<DataFrame> {
         let mut schemas: Option<Vec<Field>> = None;
         let mut records: Vec<Vec<AnyValue>> = Vec::new();
@@ -107,19 +112,19 @@ pub fn infer_field_schema(
     infer_schema_length: usize,
 ) -> AppResult<Vec<Field>> {
     if range.headers().is_none() {
-        if let Some(rows) = range.rows().next() {
-            return Ok(rows
+        return if let Some(rows) = range.rows().next() {
+            Ok(rows
                 .iter()
                 .enumerate()
                 .map(|(i, cell)| {
                     Field::new(format!("t{}", i + 1).into(), convert_arrow_data_type(cell))
                 })
-                .collect());
+                .collect())
         } else {
             return Err(AppError::BadRequest {
                 message: "Header not found".to_string(),
             });
-        }
+        };
     }
 
     let headers = range.headers().unwrap();
@@ -138,6 +143,13 @@ pub fn infer_field_schema(
                 }
             }
         }
+    }
+
+    if data_types.is_empty() {
+        return Ok(headers
+            .iter()
+            .map(|header| Field::new(header.into(), PLDataType::String))
+            .collect());
     }
 
     let fields: Vec<Field> = data_types

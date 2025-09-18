@@ -17,12 +17,12 @@ EasyDB 是一个由 Rust 编写的 SQL 助手，旨在简化文本文件查询�
 
 ```sql
 SELECT *
-FROM read_csv('/tmp/test.csv', auto_detect(false), has_header(true))
+FROM read_csv('/tmp/test.csv', infer_schema => false)
 WHERE age > 30
 LIMIT 10
 
 SELECT *
-FROM read_json('/tmp/test.json')
+FROM read_excel('/tmp/test.xlsx', sheet_name => 'Sheet2')
 WHERE age > 30
 LIMIT 10
 ```
