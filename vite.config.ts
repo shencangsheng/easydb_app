@@ -1,4 +1,5 @@
 import { defineConfig } from "vite";
+import path from "path";
 
 const host = undefined;
 
@@ -33,5 +34,10 @@ export default defineConfig({
     minify: !process.env.TAURI_ENV_DEBUG ? "esbuild" : false,
     // 在 debug 构建中生成 sourcemap
     sourcemap: !!process.env.TAURI_ENV_DEBUG,
+  },
+  resolve: {
+    alias: {
+      "@": path.resolve(__dirname, "./src"),
+    },
   },
 });

@@ -1,21 +1,26 @@
+use crate::commands::run_blocking;
 use crate::context::context::{collect, register};
 use crate::context::error::AppError;
 use crate::context::schema::AppResult;
+use crate::utils::date_utils::time_difference_from_now;
+use chrono::Utc;
 use polars::prelude::AnyValue;
 use polars::sql::SQLContext;
 use serde::Serialize;
+use std::time::Instant;
 use tauri::command;
-use crate::commands::run_blocking;
 
 #[derive(Serialize)]
 pub struct FetchResult {
     pub header: Vec<String>,
     pub rows: Vec<Vec<String>>,
+    pub query_time: String,
 }
 
 #[command]
 pub async fn fetch(sql: String) -> AppResult<FetchResult> {
     run_blocking(move || {
+        let start = Utc::now();
         let mut context = SQLContext::new();
 
         let new_sql = register(&mut context, &sql, Some("200".to_string()))?;
@@ -39,7 +44,11 @@ pub async fn fetch(sql: String) -> AppResult<FetchResult> {
             row_i += 1;
         });
 
-        Ok(FetchResult { header, rows })
+        Ok(FetchResult {
+            header,
+            rows,
+            query_time: time_difference_from_now(start),
+        })
     })
     .await
 }
