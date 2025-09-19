@@ -35,10 +35,19 @@ function NotebookMiddle({ source }: NotebookMiddleProps) {
     header: string[];
     rows: string[][];
     query_time: string;
-  }>({ header: [], rows: [], query_time: "" });
+  }>({
+    header: [],
+    rows: [],
+    query_time: "",
+  });
 
   const formatSql = () => {
-    setSql(format(sql, { language: "sql", keywordCase: "upper" }));
+    setSql(
+      format(sql, {
+        language: "sql",
+        keywordCase: "upper",
+      }).replace(/=\s>/g, "=>")
+    );
   };
 
   return (

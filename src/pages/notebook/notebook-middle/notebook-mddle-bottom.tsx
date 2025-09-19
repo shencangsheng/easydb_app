@@ -20,6 +20,7 @@ function NotebookMiddleBottom({
   setSql,
   sql,
 }: NotebookMiddleBottomProps) {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [queryHistory, setQueryHistory] = useState<
     {
       sql: string;

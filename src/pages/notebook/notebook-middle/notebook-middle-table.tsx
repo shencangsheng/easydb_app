@@ -23,8 +23,10 @@ interface TableProps {
   sql: string;
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function DataTable({ data, isLoading, sql }: TableProps) {
-  async function exportResults(fileType: string) {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  async function exportResults(_fileType: string) {
     window.alert("暂未实现");
   }
 

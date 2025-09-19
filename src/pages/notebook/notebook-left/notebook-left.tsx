@@ -37,8 +37,10 @@ interface Catalog {
 }
 
 function NotebookLeft({ source, setSource }: NotebookLeftProps) {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [tables, setTables] = useState<Catalog[]>([]);
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   async function refreshTables() {
     // const catalog: Catalog[] = await get("/api/catalog");
     // setTables(catalog);

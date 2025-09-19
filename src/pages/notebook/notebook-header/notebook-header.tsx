@@ -83,15 +83,9 @@ function NotebookHeader() {
         </NavbarItem>
       </NavbarContent>
 
+      {/* 保持比例，去掉 Login 和 Sign Up，仅保留空的 NavbarContent 占位 */}
       <NavbarContent justify="end" style={{ paddingLeft: "200px" }}>
-        <NavbarItem className="hidden lg:flex">
-          <Link href="#">Login</Link>
-        </NavbarItem>
-        <NavbarItem>
-          <Button as={Link} color="warning" href="#" variant="flat">
-            Sign Up
-          </Button>
-        </NavbarItem>
+        {/* 空内容用于保持布局比例 */}
       </NavbarContent>
 
       <NavbarMenu
