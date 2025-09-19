@@ -1,5 +1,6 @@
 use crate::context::context::{collect, register};
 use crate::context::schema::AppResult;
+use polars::prelude::AnyValue;
 use polars::sql::SQLContext;
 use serde::Serialize;
 use tauri::command;
@@ -28,7 +29,10 @@ pub fn fetch(sql: String) -> AppResult<FetchResult> {
     let mut row_i = 0;
     df.iter().for_each(|col| {
         col.iter().enumerate().for_each(|(index, value)| {
-            rows.get_mut(index).unwrap()[row_i] = value.to_string();
+            rows.get_mut(index).unwrap()[row_i] = match value {
+                AnyValue::Null => "NULL".to_string(),
+                _ => value.to_string().replace("\"", ""),
+            }
         });
         row_i += 1;
     });
