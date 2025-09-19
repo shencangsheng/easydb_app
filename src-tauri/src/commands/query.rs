@@ -1,4 +1,5 @@
 use crate::context::context::{collect, register};
+use crate::context::error::AppError;
 use crate::context::schema::AppResult;
 use polars::prelude::AnyValue;
 use polars::sql::SQLContext;
@@ -12,30 +13,35 @@ pub struct FetchResult {
 }
 
 #[command]
-pub fn fetch(sql: String) -> AppResult<FetchResult> {
-    let mut context = SQLContext::new();
+pub async fn fetch(sql: String) -> AppResult<FetchResult> {
+    // 把整个 fetch 逻辑丢到后台线程
+    let result = tokio::task::spawn_blocking(move || {
+        let mut context = SQLContext::new();
 
-    let new_sql = register(&mut context, &sql, Some("200".to_string()))?;
+        let new_sql = register(&mut context, &sql, Some("200".to_string()))?;
+        let df = collect(&mut context, &new_sql)?;
 
-    let df = collect(&mut context, &new_sql)?;
+        let height = df.height();
+        let width = df.width();
 
-    let height = df.height();
-    let width = df.width();
+        let header: Vec<String> = df.column_iter().map(|c| c.name().to_string()).collect();
 
-    let header: Vec<String> = df.column_iter().map(|c| c.name().to_string()).collect();
+        let mut rows: Vec<Vec<String>> = vec![vec![String::new(); width]; height];
 
-    let mut rows: Vec<Vec<String>> = vec![vec![String::new(); width]; height];
-
-    let mut row_i = 0;
-    df.iter().for_each(|col| {
-        col.iter().enumerate().for_each(|(index, value)| {
-            rows.get_mut(index).unwrap()[row_i] = match value {
-                AnyValue::Null => "NULL".to_string(),
-                _ => value.to_string().replace("\"", ""),
-            }
+        let mut row_i = 0;
+        df.iter().for_each(|col| {
+            col.rechunk().iter().enumerate().for_each(|(index, value)| {
+                rows.get_mut(index).unwrap()[row_i] = match value {
+                    AnyValue::Null => "NULL".to_string(),
+                    _ => value.to_string().replace("\"", ""),
+                }
+            });
+            row_i += 1;
         });
-        row_i += 1;
-    });
 
-    Ok(FetchResult { header, rows })
+        Ok::<FetchResult, AppError>(FetchResult { header, rows })
+    })
+    .await??;
+
+    Ok(result)
 }

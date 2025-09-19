@@ -1123,7 +1123,6 @@ checksum = "d0881ea181b1df73ff77ffaaf9c7544ecc11e82fba9b5f27b262a3c73a332555"
 name = "easydb_app"
 version = "0.1.0"
 dependencies = [
- "backtrace",
  "calamine",
  "derive_more 2.0.1",
  "glob",
@@ -1134,6 +1133,7 @@ dependencies = [
  "tauri",
  "tauri-build",
  "tauri-plugin-log",
+ "tokio",
 ]
 
 [[package]]

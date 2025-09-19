@@ -1,9 +1,9 @@
 use app_lib::context::context::{collect, register};
+use app_lib::context::schema::AppResult;
 use calamine::{open_workbook, HeaderRow, Reader, Xlsx, XlsxError};
+use polars::datatypes::AnyValue;
 use polars::sql::SQLContext;
 use std::error::Error;
-use polars::datatypes::AnyValue;
-use app_lib::context::schema::AppResult;
 
 #[test]
 fn test_1() {
@@ -18,7 +18,9 @@ fn test_1() {
 
 #[test]
 fn test_2() -> AppResult<()> {
-    let sql = "select * from read_csv('/tmp/sequences.fa_user.tn93output.csv')";
+    let sql = r#"
+    SELECT * FROM read_csv('/tmp/sequences.fa_user.tn93output.csv', infer_schema => FALSE) WHERE REGEXP_LIKE(Distance,'^[0-9]+\.[0-9]+?$') = false
+    "#;
 
     let mut context = SQLContext::new();
 
@@ -35,7 +37,7 @@ fn test_2() -> AppResult<()> {
 
     let mut row_i = 0;
     df.iter().for_each(|col| {
-        col.iter().enumerate().for_each(|(index, value)| {
+        col.rechunk().iter().enumerate().for_each(|(index, value)| {
             rows.get_mut(index).unwrap()[row_i] = match value {
                 AnyValue::Null => "NULL".to_string(),
                 _ => value.to_string().replace("\"", ""),

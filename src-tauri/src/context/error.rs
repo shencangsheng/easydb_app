@@ -1,11 +1,11 @@
 use crate::context::error::AppError::{BadRequest, InternalServer};
-use backtrace::Backtrace;
 use calamine::XlsxError;
 use derive_more::with_trait::{Display, Error};
 use glob::{GlobError, PatternError};
 use polars::error::PolarsError;
 use sqlparser::parser::ParserError;
 use tauri::ipc::InvokeError;
+use tokio::task::JoinError;
 
 #[derive(Debug, Display, Error, Clone)]
 pub enum AppError {
@@ -24,8 +24,6 @@ impl AppError {
     }
 
     fn log_backtrace() {
-        #[cfg(debug_assertions)]
-        eprintln!("{:?}", std::backtrace::Backtrace::capture());
     }
 }
 
@@ -83,6 +81,15 @@ impl From<GlobError> for AppError {
 
 impl From<XlsxError> for AppError {
     fn from(error: XlsxError) -> Self {
+        AppError::log_backtrace();
+        BadRequest {
+            message: error.to_string(),
+        }
+    }
+}
+
+impl From<JoinError> for AppError {
+    fn from(error: JoinError) -> Self {
         AppError::log_backtrace();
         BadRequest {
             message: error.to_string(),
