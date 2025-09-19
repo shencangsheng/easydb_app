@@ -19,7 +19,7 @@ fn test_1() {
 #[test]
 fn test_2() -> AppResult<()> {
     let sql = r#"
-    SELECT * FROM read_csv('/tmp/sequences.fa_user.tn93output.csv', infer_schema => FALSE) WHERE REGEXP_LIKE(Distance,'^[0-9]+\.[0-9]+?$') = false
+    SELECT * FROM read_csv('/tmp/output.csv', infer_schema => FALSE) WHERE REGEXP_LIKE(Distance,'^[0-9]+\.[0-9]+?$') = false
     "#;
 
     let mut context = SQLContext::new();

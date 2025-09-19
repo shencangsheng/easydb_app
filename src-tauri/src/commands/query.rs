@@ -5,6 +5,7 @@ use polars::prelude::AnyValue;
 use polars::sql::SQLContext;
 use serde::Serialize;
 use tauri::command;
+use crate::commands::run_blocking;
 
 #[derive(Serialize)]
 pub struct FetchResult {
@@ -14,8 +15,7 @@ pub struct FetchResult {
 
 #[command]
 pub async fn fetch(sql: String) -> AppResult<FetchResult> {
-    // 把整个 fetch 逻辑丢到后台线程
-    let result = tokio::task::spawn_blocking(move || {
+    run_blocking(move || {
         let mut context = SQLContext::new();
 
         let new_sql = register(&mut context, &sql, Some("200".to_string()))?;
@@ -39,9 +39,7 @@ pub async fn fetch(sql: String) -> AppResult<FetchResult> {
             row_i += 1;
         });
 
-        Ok::<FetchResult, AppError>(FetchResult { header, rows })
+        Ok(FetchResult { header, rows })
     })
-    .await??;
-
-    Ok(result)
+    .await
 }
