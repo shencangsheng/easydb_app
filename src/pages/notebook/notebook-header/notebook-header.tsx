@@ -5,7 +5,6 @@ import {
 } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
-  Button,
   Input,
   Link,
   Navbar,
@@ -17,6 +16,7 @@ import {
   NavbarMenuToggle,
 } from "@heroui/react";
 import { memo, useState } from "react";
+import { useTranslation } from "../../../i18n";
 
 const MENU_ITEMS = [
   "Profile",
@@ -46,6 +46,7 @@ const LOGO = () => {
 
 function NotebookHeader() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const { translate } = useTranslation();
 
   return (
     <Navbar
@@ -70,12 +71,12 @@ function NotebookHeader() {
       <NavbarContent className="hidden sm:flex gap-8" justify="center">
         <NavbarBrand style={{ width: "100px" }}>
           <LOGO />
-          <p className="font-bold text-inherit">EasyDB</p>
+          <p className="font-bold text-inherit">{translate("navbar.title")}</p>
         </NavbarBrand>
         <NavbarItem>
           <Input
             labelPlacement="outside"
-            placeholder="Search data and saved documents..."
+            placeholder={translate("navbar.searchPlaceholder")}
             startContent={<FontAwesomeIcon icon={faSearch} />}
             variant="bordered"
             style={{ width: "600px", textAlign: "left" }}

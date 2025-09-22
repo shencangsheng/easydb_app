@@ -1,6 +1,7 @@
 import { BrowserRouter as Router, Route, Routes } from "react-router-dom";
 
 import Notebook from "./pages/notebook";
+import SettingsPage from "./pages/settings";
 
 // Changed to default import
 function App() {
@@ -8,6 +9,7 @@ function App() {
     <Router>
       <Routes>
         <Route path="/" element={<Notebook />} />
+        <Route path="/settings" element={<SettingsPage />} />
       </Routes>
     </Router>
   );

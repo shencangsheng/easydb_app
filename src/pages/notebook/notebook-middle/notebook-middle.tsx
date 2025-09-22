@@ -1,5 +1,5 @@
 import AceEditor from "react-ace";
-import "ace-builds/src-noconflict/theme-monokai";
+import "ace-builds/src-noconflict/theme-github";
 import "ace-builds/src-noconflict/mode-sql";
 import "ace-builds/src-noconflict/ext-language_tools";
 import {
@@ -22,12 +22,14 @@ import { memo, useState } from "react";
 import { format } from "sql-formatter";
 import NotebookMiddleBottom from "./notebook-mddle-bottom";
 import { invoke } from "@tauri-apps/api/core";
+import { useTranslation } from "../../../i18n";
 
 interface NotebookMiddleProps {
   source: string;
 }
 
 function NotebookMiddle({ source }: NotebookMiddleProps) {
+  const { translate } = useTranslation();
   const [sql, setSql] = useState("");
   const [isRunning, setIsRunning] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -64,7 +66,7 @@ function NotebookMiddle({ source }: NotebookMiddleProps) {
         style={{
           height: 60,
           borderBottom: "1px solid rgba(17, 17, 17, 0.15)",
-          backgroundColor: "#F5F5F5", // Even lighter gray
+          backgroundColor: "#F5F5F5",
         }}
       >
         <p
@@ -184,7 +186,7 @@ function NotebookMiddle({ source }: NotebookMiddleProps) {
             showPrintMargin={true}
             showGutter={true}
             highlightActiveLine={true}
-            placeholder="Example: SELECT * FROM tablename, or press CTRL + space"
+            placeholder={translate("notebook.editorPlaceholder")}
             value={sql}
             onChange={(value) => setSql(value)}
             setOptions={{
