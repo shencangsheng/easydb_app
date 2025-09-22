@@ -198,14 +198,31 @@ function NotebookRight() {
             onSelectionChange={(key) => setSelectedTab(key as FunctionType)}
             size="sm"
             variant="underlined"
+            classNames={{
+              tabList:
+                "gap-6 w-full relative rounded-none p-0 border-b border-divider",
+              tab: "max-w-fit px-0 h-12",
+            }}
           >
             <Tab
               key="table-valued"
-              title={translate("functions.tableValued")}
+              title={
+                <span
+                  style={{ whiteSpace: "pre-line", wordBreak: "break-all" }}
+                >
+                  {translate("functions.tableValued")}
+                </span>
+              }
             />
             <Tab
               key="scalar-valued"
-              title={translate("functions.scalarValued")}
+              title={
+                <span
+                  style={{ whiteSpace: "pre-line", wordBreak: "break-all" }}
+                >
+                  {translate("functions.scalarValued")}
+                </span>
+              }
             />
           </Tabs>
         </div>
