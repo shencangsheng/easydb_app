@@ -1,35 +1,14 @@
-import {
-  faChevronLeft,
-  faBars,
-  faSearch,
-} from "@fortawesome/free-solid-svg-icons";
+import { faSearch } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   Input,
-  Link,
   Navbar,
   NavbarBrand,
   NavbarContent,
   NavbarItem,
-  NavbarMenu,
-  NavbarMenuItem,
-  NavbarMenuToggle,
 } from "@heroui/react";
-import { memo, useState } from "react";
-import { useTranslation } from "../../../i18n";
-
-const MENU_ITEMS = [
-  "Profile",
-  "Dashboard",
-  "Activity",
-  "Analytics",
-  "System",
-  "Deployments",
-  "My Settings",
-  "Team Settings",
-  "Help & Feedback",
-  "Log Out",
-];
+import { memo } from "react";
+import { useTranslation } from "@/i18n";
 
 const LOGO = () => {
   return (
@@ -45,28 +24,15 @@ const LOGO = () => {
 };
 
 function NotebookHeader() {
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
   const { translate } = useTranslation();
 
   return (
     <Navbar
       isBordered
-      isMenuOpen={isMenuOpen}
-      onMenuOpenChange={setIsMenuOpen}
       maxWidth="full"
       className="px-8 data-[menu-open=true]:border-solid"
     >
-      <NavbarContent justify="start">
-        <NavbarMenuToggle
-          aria-label={isMenuOpen ? "Close menu" : "Open menu"}
-          icon={() => (
-            <FontAwesomeIcon
-              icon={isMenuOpen ? faChevronLeft : faBars}
-              style={{ height: "1.2em" }}
-            />
-          )}
-        />
-      </NavbarContent>
+      <NavbarContent justify="start"></NavbarContent>
 
       <NavbarContent className="hidden sm:flex gap-8" justify="center">
         <NavbarBrand style={{ width: "100px" }}>
@@ -84,34 +50,9 @@ function NotebookHeader() {
         </NavbarItem>
       </NavbarContent>
 
-      {/* 保持比例，去掉 Login 和 Sign Up，仅保留空的 NavbarContent 占位 */}
-      <NavbarContent justify="end" style={{ paddingLeft: "200px" }}>
+      <NavbarContent justify="end" style={{ paddingLeft: "10px" }}>
         {/* 空内容用于保持布局比例 */}
       </NavbarContent>
-
-      <NavbarMenu
-        className="border border-gray-300 rounded-md p-2 w-1/5"
-        style={{ width: "300px", border: "none" }}
-      >
-        {MENU_ITEMS.map((item, index) => (
-          <NavbarMenuItem key={`${item}-${index}`}>
-            <Link
-              className="w-full block p-2 rounded hover:bg-gray-200"
-              color={
-                index === 2
-                  ? "warning"
-                  : index === MENU_ITEMS.length - 1
-                  ? "danger"
-                  : "foreground"
-              }
-              href="#"
-              size="lg"
-            >
-              {item}
-            </Link>
-          </NavbarMenuItem>
-        ))}
-      </NavbarMenu>
     </Navbar>
   );
 }

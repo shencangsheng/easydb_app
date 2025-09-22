@@ -22,7 +22,9 @@ import { memo, useState } from "react";
 import { format } from "sql-formatter";
 import NotebookMiddleBottom from "./notebook-mddle-bottom";
 import { invoke } from "@tauri-apps/api/core";
-import { useTranslation } from "../../../i18n";
+import { useTranslation } from "@/i18n";
+import "ace-builds/src-noconflict/theme-monokai";
+import "ace-builds/src-noconflict/mode-sql";
 
 interface NotebookMiddleProps {
   source: string;
@@ -178,7 +180,7 @@ function NotebookMiddle({ source }: NotebookMiddleProps) {
         >
           <AceEditor
             mode="sql"
-            theme="github"
+            theme="xcode"
             name="editor"
             width="100%"
             height="100%"

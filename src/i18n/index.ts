@@ -24,6 +24,49 @@ export interface Translations {
     format: string;
     clear: string;
   };
+  functions: {
+    title: string;
+    description: string;
+    parameters: string;
+    example: string;
+    paramName: string;
+    type: string;
+    defaultValue: string;
+    exampleValue: string;
+    required: string;
+    clickToView: string;
+    apiMethodDetails: string;
+    usageExample: string;
+    tableValued: string;
+    scalarValued: string;
+    readCsv: {
+      name: string;
+      description: string;
+      inferSchema: string;
+    };
+    readTsv: {
+      name: string;
+      description: string;
+      inferSchema: string;
+    };
+    readJson: {
+      name: string;
+      description: string;
+    };
+    readNdjson: {
+      name: string;
+      description: string;
+    };
+    readExcel: {
+      name: string;
+      description: string;
+      inferSchema: string;
+    };
+    regexpLike: {
+      name: string;
+      description: string;
+    };
+  };
   settings: {
     title: string;
     language: string;
@@ -66,6 +109,52 @@ const translations: Record<Language, Translations> = {
       format: "格式化",
       clear: "清空",
     },
+    functions: {
+      title: "函数",
+      description: "描述",
+      parameters: "参数说明",
+      example: "使用示例",
+      paramName: "参数名",
+      type: "类型",
+      defaultValue: "默认值",
+      exampleValue: "示例值",
+      required: "必需",
+      clickToView: "点击查看详情 →",
+      apiMethodDetails: "API 方法详情",
+      usageExample: "使用示例",
+      tableValued: "表值函数",
+      scalarValued: "标量函数",
+      readCsv: {
+        name: "read_csv",
+        description: "读取 CSV 文件为表。",
+        inferSchema:
+          "是否自动推断数据类型。为 true 时，将根据前 100 行进行推断。",
+      },
+      readTsv: {
+        name: "read_tsv",
+        description: "读取 TSV 文件为表。",
+        inferSchema:
+          "是否自动推断数据类型。为 true 时，将根据前 100 行进行推断。",
+      },
+      readJson: {
+        name: "read_json",
+        description: "读取 JSON 文件为表。",
+      },
+      readNdjson: {
+        name: "read_ndjson",
+        description: "读取 NDJSON 文件为表。",
+      },
+      readExcel: {
+        name: "read_excel",
+        description: "读取 Excel 文件为表。",
+        inferSchema:
+          "是否自动推断数据类型。为 true 时，将根据前 100 行进行推断。",
+      },
+      regexpLike: {
+        name: "REGEXP_LIKE",
+        description: "正则表达式匹配函数。",
+      },
+    },
     settings: {
       title: "设置",
       language: "语言",
@@ -106,6 +195,52 @@ const translations: Record<Language, Translations> = {
       stop: "Stop",
       format: "Format",
       clear: "Clear",
+    },
+    functions: {
+      title: "Functions",
+      description: "Description",
+      parameters: "Parameters",
+      example: "Example",
+      paramName: "Parameter",
+      type: "Type",
+      defaultValue: "Default",
+      exampleValue: "Example",
+      required: "Required",
+      clickToView: "Click to view details →",
+      apiMethodDetails: "API Method Details",
+      usageExample: "Usage Example",
+      tableValued: "Table-Valued Functions",
+      scalarValued: "Scalar-Valued Functions",
+      readCsv: {
+        name: "read_csv",
+        description: "Read CSV file as table.",
+        inferSchema:
+          "Whether to automatically infer data types. If true, the first 100 rows are used for inference.",
+      },
+      readTsv: {
+        name: "read_tsv",
+        description: "Read TSV file as table.",
+        inferSchema:
+          "Whether to automatically infer data types. If true, the first 100 rows are used for inference.",
+      },
+      readJson: {
+        name: "read_json",
+        description: "Read JSON file as table.",
+      },
+      readNdjson: {
+        name: "read_ndjson",
+        description: "Read NDJSON file as table.",
+      },
+      readExcel: {
+        name: "read_excel",
+        description: "Read Excel file as table.",
+        inferSchema:
+          "Whether to automatically infer data types. If true, the first 100 rows are used for inference.",
+      },
+      regexpLike: {
+        name: "REGEXP_LIKE",
+        description: "Regular expression matching function.",
+      },
     },
     settings: {
       title: "Settings",
@@ -173,7 +308,7 @@ class I18n {
       }
 
       const keys = key.split(".");
-      let value: any = translations[this.currentLanguage];
+      let value: unknown = translations[this.currentLanguage];
 
       if (!value) {
         console.warn(
@@ -183,8 +318,10 @@ class I18n {
       }
 
       for (const k of keys) {
-        value = value?.[k];
-        if (value === undefined) {
+        if (typeof value === "object" && value !== null && k in value) {
+          value = (value as Record<string, unknown>)[k];
+        } else {
+          value = undefined;
           break;
         }
       }
@@ -208,10 +345,10 @@ function getI18n(): I18n {
       console.warn("Failed to create i18n instance:", error);
       // 创建一个最小的实例
       i18nInstance = {
-        getLanguage: () => "zh-CN",
+        getLanguage: () => "zh-CN" as Language,
         setLanguage: () => {},
         t: (key: string) => key,
-      } as any;
+      } as unknown as I18n;
     }
   }
   return i18nInstance!;

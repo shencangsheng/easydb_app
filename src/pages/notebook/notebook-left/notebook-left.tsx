@@ -10,7 +10,7 @@ interface NotebookLeftProps {
 function NotebookLeft({ source, setSource }: NotebookLeftProps) {
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100vh" }}>
-      <div style={{ flex: "3" }}>
+      <div style={{ flex: "4" }}>
         <NotebookLeftSource source={source} setSource={setSource} />
       </div>
       <div

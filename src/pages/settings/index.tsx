@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Select, SelectItem, Slider, Button } from "@heroui/react";
-import { useTranslation } from "../../i18n";
+import { useTranslation } from "@/i18n";
 import { useFontSize } from "../../contexts/FontSizeContext";
 import { useLanguage } from "../../contexts/LanguageContext";
 

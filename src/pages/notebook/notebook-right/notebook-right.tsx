@@ -1,220 +1,583 @@
 import { memo, useState } from "react";
-import { useTranslation } from "../../../i18n";
 import {
-  Accordion,
-  AccordionItem,
-  Card,
-  CardBody,
-  CardHeader,
-  Divider,
+  Modal,
+  ModalContent,
+  ModalHeader,
+  ModalBody,
+  Tabs,
+  Tab,
+  Snippet,
 } from "@heroui/react";
+import { useTranslation } from "@/i18n";
 
-const METHODS = [
+// 定义方法参数类型
+interface MethodParam {
+  name: string;
+  type: string;
+  default: string | boolean | undefined;
+  desc: string;
+  example: string;
+}
+
+// 定义函数类型
+type FunctionType = "table-valued" | "scalar-valued";
+
+// 定义方法类型
+interface Method {
+  name: string;
+  description: string;
+  params: MethodParam[];
+  example: string;
+  type: FunctionType;
+}
+
+// 创建支持国际化的方法数据
+const createMethods = (t: (key: string) => string) => [
   {
     name: "read_csv",
-    description: "读取 CSV 文件为 DataFrame。",
+    description: t("functions.readCsv.description"),
+    type: "table-valued" as FunctionType,
     params: [
-      { name: "filepath", type: "string", desc: "CSV 文件路径" },
-      { name: "sep", type: "string", desc: "分隔符，默认 ','" },
-      { name: "header", type: "boolean", desc: "是否包含表头，默认 true" },
-      { name: "encoding", type: "string", desc: "文件编码，默认 'utf-8'" },
+      {
+        name: "infer_schema",
+        type: "boolean",
+        default: true,
+        desc: t("functions.readCsv.inferSchema"),
+        example: "false",
+      },
     ],
-    example: `read_csv("data.csv", sep=",", header=true)`,
+    example: `select * from read_csv("data.csv", infer_schema => false)`,
+  },
+  {
+    name: "read_tsv",
+    description: t("functions.readTsv.description"),
+    type: "table-valued" as FunctionType,
+    params: [
+      {
+        name: "infer_schema",
+        type: "boolean",
+        default: true,
+        desc: t("functions.readTsv.inferSchema"),
+        example: "false",
+      },
+    ],
+    example: `select * from read_tsv("data.tsv", infer_schema => false)`,
   },
   {
     name: "read_json",
-    description: "读取 JSON 文件为 DataFrame。",
+    description: t("functions.readJson.description"),
+    type: "table-valued" as FunctionType,
     params: [
-      { name: "filepath", type: "string", desc: "JSON 文件路径" },
-      { name: "orient", type: "string", desc: "json 格式，默认 'records'" },
-      { name: "encoding", type: "string", desc: "文件编码，默认 'utf-8'" },
+      {
+        name: "infer_schema",
+        type: "boolean",
+        default: true,
+        desc: "",
+        example: "false",
+      },
     ],
-    example: `read_json("data.json", orient="records")`,
+    example: `select * from read_json("data.json")`,
   },
   {
-    name: "to_csv",
-    description: "将 DataFrame 保存为 CSV 文件。",
+    name: "read_ndjson",
+    description: t("functions.readNdjson.description"),
+    type: "table-valued" as FunctionType,
     params: [
-      { name: "df", type: "DataFrame", desc: "要保存的数据" },
-      { name: "filepath", type: "string", desc: "保存路径" },
-      { name: "index", type: "boolean", desc: "是否保存索引，默认 false" },
-      { name: "encoding", type: "string", desc: "文件编码，默认 'utf-8'" },
+      {
+        name: "infer_schema",
+        type: "boolean",
+        default: true,
+        desc: "",
+        example: "false",
+      },
     ],
-    example: `to_csv(df, "output.csv", index=false)`,
+    example: `select * from read_ndjson("data.ndjson")`,
   },
   {
-    name: "to_json",
-    description: "将 DataFrame 保存为 JSON 文件。",
+    name: "read_excel",
+    description: t("functions.readExcel.description"),
+    type: "table-valued" as FunctionType,
     params: [
-      { name: "df", type: "DataFrame", desc: "要保存的数据" },
-      { name: "filepath", type: "string", desc: "保存路径" },
-      { name: "orient", type: "string", desc: "json 格式，默认 'records'" },
-      { name: "encoding", type: "string", desc: "文件编码，默认 'utf-8'" },
+      {
+        name: "sheet_name",
+        type: "string",
+        default: "Sheet1",
+        desc: "",
+        example: "Sheet1",
+      },
+      {
+        name: "infer_schema",
+        type: "boolean",
+        default: true,
+        desc: t("functions.readExcel.inferSchema"),
+        example: "false",
+      },
     ],
-    example: `to_json(df, "output.json", orient="records")`,
+    example: `select * from read_excel("data.xlsx", sheet_name => "Sheet2", infer_schema => false)`,
+  },
+  {
+    name: "regexp_like",
+    description: t("functions.regexpLike.description"),
+    type: "scalar-valued" as FunctionType,
+    params: [
+      {
+        name: "column",
+        type: "string",
+        default: undefined,
+        desc: "",
+        example: "my_column",
+      },
+      {
+        name: "pattern",
+        type: "string",
+        default: undefined,
+        desc: "",
+        example: "^[0-9]+.[0-9]+?$",
+      },
+    ],
+    example: `REGEXP_LIKE(Distance,'^[0-9]+.[0-9]+?$')`,
   },
 ];
 
 function NotebookRight() {
-  const [selectedKeys, setSelectedKeys] = useState<Set<string>>(new Set());
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [selectedMethod, setSelectedMethod] = useState<Method | null>(null);
+  const [selectedTab, setSelectedTab] = useState<FunctionType>("table-valued");
   const { translate } = useTranslation();
+
+  // 创建支持国际化的方法数据
+  const allMethods = createMethods(translate);
+
+  // 根据选中的标签过滤方法
+  const methods = allMethods.filter((method) => method.type === selectedTab);
+
+  const handleMethodClick = (method: Method) => {
+    setSelectedMethod(method);
+    setIsModalOpen(true);
+  };
+
+  const handleCloseModal = () => {
+    setIsModalOpen(false);
+    setSelectedMethod(null);
+  };
 
   return (
     <div
       style={{
-        width: "250px",
+        width: "280px",
         textAlign: "left",
-        padding: "0 10px",
+        padding: "0 16px",
         height: "100%",
         boxSizing: "border-box",
-        background: "#fafbfc",
+        background: "linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)",
+        borderLeft: "1px solid #e2e8f0",
       }}
     >
       <div
         style={{
-          height: 60,
-          borderBottom: "1px solid rgba(17, 17, 17, 0.15)",
+          height: 64,
+          borderBottom: "1px solid #e2e8f0",
           display: "flex",
           alignItems: "center",
-          fontWeight: "bold",
-          fontSize: "18px",
-          color: "#333",
-          paddingLeft: "5px",
+          fontWeight: "600",
+          fontSize: "16px",
+          color: "#1e293b",
+          paddingLeft: "8px",
+          background: "rgba(255, 255, 255, 0.8)",
+          backdropFilter: "blur(10px)",
         }}
       >
-        {translate("notebook.methodList")}
+        {translate("functions.title")}
       </div>
-      <div style={{ marginTop: "10px" }}>
-        <Accordion
-          selectedKeys={selectedKeys}
-          onSelectionChange={(keys) => setSelectedKeys(keys as Set<string>)}
-          variant="shadow"
+
+      {/* 标签切换 */}
+      <div style={{ padding: "12px 0 8px 0" }}>
+        <div style={{ display: "flex", justifyContent: "center" }}>
+          <Tabs
+            selectedKey={selectedTab}
+            onSelectionChange={(key) => setSelectedTab(key as FunctionType)}
+            size="sm"
+            variant="underlined"
+          >
+            <Tab
+              key="table-valued"
+              title={translate("functions.tableValued")}
+            />
+            <Tab
+              key="scalar-valued"
+              title={translate("functions.scalarValued")}
+            />
+          </Tabs>
+        </div>
+      </div>
+
+      <div style={{ marginTop: "8px", paddingBottom: "16px" }}>
+        <div
+          style={{
+            background: "#fff",
+            borderRadius: "8px",
+            border: "1px solid #e5e7eb",
+            overflow: "hidden",
+          }}
         >
-          {METHODS.map((method) => (
-            <AccordionItem
+          {methods.map((method, index) => (
+            <div
               key={method.name}
-              aria-label={method.name}
-              title={method.name}
-              subtitle={method.description}
+              style={{
+                padding: "12px 16px",
+                borderBottom:
+                  index === methods.length - 1 ? "none" : "1px solid #f3f4f6",
+                cursor: "pointer",
+                transition: "background-color 0.2s ease",
+                display: "flex",
+                alignItems: "center",
+                gap: "12px",
+              }}
+              onClick={() => handleMethodClick(method)}
+              className="hover:bg-gray-50"
             >
-              <Card
+              <div
                 style={{
-                  background: "#fff",
-                  boxShadow: "none",
-                  border: "none",
+                  width: "8px",
+                  height: "8px",
+                  borderRadius: "50%",
+                  background: `hsl(${(index * 60) % 360}, 70%, 60%)`,
+                  flexShrink: 0,
                 }}
-              >
-                <CardHeader style={{ fontWeight: "bold", fontSize: "16px" }}>
+              />
+              <div style={{ flex: 1 }}>
+                <div
+                  style={{
+                    fontWeight: "600",
+                    fontSize: "14px",
+                    color: "#1e293b",
+                    marginBottom: "2px",
+                  }}
+                >
                   {method.name}
-                </CardHeader>
-                <CardBody>
-                  <div style={{ color: "#666", marginBottom: "8px" }}>
-                    {method.description}
-                  </div>
-                  <div style={{ fontWeight: "bold", marginBottom: "4px" }}>
-                    参数说明:
-                  </div>
-                  {/* 参数说明排版优化：用flex布局一行展示每个参数 */}
+                </div>
+                <div
+                  style={{
+                    fontSize: "12px",
+                    color: "#6b7280",
+                    lineHeight: "1.4",
+                  }}
+                >
+                  {method.description}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* 弹窗组件 */}
+      <Modal
+        isOpen={isModalOpen}
+        onClose={handleCloseModal}
+        size="3xl"
+        scrollBehavior="inside"
+        backdrop="blur"
+        classNames={{
+          backdrop: "bg-black/50 backdrop-blur-sm",
+          base: "border border-gray-200",
+          header: "border-b border-gray-100",
+          body: "py-6",
+          closeButton: "hover:bg-gray-100",
+        }}
+      >
+        <ModalContent>
+          <ModalHeader className="flex flex-col gap-1">
+            <div
+              style={{
+                fontSize: "20px",
+                fontWeight: "700",
+                color: "#1e293b",
+                letterSpacing: "-0.02em",
+              }}
+            >
+              {selectedMethod?.name}
+            </div>
+            <div
+              style={{
+                fontSize: "14px",
+                color: "#64748b",
+                fontWeight: "400",
+                marginTop: "4px",
+              }}
+            >
+              {translate("functions.apiMethodDetails")}
+            </div>
+          </ModalHeader>
+          <ModalBody>
+            {selectedMethod && (
+              <div className="space-y-6">
+                {/* 方法描述 */}
+                <div
+                  style={{
+                    background:
+                      "linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)",
+                    padding: "16px",
+                    borderRadius: "12px",
+                    border: "1px solid #e2e8f0",
+                    marginBottom: "24px",
+                  }}
+                >
                   <div
                     style={{
+                      fontSize: "15px",
+                      color: "#475569",
+                      lineHeight: "1.6",
+                      fontWeight: "500",
+                    }}
+                  >
+                    {selectedMethod.description}
+                  </div>
+                </div>
+
+                {/* 参数说明 */}
+                <div>
+                  <div
+                    style={{
+                      fontWeight: "700",
+                      marginBottom: "16px",
+                      fontSize: "16px",
+                      color: "#1e293b",
                       display: "flex",
-                      flexDirection: "column",
-                      gap: "4px",
-                      marginBottom: "8px",
+                      alignItems: "center",
+                      gap: "8px",
+                    }}
+                  >
+                    <span>📋</span>
+                    {translate("functions.parameters")}
+                  </div>
+                  <div
+                    style={{
+                      background: "#fff",
+                      borderRadius: "8px",
+                      border: "1px solid #e5e7eb",
+                      overflow: "hidden",
                     }}
                   >
                     <div
                       style={{
                         display: "flex",
-                        fontWeight: 500,
-                        color: "#888",
-                        fontSize: "13px",
-                        borderBottom: "1px solid #eee",
-                        paddingBottom: "2px",
-                        gap: "6px",
+                        fontWeight: "600",
+                        color: "#374151",
+                        fontSize: "14px",
+                        background: "#f9fafb",
+                        padding: "12px 16px",
+                        borderBottom: "1px solid #e5e7eb",
+                        gap: "12px",
                       }}
                     >
-                      <span style={{ minWidth: 60, flex: "0 0 60px" }}>
-                        参数
+                      <span style={{ width: "90px", flexShrink: 0 }}>
+                        {translate("functions.paramName")}
                       </span>
-                      <span style={{ minWidth: 60, flex: "0 0 60px" }}>
-                        类型
-                      </span>
-                      <span style={{ flex: 1 }}>说明</span>
-                    </div>
-                    {method.params.map((param) => (
-                      <div
-                        key={param.name}
+                      <span
                         style={{
-                          display: "flex",
-                          alignItems: "center",
-                          fontSize: "13px",
-                          gap: "6px",
-                          padding: "2px 0",
-                          borderBottom: "1px solid #f5f5f5",
+                          width: "70px",
+                          flexShrink: 0,
+                          textAlign: "center",
                         }}
                       >
-                        <span
+                        {translate("functions.type")}
+                      </span>
+                      <span
+                        style={{
+                          width: "100px",
+                          flexShrink: 0,
+                          textAlign: "center",
+                        }}
+                      >
+                        {translate("functions.defaultValue")}
+                      </span>
+                      <span
+                        style={{
+                          width: "120px",
+                          flexShrink: 0,
+                          textAlign: "center",
+                        }}
+                      >
+                        {translate("functions.exampleValue")}
+                      </span>
+                      <span style={{ flex: 1 }}>
+                        {translate("functions.description")}
+                      </span>
+                    </div>
+                    {selectedMethod.params.map(
+                      (param: MethodParam, index: number) => (
+                        <div
+                          key={param.name}
                           style={{
-                            minWidth: 60,
-                            flex: "0 0 60px",
-                            color: "#222",
-                            whiteSpace: "nowrap",
-                            overflow: "hidden",
-                            textOverflow: "ellipsis",
+                            display: "flex",
+                            alignItems: "center",
+                            fontSize: "14px",
+                            padding: "12px 16px",
+                            gap: "12px",
+                            background: index % 2 === 0 ? "#fff" : "#fafbfc",
+                            borderBottom:
+                              index === selectedMethod.params.length - 1
+                                ? "none"
+                                : "1px solid #f3f4f6",
                           }}
-                          title={param.name}
                         >
-                          {param.name}
-                        </span>
-                        <span
-                          style={{
-                            minWidth: 60,
-                            flex: "0 0 60px",
-                            color: "#555",
-                            whiteSpace: "nowrap",
-                            overflow: "hidden",
-                            textOverflow: "ellipsis",
-                          }}
-                          title={param.type}
-                        >
-                          {param.type}
-                        </span>
-                        <span
-                          style={{
-                            flex: 1,
-                            color: "#666",
-                            whiteSpace: "nowrap",
-                            overflow: "hidden",
-                            textOverflow: "ellipsis",
-                          }}
-                          title={param.desc}
-                        >
-                          {param.desc}
-                        </span>
-                      </div>
-                    ))}
+                          <span
+                            style={{
+                              width: "90px",
+                              flexShrink: 0,
+                              color: "#1f2937",
+                              fontWeight: "600",
+                              fontSize: "13px",
+                            }}
+                          >
+                            {param.name}
+                          </span>
+                          <span
+                            style={{
+                              width: "70px",
+                              flexShrink: 0,
+                              color: "#6b7280",
+                              fontWeight: "500",
+                              fontSize: "13px",
+                              textAlign: "center",
+                            }}
+                          >
+                            {param.type}
+                          </span>
+                          <span
+                            style={{
+                              width: "100px",
+                              flexShrink: 0,
+                              color: "#6b7280",
+                              fontSize: "13px",
+                              textAlign: "center",
+                            }}
+                          >
+                            {param.default !== undefined
+                              ? String(param.default)
+                              : translate("functions.required")}
+                          </span>
+                          <span
+                            style={{
+                              width: "120px",
+                              flexShrink: 0,
+                              color: "#374151",
+                              fontSize: "13px",
+                              fontFamily: "monospace",
+                              textAlign: "center",
+                            }}
+                          >
+                            {param.example}
+                          </span>
+                          <span
+                            style={{
+                              flex: 1,
+                              color: "#6b7280",
+                              fontSize: "13px",
+                              lineHeight: "1.4",
+                            }}
+                          >
+                            {param.desc}
+                          </span>
+                        </div>
+                      )
+                    )}
                   </div>
-                  <Divider />
-                  <div style={{ marginTop: "8px", color: "#888" }}>
-                    <span style={{ fontWeight: "bold" }}>示例：</span>
-                    <code
+                </div>
+
+                {/* 使用示例 */}
+                <div>
+                  <div
+                    style={{
+                      fontWeight: "700",
+                      marginBottom: "16px",
+                      fontSize: "16px",
+                      color: "#1e293b",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "8px",
+                    }}
+                  >
+                    <span>💻</span>
+                    {translate("functions.usageExample")}
+                  </div>
+                  <div
+                    style={{
+                      background:
+                        "linear-gradient(135deg, #1e293b 0%, #334155 100%)",
+                      padding: "20px",
+                      borderRadius: "12px",
+                      border: "1px solid #475569",
+                      position: "relative",
+                      overflow: "hidden",
+                    }}
+                  >
+                    <div
                       style={{
-                        background: "#f5f5f5",
-                        padding: "2px 4px",
-                        borderRadius: "3px",
-                        wordBreak: "break-all",
+                        position: "absolute",
+                        top: "8px",
+                        right: "12px",
+                        fontSize: "10px",
+                        color: "#94a3b8",
+                        fontWeight: "500",
+                        letterSpacing: "0.5px",
                       }}
                     >
-                      {method.example}
-                    </code>
+                      CODE
+                    </div>
+                    <div
+                      style={{
+                        overflowX: "auto",
+                        whiteSpace: "pre",
+                        borderRadius: "8px",
+                      }}
+                    >
+                      <div
+                        style={{
+                          overflowX: "auto",
+                          whiteSpace: "pre",
+                          borderRadius: "8px",
+                          scrollbarWidth: "none", // Firefox
+                          msOverflowStyle: "none", // IE and Edge
+                        }}
+                        className="no-scrollbar"
+                      >
+                        <Snippet
+                          symbol=""
+                          style={{
+                            color: "#e2e8f0",
+                            fontSize: "14px",
+                            fontFamily: "JetBrains Mono, Consolas, monospace",
+                            lineHeight: "1.6",
+                            background: "transparent",
+                            border: "none",
+                            padding: 0,
+                            minWidth: "fit-content",
+                          }}
+                        >
+                          {selectedMethod.example}
+                        </Snippet>
+                        <style>
+                          {`
+                            .no-scrollbar {
+                              scrollbar-width: none; /* Firefox */
+                              -ms-overflow-style: none; /* IE and Edge */
+                            }
+                            .no-scrollbar::-webkit-scrollbar {
+                              display: none; /* Chrome, Safari, Opera */
+                            }
+                          `}
+                        </style>
+                      </div>
+                    </div>
                   </div>
-                </CardBody>
-              </Card>
-            </AccordionItem>
-          ))}
-        </Accordion>
-      </div>
+                </div>
+              </div>
+            )}
+          </ModalBody>
+        </ModalContent>
+      </Modal>
     </div>
   );
 }

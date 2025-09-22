@@ -56,7 +56,7 @@ function NotebookLeftBottom() {
           alert(
             `${translate("about.title")}\n${translate(
               "about.version"
-            )}: 1.0.0\n${translate("about.author")}: Your Name`
+            )}: 1.0.0\n${translate("about.author")}: Cangsheng Shen`
           );
         }}
         startContent={
