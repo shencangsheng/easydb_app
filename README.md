@@ -2,7 +2,7 @@
 
 <div align="center">
 
-![EasyDB Logo](public/logo.png)
+![EasyDB Logo](public/128x128.png)
 
 **一个简约强大的 SQL 桌面客户端，支持多种文件格式查询**
 
@@ -101,11 +101,6 @@ WHERE status = 'active';
 
    - **macOS**: 下载 `.dmg` 文件，拖拽到应用程序文件夹
    - **Windows**: 下载 `.exe` 文件，运行安装程序
-
-3. **启动应用**
-
-   - 双击应用图标启动 EasyDB
-   - 开始您的数据查询之旅！
 
 ## ❓ 常见问题
 

@@ -199,7 +199,7 @@ function AboutPage() {
         </div>
 
         {/* 正版提示 */}
-        <div
+        {/* <div
           style={{
             backgroundColor: "#fef3c7",
             border: "1px solid #f59e0b",
@@ -241,7 +241,7 @@ function AboutPage() {
               </p>
             </div>
           </div>
-        </div>
+        </div> */}
 
         {/* 社交媒体和联系方式 */}
         <div style={{ marginBottom: "32px" }}>

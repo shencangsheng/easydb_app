@@ -102,11 +102,6 @@ WHERE status = 'active';
    - **macOS**: Download `.dmg` file, drag to Applications folder
    - **Windows**: Download `.exe` file, run the installer
 
-3. **Launch Application**
-
-   - Double-click the app icon to start EasyDB
-   - Begin your data querying journey!
-
 ## ❓ Frequently Asked Questions
 
 ### JOIN Query Error

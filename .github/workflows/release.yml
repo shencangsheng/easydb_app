@@ -112,9 +112,7 @@ jobs:
           files: |
             ./artifacts/easydb-macos-arm64/*.dmg
             ./artifacts/easydb-macos-x64/*.dmg
-            ./artifacts/easydb-windows-x64/msi/*.msi
-            ./artifacts/easydb-windows-x64/nsis/*.exe
-            ./artifacts/easydb-windows-arm64/msi/*.msi
-            ./artifacts/easydb-windows-arm64/nsis/*.exe
+            ./artifacts/easydb-windows-x64/*.exe
+            ./artifacts/easydb-windows-arm64/*.exe
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
