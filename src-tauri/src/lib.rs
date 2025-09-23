@@ -1,5 +1,6 @@
 use tauri::Listener;
 use crate::commands::query::fetch;
+use crate::commands::utils::open_url;
 
 pub mod commands;
 
@@ -22,7 +23,7 @@ pub fn run() {
       }
       Ok(())
     })
-      .invoke_handler(tauri::generate_handler![fetch])
+      .invoke_handler(tauri::generate_handler![fetch, open_url])
       .on_page_load(|window, _| {
           window.listen("tauri://error", |event| {
               println!("Error event received: {:?}", event);

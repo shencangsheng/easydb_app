@@ -3,6 +3,7 @@ use crate::context::schema::AppResult;
 use tokio::task;
 
 pub mod query;
+pub mod utils;
 
 pub async fn run_blocking<F, T>(f: F) -> AppResult<T>
 where

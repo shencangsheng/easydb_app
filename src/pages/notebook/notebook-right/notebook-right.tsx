@@ -29,6 +29,7 @@ interface Method {
   params: MethodParam[];
   example: string;
   type: FunctionType;
+  isBeta?: boolean;
 }
 
 // 创建支持国际化的方法数据
@@ -114,6 +115,7 @@ const createMethods = (t: (key: string) => string) => [
       },
     ],
     example: `select * from read_excel("data.xlsx", sheet_name => "Sheet2", infer_schema => false)`,
+    isBeta: true,
   },
   {
     name: "regexp_like",
@@ -269,9 +271,30 @@ function NotebookRight() {
                     fontSize: "14px",
                     color: "#1e293b",
                     marginBottom: "2px",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
                   }}
                 >
-                  {method.name}
+                  <span>{method.name}</span>
+                  {method.isBeta && (
+                    <span
+                      style={{
+                        fontSize: "10px",
+                        fontWeight: "700",
+                        color: "#ffffff",
+                        background:
+                          "linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)",
+                        padding: "2px 6px",
+                        borderRadius: "4px",
+                        letterSpacing: "0.5px",
+                        textTransform: "uppercase",
+                        boxShadow: "0 1px 2px rgba(0, 0, 0, 0.1)",
+                      }}
+                    >
+                      Beta
+                    </span>
+                  )}
                 </div>
                 <div
                   style={{
@@ -311,9 +334,30 @@ function NotebookRight() {
                 fontWeight: "700",
                 color: "#1e293b",
                 letterSpacing: "-0.02em",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
               }}
             >
-              {selectedMethod?.name}
+              <span>{selectedMethod?.name}</span>
+              {selectedMethod?.isBeta && (
+                <span
+                  style={{
+                    fontSize: "12px",
+                    fontWeight: "700",
+                    color: "#ffffff",
+                    background:
+                      "linear-gradient(135deg, #f59e0b 0%, #d97706 100%)",
+                    padding: "4px 8px",
+                    borderRadius: "6px",
+                    letterSpacing: "0.5px",
+                    textTransform: "uppercase",
+                    boxShadow: "0 2px 4px rgba(0, 0, 0, 0.1)",
+                  }}
+                >
+                  Beta
+                </span>
+              )}
             </div>
             <div
               style={{

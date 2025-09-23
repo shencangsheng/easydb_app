@@ -82,6 +82,25 @@ export interface Translations {
     title: string;
     version: string;
     author: string;
+    description: string;
+    descriptionDetail: string;
+    checkUpdate: string;
+    privacyPolicy: string;
+    userTerms: string;
+    genuineAlert: string;
+    genuineAlertTitle: string;
+    genuineAlertContent: string;
+    socialMedia: string;
+    github: string;
+    xiaohongshu: string;
+    wechat: string;
+    qrCode: string;
+    homepage: string;
+    survey: string;
+    feedback: string;
+    changelog: string;
+    email: string;
+    faq: string;
   };
 }
 
@@ -167,9 +186,30 @@ const translations: Record<Language, Translations> = {
       "en-US": "English",
     },
     about: {
-      title: "关于 EasyDB",
+      title: "EasyDB (v1.0.0)",
       version: "版本",
       author: "作者",
+      description: "一个简约强大的 SQL 桌面客户端，支持多种文件格式查询",
+      descriptionDetail:
+        "EasyDB 是一个简约强大的 SQL 桌面客户端，基于 Rust 构建，具备高性能的文件查询能力，轻松处理数百兆乃至数GB的大型文本文件，仅需极少的硬件资源。支持 CSV、NdJson、JSON、Excel 和 Parquet 文件格式，无需进行文件转换，开箱即用。",
+      checkUpdate: "检查更新",
+      privacyPolicy: "隐私政策",
+      userTerms: "用户条款",
+      genuineAlert: "正版提示",
+      genuineAlertTitle: "正版提示",
+      genuineAlertContent:
+        "EasyDB客户端是开源免费软件。如果您发现任何付费捆绑软件声称包含EasyDB，请及时申请退款。",
+      socialMedia: "社交媒体",
+      github: "Github",
+      xiaohongshu: "小红书",
+      wechat: "微信",
+      qrCode: "二维码",
+      homepage: "首页",
+      survey: "调查问卷",
+      feedback: "建议反馈",
+      changelog: "更新日志",
+      email: "电子邮件",
+      faq: "常见疑问",
     },
   },
   "en-US": {
@@ -254,9 +294,31 @@ const translations: Record<Language, Translations> = {
       "en-US": "English",
     },
     about: {
-      title: "About EasyDB",
+      title: "EasyDB (v1.0.0)",
       version: "Version",
       author: "Author",
+      description:
+        "A simple yet powerful SQL desktop client supporting multiple file formats",
+      descriptionDetail:
+        "EasyDB is a simple yet powerful SQL desktop client built with Rust, featuring high-performance file querying capabilities that effortlessly handle hundreds of megabytes to multiple gigabytes of large text files with minimal hardware resources. It supports CSV, NdJson, JSON, Excel, and Parquet file formats without requiring file conversion, ready to use out of the box.",
+      checkUpdate: "Check for Updates",
+      privacyPolicy: "Privacy Policy",
+      userTerms: "User Terms",
+      genuineAlert: "Genuine Product Alert",
+      genuineAlertTitle: "Genuine Product Alert",
+      genuineAlertContent:
+        "EasyDB client is open-source free software. If you find any paid bundled software claiming to include EasyDB, please apply for a refund promptly.",
+      socialMedia: "Social Media",
+      github: "Github",
+      xiaohongshu: "Xiaohongshu",
+      wechat: "WeChat",
+      qrCode: "QR Code",
+      homepage: "Homepage",
+      survey: "Survey",
+      feedback: "Feedback",
+      changelog: "Changelog",
+      email: "Email",
+      faq: "FAQ",
     },
   },
 };

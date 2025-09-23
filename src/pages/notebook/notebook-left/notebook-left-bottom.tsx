@@ -52,13 +52,7 @@ function NotebookLeftBottom() {
           alignItems: "center",
           gap: "10px",
         }}
-        onPress={() => {
-          alert(
-            `${translate("about.title")}\n${translate(
-              "about.version"
-            )}: 1.0.0\n${translate("about.author")}: Cangsheng Shen`
-          );
-        }}
+        onPress={() => navigate("/about")}
         startContent={
           <span role="img" aria-label="关于" style={{ fontSize: "16px" }}>
             ⓘ
