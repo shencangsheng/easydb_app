@@ -1,13 +1,11 @@
 use crate::commands::run_blocking;
 use crate::context::context::{collect, register};
-use crate::context::error::AppError;
 use crate::context::schema::AppResult;
 use crate::utils::date_utils::time_difference_from_now;
 use chrono::Utc;
 use polars::prelude::AnyValue;
 use polars::sql::SQLContext;
 use serde::Serialize;
-use std::time::Instant;
 use tauri::command;
 
 #[derive(Serialize)]

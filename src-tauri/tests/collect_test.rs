@@ -1,9 +1,7 @@
 use app_lib::context::context::{collect, register};
 use app_lib::context::schema::AppResult;
-use calamine::{open_workbook, HeaderRow, Reader, Xlsx, XlsxError};
 use polars::datatypes::AnyValue;
 use polars::sql::SQLContext;
-use std::error::Error;
 
 #[test]
 fn test_1() {
