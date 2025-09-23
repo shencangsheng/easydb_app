@@ -2,7 +2,7 @@
 
 <div align="center">
 
-![EasyDB Logo](public/128x128.svg)
+![EasyDB Logo](public/128x128.png)
 
 **一个简约强大的 SQL 桌面客户端，支持多种文件格式查询**
 
