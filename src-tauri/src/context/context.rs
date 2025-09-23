@@ -10,8 +10,9 @@ use polars::prelude::{
 use polars::sql::SQLContext;
 use sqlparser::ast::SetExpr::Select;
 use sqlparser::ast::{
-    Expr, FunctionArg, FunctionArgExpr, Statement, TableFactor, TableFunctionArgs, Value,
+    Expr, FunctionArg, FunctionArgExpr, Join, Statement, TableFactor, TableFunctionArgs, Value,
 };
+use sqlparser::keywords::Keyword::JOIN;
 use std::fs::File;
 
 pub fn get_sql_context() -> SQLContext {
@@ -146,6 +147,46 @@ enum FrameType {
     Data(DataFrame),
 }
 
+fn register_table(
+    ctx: &mut SQLContext,
+    relation: &mut TableFactor,
+    table_count: i32,
+) -> AppResult<i32> {
+    if let TableFactor::Table { name, args, .. } = relation {
+        let table_name = format!("table{}", table_count);
+        let path = get_path(args)?;
+        let lazy_frame: Option<FrameType> = match name.to_string().as_str() {
+            "read_csv" => Some(FrameType::Lazy(read_csv(get_csv_reader(path), args)?)),
+            "read_tsv" => {
+                let mut reader = get_csv_reader(path);
+                reader = reader.with_separator(b'\t');
+                Some(FrameType::Lazy(read_csv(reader, args)?))
+            }
+            "read_ndjson" => Some(FrameType::Lazy(read_ndjson(get_ndjson_reader(path), args)?)),
+            "read_json" => Some(FrameType::Data(read_json(get_json_reader(path)?, args)?)),
+            "read_excel" => Some(FrameType::Data(read_excel(get_excel_reader(path), args)?)),
+            _ => None,
+        };
+
+        if lazy_frame.is_none() {
+            return Err(AppError::BadRequest {
+                message: format!("'{}' is not a supported table function", table_name),
+            });
+        }
+
+        *name = sqlparser::ast::ObjectName(vec![table_name.as_str().into()]);
+        *args = None;
+        if let Some(frame) = lazy_frame {
+            match frame {
+                FrameType::Lazy(lazy) => ctx.register(table_name.as_str(), lazy),
+                FrameType::Data(data) => ctx.register(table_name.as_str(), data.lazy()),
+            }
+        }
+    }
+
+    Ok(table_count + 1)
+}
+
 pub fn register(ctx: &mut SQLContext, sql: &str, limit: Option<String>) -> AppResult<String> {
     let mut ast = parse_statements(sql)?;
 
@@ -158,44 +199,11 @@ pub fn register(ctx: &mut SQLContext, sql: &str, limit: Option<String>) -> AppRe
     if let Statement::Query(query) = statement {
         if let Select(select) = &mut *query.body {
             for table_with_joins in &mut select.from {
-                if let TableFactor::Table { name, args, .. } = &mut table_with_joins.relation {
-                    let table_name = format!("t{}", table_count);
-                    let path = get_path(args)?;
-                    let lazy_frame: Option<FrameType> = match name.to_string().as_str() {
-                        "read_csv" => Some(FrameType::Lazy(read_csv(get_csv_reader(path), args)?)),
-                        "read_tsv" => {
-                            let mut reader = get_csv_reader(path);
-                            reader = reader.with_separator(b'\t');
-                            Some(FrameType::Lazy(read_csv(reader, args)?))
-                        }
-                        "read_ndjson" => {
-                            Some(FrameType::Lazy(read_ndjson(get_ndjson_reader(path), args)?))
-                        }
-                        "read_json" => {
-                            Some(FrameType::Data(read_json(get_json_reader(path)?, args)?))
-                        }
-                        "read_excel" => {
-                            Some(FrameType::Data(read_excel(get_excel_reader(path), args)?))
-                        }
-                        _ => None,
-                    };
+                table_count = register_table(ctx, &mut table_with_joins.relation, table_count)?;
 
-                    if lazy_frame.is_none() {
-                        return Err(AppError::BadRequest {
-                            message: format!("'{}' is not a supported table function", table_name),
-                        });
-                    }
-
-                    *name = sqlparser::ast::ObjectName(vec![table_name.as_str().into()]);
-                    *args = None;
-                    if let Some(frame) = lazy_frame {
-                        match frame {
-                            FrameType::Lazy(lazy) => ctx.register(table_name.as_str(), lazy),
-                            FrameType::Data(data) => ctx.register(table_name.as_str(), data.lazy()),
-                        }
-                    }
+                for join in &mut table_with_joins.joins {
+                    table_count = register_table(ctx, &mut join.relation, table_count)?;
                 }
-                table_count += 1;
             }
         }
         if limit.is_some() && query.limit.is_none() {

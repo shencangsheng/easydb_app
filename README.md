@@ -40,9 +40,13 @@ EasyDB 旨在简化文本文件查询过程，让您能够将多个文本文件�
 - **查询引擎**: [pola-rs/polars](https://github.com/pola-rs/polars)
 - **UI 框架**: HeroUI + Tailwind CSS
 
-### 为什么选择 Polars？
+### 查询引擎选择
 
-与传统的 DataFusion 相比，Polars 具备更高的轻量性和流式计算能力，显著降低了内存占用，更加适合个人电脑使用。
+**当前使用**: Polars
+
+与 DataFusion 相比，Polars 具备更高的轻量性和流式计算能力，显著降低了内存占用，更加适合个人电脑使用。
+
+**技术考虑**: 在深入使用 Polars 后发现其技术短板也很明显，无法支持复杂 SQL 查询，并且社区的开发资源主要集中在 Python 上，很多功能需要自己开发或兼容。因此正在考虑换回 DataFusion 以获得更完整的 SQL 支持。
 
 ## 📚 使用指南
 
@@ -102,6 +106,26 @@ WHERE status = 'active';
 
    - 双击应用图标启动 EasyDB
    - 开始您的数据查询之旅！
+
+## ❓ 常见问题
+
+### JOIN 查询错误
+
+**问题**: 在执行 JOIN 查询时出现 `unsupported SQL join constraint` 异常
+
+**解决方案**: 去掉 ON 表达式的括号。这是因为 Polars 的限制：它目前的 join constraint 只支持最简单的等值连接。
+
+```sql
+-- ❌ 错误写法
+SELECT *
+FROM table1 t1
+JOIN table2 t2 ON (t1.id = t2.id);
+
+-- ✅ 正确写法
+SELECT *
+FROM table1 t1
+JOIN table2 t2 ON t1.id = t2.id;
+```
 
 ## 📖 项目背景
 

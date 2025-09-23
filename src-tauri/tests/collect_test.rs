@@ -48,3 +48,23 @@ fn test_2() -> AppResult<()> {
 
     Ok(())
 }
+
+#[test]
+fn test_3() -> AppResult<()> {
+    let sql = r#"
+    SELECT
+  *
+FROM
+  read_csv ('/tmp/output.csv', infer_schema => FALSE) as t1
+  inner join
+  read_tsv ('/tmp/o.tsv') as t2 on t1.ID1 = t2.order
+WHERE
+  REGEXP_LIKE (Distance, '^[0-9]+\.[0-9]+?$') = FALSE
+    "#;
+
+    let mut context = SQLContext::new();
+    let new_sql = register(&mut context, &sql, Some("200".to_string()))?;
+    let df = collect(&mut context, &new_sql)?;
+
+    Ok(())
+}

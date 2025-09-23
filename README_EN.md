@@ -40,9 +40,13 @@ EasyDB aims to simplify the text file querying process, allowing you to treat mu
 - **Query Engine**: [pola-rs/polars](https://github.com/pola-rs/polars)
 - **UI Framework**: HeroUI + Tailwind CSS
 
-### Why Polars?
+### Query Engine Selection
 
-Compared to traditional DataFusion, Polars has higher lightweight and stream processing capabilities, significantly reducing memory usage, making it more suitable for personal computers.
+**Currently Using**: Polars
+
+Compared to DataFusion, Polars has higher lightweight and stream processing capabilities, significantly reducing memory usage, making it more suitable for personal computers.
+
+**Technical Considerations**: After in-depth use of Polars, its technical limitations have become apparent - it cannot support complex SQL queries, and the community's development resources are mainly focused on Python, requiring self-development or compatibility work for many features. Therefore, we are considering switching back to DataFusion for more complete SQL support.
 
 ## 📚 User Guide
 
@@ -102,6 +106,26 @@ WHERE status = 'active';
 
    - Double-click the app icon to start EasyDB
    - Begin your data querying journey!
+
+## ❓ Frequently Asked Questions
+
+### JOIN Query Error
+
+**Issue**: Getting `unsupported SQL join constraint` error when executing JOIN queries
+
+**Solution**: Remove parentheses from ON expressions. This is due to Polars' limitation: it currently only supports the simplest equality joins for join constraints.
+
+```sql
+-- ❌ Incorrect syntax
+SELECT *
+FROM table1 t1
+JOIN table2 t2 ON (t1.id = t2.id);
+
+-- ✅ Correct syntax
+SELECT *
+FROM table1 t1
+JOIN table2 t2 ON t1.id = t2.id;
+```
 
 ## 📖 Project Background
 
