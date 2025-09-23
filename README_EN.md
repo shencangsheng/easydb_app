@@ -137,14 +137,11 @@ We welcome contributions in all forms!
 git clone https://github.com/shencangsheng/easydb_app.git
 cd easydb_app
 
-# Install dependencies
-npm install
-
 # Start development server
-npm run dev
+cargo tauri dev
 
 # Build application
-npm run tauri build
+cargo tauri build
 ```
 
 ## 📄 License

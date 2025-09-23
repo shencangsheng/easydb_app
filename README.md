@@ -137,14 +137,11 @@ WHERE status = 'active';
 git clone https://github.com/shencangsheng/easydb_app.git
 cd easydb_app
 
-# 安装依赖
-npm install
-
 # 启动开发服务器
-npm run dev
+cargo tauri dev
 
 # 构建应用
-npm run tauri build
+cargo tauri build
 ```
 
 ## 📄 许可证
