@@ -5,7 +5,8 @@ import path from "path";
 export function versionPlugin(): Plugin {
   return {
     name: "version-plugin",
-    config(config, { command }) {
+    // eslint-disable-next-line no-empty-pattern
+    config(config, {}) {
       try {
         // 读取version.json
         const versionPath = path.resolve(__dirname, "../version.json");
@@ -28,6 +29,7 @@ export function versionPlugin(): Plugin {
             versionData.releaseDate
           ),
         };
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
       } catch (error) {
         console.warn("无法读取version.json，使用默认版本信息");
         config.define = {

@@ -336,38 +336,24 @@ function NotebookRight() {
                 letterSpacing: "-0.02em",
                 display: "flex",
                 alignItems: "center",
-                justifyContent: "space-between",
+                gap: "8px",
               }}
             >
               <span>{selectedMethod?.name}</span>
               {selectedMethod?.isBeta && (
                 <span
                   style={{
-                    fontSize: "12px",
+                    fontSize: "10px",
                     fontWeight: "700",
-                    color: "#ffffff",
-                    background:
-                      "linear-gradient(135deg, #f59e0b 0%, #d97706 100%)",
-                    padding: "4px 8px",
-                    borderRadius: "6px",
+                    color: "#3b82f6",
+                    padding: "2px 6px",
                     letterSpacing: "0.5px",
                     textTransform: "uppercase",
-                    boxShadow: "0 2px 4px rgba(0, 0, 0, 0.1)",
                   }}
                 >
                   Beta
                 </span>
               )}
-            </div>
-            <div
-              style={{
-                fontSize: "14px",
-                color: "#64748b",
-                fontWeight: "400",
-                marginTop: "4px",
-              }}
-            >
-              {translate("functions.apiMethodDetails")}
             </div>
           </ModalHeader>
           <ModalBody>
