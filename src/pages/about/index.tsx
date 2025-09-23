@@ -2,10 +2,12 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "@heroui/react";
 import { useTranslation } from "../../i18n";
 import { invoke } from "@tauri-apps/api/core";
+import { getVersionInfo } from "../../utils/version";
 
 function AboutPage() {
   const navigate = useNavigate();
   const { translate } = useTranslation();
+  const versionInfo = getVersionInfo();
 
   const handleCheckUpdate = () => {
     // 这里可以添加检查更新的逻辑
@@ -132,6 +134,68 @@ function AboutPage() {
           >
             {translate("about.descriptionDetail")}
           </p>
+
+          {/* 版本详细信息 */}
+          <div
+            style={{
+              backgroundColor: "#f8fafc",
+              border: "1px solid #e2e8f0",
+              borderRadius: "8px",
+              padding: "16px",
+              marginBottom: "16px",
+            }}
+          >
+            <h4
+              style={{
+                fontSize: "14px",
+                fontWeight: 600,
+                margin: "0 0 12px 0",
+                color: "#374151",
+              }}
+            >
+              版本信息
+            </h4>
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "1fr 1fr",
+                gap: "8px",
+              }}
+            >
+              <div>
+                <span style={{ fontSize: "12px", color: "#6b7280" }}>
+                  版本号：
+                </span>
+                <span style={{ fontSize: "12px", fontWeight: 500 }}>
+                  {versionInfo.version}
+                </span>
+              </div>
+              <div>
+                <span style={{ fontSize: "12px", color: "#6b7280" }}>
+                  构建号：
+                </span>
+                <span style={{ fontSize: "12px", fontWeight: 500 }}>
+                  {versionInfo.buildNumber}
+                </span>
+              </div>
+              <div>
+                <span style={{ fontSize: "12px", color: "#6b7280" }}>
+                  发布日期：
+                </span>
+                <span style={{ fontSize: "12px", fontWeight: 500 }}>
+                  {versionInfo.releaseDate}
+                </span>
+              </div>
+              <div>
+                <span style={{ fontSize: "12px", color: "#6b7280" }}>
+                  许可证：
+                </span>
+                <span style={{ fontSize: "12px", fontWeight: 500 }}>
+                  {versionInfo.license}
+                </span>
+              </div>
+            </div>
+          </div>
         </div>
 
         {/* 正版提示 */}

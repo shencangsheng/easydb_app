@@ -1,11 +1,13 @@
 import { defineConfig } from "vite";
 import path from "path";
+import { versionPlugin } from "./vite-plugins/version-plugin";
 
 const host = undefined;
 
 export default defineConfig({
   // 防止 Vite 清除 Rust 显示的错误
   clearScreen: false,
+  plugins: [versionPlugin()],
   server: {
     port: 1420,
     // Tauri 工作于固定端口，如果端口不可用则报错
