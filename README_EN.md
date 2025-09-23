@@ -184,7 +184,9 @@ cargo tauri build
 
 ## 📄 License
 
-This project is licensed under the [MIT License](LICENSE) - see the LICENSE file for details.
+A short snippet describing the license (MIT)
+
+MIT © Cangsheng Shen
 
 ## 👨‍💻 Author
 
