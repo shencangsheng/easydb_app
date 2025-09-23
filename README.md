@@ -2,7 +2,7 @@
 
 <div align="center">
 
-![EasyDB Logo](public/logo.png)
+<img src="public/logo.png" alt="EasyDB Logo" style="background-color: white; padding: 20px; border-radius: 10px; max-width: 200px;">
 
 **一个简约强大的 SQL 桌面客户端，支持多种文件格式查询**
 

@@ -2,7 +2,7 @@
 
 <div align="center">
 
-![EasyDB Logo](public/logo.png)
+<img src="public/logo.png" alt="EasyDB Logo" style="background-color: white; padding: 20px; border-radius: 10px; max-width: 200px;">
 
 **A simple yet powerful SQL desktop client supporting multiple file formats**
 
