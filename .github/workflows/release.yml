@@ -63,12 +63,7 @@ jobs:
         run: yarn build
 
       - name: Build Tauri app
-        run: |
-          if [ "${{ matrix.os }}" = "windows-latest" ]; then
-            cargo tauri build --target ${{ matrix.target }}
-          else
-            cargo tauri build --target ${{ matrix.target }}
-          fi
+        run: cargo tauri build --target ${{ matrix.target }}
 
       - name: Upload macOS artifacts
         if: matrix.os == 'macos-latest'
