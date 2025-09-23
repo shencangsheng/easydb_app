@@ -104,6 +104,25 @@ WHERE status = 'active';
 
 ## ❓ 常见问题
 
+### macOS 应用损坏问题
+
+**问题**: 在 macOS 上打开 EasyDB 时提示"应用已损坏，无法打开"
+
+**解决方案**: 这是由于 macOS 的安全机制（Gatekeeper）阻止了未签名的应用。请按以下步骤解决：
+
+1. 打开终端（Terminal）
+2. 执行以下命令移除隔离属性：
+   ```bash
+   xattr -r -d com.apple.quarantine /Applications/EasyDB.app
+   ```
+3. 重新尝试打开应用
+
+**替代方案**: 如果上述方法无效，可以尝试在系统偏好设置中允许该应用：
+
+1. 打开"系统偏好设置" > "安全性与隐私"
+2. 在"通用"标签页中，找到被阻止的应用
+3. 点击"仍要打开"按钮
+
 ### JOIN 查询错误
 
 **问题**: 在执行 JOIN 查询时出现 `unsupported SQL join constraint` 异常

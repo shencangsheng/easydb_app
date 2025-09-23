@@ -104,6 +104,25 @@ WHERE status = 'active';
 
 ## ❓ Frequently Asked Questions
 
+### macOS Application Corruption Issue
+
+**Issue**: Getting "Application is damaged and cannot be opened" error when trying to open EasyDB on macOS
+
+**Solution**: This is caused by macOS's security mechanism (Gatekeeper) blocking unsigned applications. Please follow these steps to resolve:
+
+1. Open Terminal
+2. Execute the following command to remove quarantine attributes:
+   ```bash
+   xattr -r -d com.apple.quarantine /Applications/EasyDB.app
+   ```
+3. Try opening the application again
+
+**Alternative Solution**: If the above method doesn't work, you can try allowing the application in System Preferences:
+
+1. Open "System Preferences" > "Security & Privacy"
+2. In the "General" tab, find the blocked application
+3. Click the "Open Anyway" button
+
 ### JOIN Query Error
 
 **Issue**: Getting `unsupported SQL join constraint` error when executing JOIN queries
