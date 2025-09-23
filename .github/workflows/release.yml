@@ -70,9 +70,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: easydb-${{ matrix.platform }}
-          path: |
-            src-tauri/target/${{ matrix.target }}/release/bundle/dmg/*.dmg
-            src-tauri/target/${{ matrix.target }}/release/bundle/macos/*.app
+          path: src-tauri/target/${{ matrix.target }}/release/bundle/dmg/*.dmg
           retention-days: 30
 
       - name: Upload Windows artifacts
@@ -81,7 +79,6 @@ jobs:
         with:
           name: easydb-${{ matrix.platform }}
           path: |
-            src-tauri/target/${{ matrix.target }}/release/bundle/msi/*.msi
             src-tauri/target/${{ matrix.target }}/release/bundle/nsis/*.exe
           retention-days: 30
 
@@ -89,6 +86,8 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/v')
+    permissions:
+      contents: write
 
     steps:
       - name: Checkout repository
@@ -98,6 +97,10 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           path: ./artifacts
+
+      - name: List downloaded artifacts
+        run: |
+          find ./artifacts -type f -name "*.dmg" -o -name "*.msi" -o -name "*.exe" -o -name "*.app" | head -20
 
       - name: Create Release
         uses: softprops/action-gh-release@v1
@@ -109,9 +112,9 @@ jobs:
           files: |
             ./artifacts/easydb-macos-arm64/*.dmg
             ./artifacts/easydb-macos-x64/*.dmg
-            ./artifacts/easydb-windows-x64/*.msi
-            ./artifacts/easydb-windows-x64/*.exe
-            ./artifacts/easydb-windows-arm64/*.msi
-            ./artifacts/easydb-windows-arm64/*.exe
+            ./artifacts/easydb-windows-x64/msi/*.msi
+            ./artifacts/easydb-windows-x64/nsis/*.exe
+            ./artifacts/easydb-windows-arm64/msi/*.msi
+            ./artifacts/easydb-windows-arm64/nsis/*.exe
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
