@@ -19,6 +19,7 @@
     "@fortawesome/react-fontawesome": "^0.2.2",
     "@heroui/react": "^2.7.8",
     "@tauri-apps/api": "^2.8.0",
+    "@tauri-apps/plugin-dialog": "^2.4.0",
     "ace-builds": "^1.37.4",
     "axios": "^1.7.9",
     "framer-motion": "^11.16.1",

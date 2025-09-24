@@ -10,10 +10,10 @@ use polars::prelude::{
 use polars::sql::SQLContext;
 use sqlparser::ast::SetExpr::Select;
 use sqlparser::ast::{
-    Expr, FunctionArg, FunctionArgExpr, Join, Statement, TableFactor, TableFunctionArgs, Value,
+    Expr, FunctionArg, FunctionArgExpr, Statement, TableFactor, TableFunctionArgs, Value,
 };
-use sqlparser::keywords::Keyword::JOIN;
 use std::fs::File;
+
 
 pub fn get_sql_context() -> SQLContext {
     SQLContext::new()
@@ -51,7 +51,7 @@ pub fn get_path(args: &mut Option<TableFunctionArgs>) -> AppResult<PlPath> {
         .args
         .get(0)
         .ok_or(AppError::BadRequest {
-            message: "The file path is missing.".to_string(),
+            message: "The file path is missing. 2".to_string(),
         })?;
 
     match value {
@@ -59,7 +59,7 @@ pub fn get_path(args: &mut Option<TableFunctionArgs>) -> AppResult<PlPath> {
             value,
         )))) => Ok(PlPath::new(value)),
         _ => Err(AppError::BadRequest {
-            message: "The file path is missing.".to_string(),
+            message: "The file path is missing. 3".to_string(),
         }),
     }
 }

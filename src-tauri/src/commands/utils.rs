@@ -1,6 +1,6 @@
-use tauri::command;
 use crate::context::error::AppError;
 use crate::context::schema::AppResult;
+use tauri::command;
 
 #[command]
 pub async fn open_url(url: String) -> AppResult<()> {
@@ -13,7 +13,7 @@ pub async fn open_url(url: String) -> AppResult<()> {
                 message: format!("Failed to open URL: {}", e),
             })?;
     }
-    
+
     #[cfg(target_os = "windows")]
     {
         std::process::Command::new("cmd")
@@ -23,7 +23,7 @@ pub async fn open_url(url: String) -> AppResult<()> {
                 message: format!("Failed to open URL: {}", e),
             })?;
     }
-    
+
     #[cfg(target_os = "linux")]
     {
         std::process::Command::new("xdg-open")
@@ -33,13 +33,13 @@ pub async fn open_url(url: String) -> AppResult<()> {
                 message: format!("Failed to open URL: {}", e),
             })?;
     }
-    
+
     #[cfg(not(any(target_os = "macos", target_os = "windows", target_os = "linux")))]
     {
         return Err(AppError::InternalServer {
             message: "Opening URLs not supported on this platform".to_string(),
         });
     }
-    
+
     Ok(())
 }

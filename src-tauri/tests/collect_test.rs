@@ -17,7 +17,7 @@ fn test_1() {
 #[test]
 fn test_2() -> AppResult<()> {
     let sql = r#"
-    SELECT * FROM read_csv('/tmp/output.csv', infer_schema => FALSE) WHERE REGEXP_LIKE(Distance,'^[0-9]+\.[0-9]+?$') = false
+    SELECT * FROM read_csv('/Users/shencangsheng/Desktop/生成的CSV内容20250923180412.csv', infer_schema => FALSE)
     "#;
 
     let mut context = SQLContext::new();
