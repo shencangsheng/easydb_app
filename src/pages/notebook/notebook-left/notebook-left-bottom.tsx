@@ -1,10 +1,15 @@
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@heroui/react";
 import { useTranslation } from "../../../i18n";
+import SettingsModal from "../../../components/common/settings-modal";
+import AboutModal from "../../../components/common/about-modal";
 
 function NotebookLeftBottom() {
   const navigate = useNavigate();
   const { translate } = useTranslation();
+  const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
+  const [isAboutModalOpen, setIsAboutModalOpen] = useState(false);
 
   return (
     <div
@@ -29,7 +34,7 @@ function NotebookLeftBottom() {
           alignItems: "center",
           gap: "10px",
         }}
-        onPress={() => navigate("/settings")}
+        onPress={() => setIsSettingsModalOpen(true)}
         startContent={
           <span role="img" aria-label="设置" style={{ fontSize: "16px" }}>
             ⚙️
@@ -52,7 +57,7 @@ function NotebookLeftBottom() {
           alignItems: "center",
           gap: "10px",
         }}
-        onPress={() => navigate("/about")}
+        onPress={() => setIsAboutModalOpen(true)}
         startContent={
           <span role="img" aria-label="关于" style={{ fontSize: "16px" }}>
             ⓘ
@@ -61,6 +66,18 @@ function NotebookLeftBottom() {
       >
         {translate("common.about")} (v.0.1.0)
       </Button>
+
+      {/* 设置弹窗 */}
+      <SettingsModal
+        isOpen={isSettingsModalOpen}
+        onClose={() => setIsSettingsModalOpen(false)}
+      />
+
+      {/* 关于弹窗 */}
+      <AboutModal
+        isOpen={isAboutModalOpen}
+        onClose={() => setIsAboutModalOpen(false)}
+      />
     </div>
   );
 }

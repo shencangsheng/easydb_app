@@ -1,9 +1,18 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { Select, SelectItem, Slider, Button } from "@heroui/react";
+import {
+  Select,
+  SelectItem,
+  Slider,
+  Button,
+  Modal,
+  ModalContent,
+  ModalHeader,
+  ModalBody,
+  ModalFooter,
+} from "@heroui/react";
 import { useTranslation } from "@/i18n";
-import { useFontSize } from "../../contexts/FontSizeContext";
-import { useLanguage } from "../../contexts/LanguageContext";
+import { useFontSize } from "../../hooks/useFontSize";
+import { useLanguage } from "../../hooks/useLanguage";
 import { open, ask } from "@tauri-apps/plugin-dialog";
 
 // 设置分类定义
@@ -26,10 +35,12 @@ const LANGUAGES = [
   { label: "English", value: "en-US" },
 ];
 
-// 简化的授权功能 - Tauri 会自动管理文件系统权限
+interface SettingsModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+}
 
-function SettingsPage() {
-  const navigate = useNavigate();
+function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
   const { translate } = useTranslation();
   const [selectedCategory, setSelectedCategory] = useState("general");
   const [feedbackMessage, setFeedbackMessage] = useState<{
@@ -41,11 +52,11 @@ function SettingsPage() {
   const { fontSize, setFontSize } = useFontSize();
   const { language, setLanguage } = useLanguage();
 
-  const handleSettingChange = (key: string, value: string | number) => {
+  const handleSettingChange = async (key: string, value: string | number) => {
     if (key === "fontSize") {
       setFontSize(value as number);
     } else if (key === "language") {
-      setLanguage(value as "zh-CN" | "en-US");
+      await setLanguage(value as "zh-CN" | "en-US");
     }
   };
 
@@ -107,9 +118,9 @@ function SettingsPage() {
 
   // 渲染常规设置内容
   const renderGeneralSettings = () => (
-    <div style={{ padding: "24px" }}>
+    <div style={{ padding: "16px 0" }}>
       {/* 显示设置 */}
-      <div style={{ marginBottom: "32px" }}>
+      <div style={{ marginBottom: "24px" }}>
         <h3
           style={{
             fontSize: "16px",
@@ -134,9 +145,10 @@ function SettingsPage() {
           </label>
           <Select
             selectedKeys={[language]}
-            onSelectionChange={(keys) => {
+            onSelectionChange={async (keys) => {
               const val = Array.from(keys)[0];
-              if (typeof val === "string") handleSettingChange("language", val);
+              if (typeof val === "string")
+                await handleSettingChange("language", val);
             }}
             style={{ width: "200px" }}
             placeholder={translate("common.language")}
@@ -188,8 +200,8 @@ function SettingsPage() {
 
   // 渲染授权管理内容
   const renderAuthorizationSettings = () => (
-    <div style={{ padding: "24px" }}>
-      <div style={{ marginBottom: "32px" }}>
+    <div style={{ padding: "16px 0" }}>
+      <div style={{ marginBottom: "24px" }}>
         <h3
           style={{
             fontSize: "16px",
@@ -320,118 +332,69 @@ function SettingsPage() {
   };
 
   return (
-    <div
-      style={{
-        display: "flex",
-        height: "100vh",
-        backgroundColor: "#f8f9fa",
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      size="4xl"
+      scrollBehavior="inside"
+      classNames={{
+        base: "max-h-[80vh]",
+        body: "py-6",
       }}
     >
-      {/* 左侧导航 */}
-      <div
-        style={{
-          width: "240px",
-          backgroundColor: "#fff",
-          borderRight: "1px solid #e5e7eb",
-          padding: "16px 0",
-        }}
-      >
-        <div style={{ padding: "0 16px" }}>
-          <h2
-            style={{
-              fontSize: "18px",
-              fontWeight: 600,
-              marginBottom: "24px",
-              color: "#333",
-            }}
-          >
-            {translate("common.settings")}
-          </h2>
-        </div>
+      <ModalContent>
+        {(onClose) => (
+          <>
+            <ModalHeader className="flex flex-col gap-1">
+              <h2 className="text-xl font-semibold">
+                {translate("common.settings")}
+              </h2>
+            </ModalHeader>
+            <ModalBody>
+              <div className="flex gap-6">
+                {/* 左侧导航 */}
+                <div className="w-48 flex-shrink-0">
+                  <div className="space-y-2">
+                    {SETTING_CATEGORIES.map((category) => (
+                      <div
+                        key={category.key}
+                        onClick={() => setSelectedCategory(category.key)}
+                        className={`
+                          flex items-center p-3 rounded-lg cursor-pointer transition-all
+                          ${
+                            selectedCategory === category.key
+                              ? "bg-blue-50 text-blue-600 border-l-4 border-blue-500"
+                              : "hover:bg-gray-50 text-gray-700"
+                          }
+                        `}
+                      >
+                        <span className="text-lg mr-3 w-5 text-center">
+                          {category.icon}
+                        </span>
+                        <span className="text-sm font-medium">
+                          {category.key === "general"
+                            ? translate("common.general")
+                            : category.label}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
 
-        <div style={{ display: "flex", flexDirection: "column" }}>
-          {SETTING_CATEGORIES.map((category) => (
-            <div
-              key={category.key}
-              onClick={() => setSelectedCategory(category.key)}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                padding: "12px 16px",
-                cursor: "pointer",
-                backgroundColor:
-                  selectedCategory === category.key ? "#f0f9ff" : "transparent",
-                color:
-                  selectedCategory === category.key ? "#1e40af" : "#374151",
-                fontWeight: selectedCategory === category.key ? 500 : 400,
-                transition: "all 0.2s",
-                borderLeft:
-                  selectedCategory === category.key
-                    ? "3px solid #3b82f6"
-                    : "3px solid transparent",
-              }}
-            >
-              <span
-                style={{
-                  fontSize: "16px",
-                  marginRight: "12px",
-                  width: "20px",
-                  textAlign: "center",
-                }}
-              >
-                {category.icon}
-              </span>
-              <span style={{ fontSize: "14px" }}>
-                {category.key === "general"
-                  ? translate("common.general")
-                  : category.label}
-              </span>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* 右侧内容区域 */}
-      <div
-        style={{
-          flex: 1,
-          backgroundColor: "#fff",
-          overflow: "auto",
-        }}
-      >
-        {/* 顶部导航栏 */}
-        <div
-          style={{
-            padding: "16px 24px",
-            borderBottom: "1px solid #e5e7eb",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-          }}
-        >
-          <h1
-            style={{
-              fontSize: "20px",
-              fontWeight: 600,
-              margin: 0,
-              color: "#333",
-            }}
-          >
-            {translate("common.settings")}
-          </h1>
-          <Button
-            variant="light"
-            onPress={() => navigate("/")}
-            style={{ minWidth: "80px" }}
-          >
-            {translate("common.back")}
-          </Button>
-        </div>
-
-        {renderCategoryContent()}
-      </div>
-    </div>
+                {/* 右侧内容区域 */}
+                <div className="flex-1 min-w-0">{renderCategoryContent()}</div>
+              </div>
+            </ModalBody>
+            <ModalFooter>
+              <Button color="primary" onPress={onClose}>
+                完成
+              </Button>
+            </ModalFooter>
+          </>
+        )}
+      </ModalContent>
+    </Modal>
   );
 }
 
-export default SettingsPage;
+export default SettingsModal;

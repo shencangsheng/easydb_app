@@ -1,21 +1,5 @@
-import React, { createContext, useContext, useState, useEffect } from "react";
-
-interface FontSizeContextType {
-  fontSize: number;
-  setFontSize: (size: number) => void;
-}
-
-const FontSizeContext = createContext<FontSizeContextType | undefined>(
-  undefined
-);
-
-export const useFontSize = () => {
-  const context = useContext(FontSizeContext);
-  if (!context) {
-    throw new Error("useFontSize must be used within a FontSizeProvider");
-  }
-  return context;
-};
+import React, { useState, useEffect } from "react";
+import { FontSizeContextType, FontSizeContext } from "./FontSizeContextTypes";
 
 interface FontSizeProviderProps {
   children: React.ReactNode;
@@ -48,10 +32,13 @@ export const FontSizeProvider: React.FC<FontSizeProviderProps> = ({
     localStorage.setItem("app-font-size", size.toString());
   };
 
+  const contextValue: FontSizeContextType = {
+    fontSize,
+    setFontSize: handleSetFontSize,
+  };
+
   return (
-    <FontSizeContext.Provider
-      value={{ fontSize, setFontSize: handleSetFontSize }}
-    >
+    <FontSizeContext.Provider value={contextValue}>
       {children}
     </FontSizeContext.Provider>
   );

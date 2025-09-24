@@ -2,6 +2,7 @@ use crate::context::error::AppError;
 use crate::context::schema::AppResult;
 use tokio::task;
 
+pub mod app;
 pub mod query;
 pub mod utils;
 
