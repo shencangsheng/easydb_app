@@ -1,7 +1,4 @@
-import AceEditor from "react-ace";
-import "ace-builds/src-noconflict/theme-github";
-import "ace-builds/src-noconflict/mode-sql";
-import "ace-builds/src-noconflict/ext-language_tools";
+import CustomAceEditor from "@/components/common/ace-editor";
 import {
   faServer,
   faStop,
@@ -23,8 +20,6 @@ import { format } from "sql-formatter";
 import NotebookMiddleBottom from "./notebook-mddle-bottom";
 import { invoke } from "@tauri-apps/api/core";
 import { useTranslation } from "@/i18n";
-import "ace-builds/src-noconflict/theme-monokai";
-import "ace-builds/src-noconflict/mode-sql";
 
 interface NotebookMiddleProps {
   source: string;
@@ -109,6 +104,7 @@ function NotebookMiddle({ source }: NotebookMiddleProps) {
               isIconOnly
               isDisabled={sql === ""}
               style={{ backgroundColor: "transparent" }}
+              aria-label={isRunning ? "Stop query" : "Run query"}
               onPress={async () => {
                 setIsRunning(!isRunning);
                 if (!isRunning) {
@@ -146,7 +142,11 @@ function NotebookMiddle({ source }: NotebookMiddleProps) {
             </Button>
             <Dropdown placement="bottom-start" isDisabled={sql === ""}>
               <DropdownTrigger>
-                <Button variant="light" isIconOnly>
+                <Button
+                  variant="light"
+                  isIconOnly
+                  aria-label="Tools and settings"
+                >
                   <FontAwesomeIcon icon={faScrewdriverWrench} />
                 </Button>
               </DropdownTrigger>
@@ -178,27 +178,21 @@ function NotebookMiddle({ source }: NotebookMiddleProps) {
             paddingTop: "10px",
           }}
         >
-          <AceEditor
-            mode="sql"
-            theme="xcode"
-            name="editor"
-            width="100%"
-            height="100%"
+          <CustomAceEditor
+            value={sql}
+            onChange={(value) => setSql(value)}
+            placeholder={translate("notebook.editorPlaceholder")}
             fontSize={16}
+            height="100%"
+            width="100%"
             showPrintMargin={true}
             showGutter={true}
             highlightActiveLine={true}
-            placeholder={translate("notebook.editorPlaceholder")}
-            value={sql}
-            onChange={(value) => setSql(value)}
-            setOptions={{
-              enableBasicAutocompletion: true,
-              enableLiveAutocompletion: true,
-              enableSnippets: true,
-              showLineNumbers: true,
-              tabSize: 2,
-            }}
-            editorProps={{ $blockScrolling: true }}
+            enableBasicAutocompletion={true}
+            enableLiveAutocompletion={true}
+            enableSnippets={false}
+            showLineNumbers={true}
+            tabSize={2}
           />
         </div>
       </div>

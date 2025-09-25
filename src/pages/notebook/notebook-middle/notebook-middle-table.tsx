@@ -48,7 +48,7 @@ function DataTable({ data, isLoading, sql }: TableProps) {
       >
         <Dropdown placement="bottom-start" isDisabled={data.rows.length === 0}>
           <DropdownTrigger>
-            <Button variant="light" isIconOnly>
+            <Button variant="light" isIconOnly aria-label="Export data">
               <FontAwesomeIcon icon={faDownload} />
             </Button>
           </DropdownTrigger>
