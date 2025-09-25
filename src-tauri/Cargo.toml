@@ -1,6 +1,6 @@
 [package]
 name = "easydb_app"
-version = "0.2.0"
+version = "0.3.0"
 description = "EasyDB APP"
 authors = ["shencangsheng"]
 license = "MIT"
