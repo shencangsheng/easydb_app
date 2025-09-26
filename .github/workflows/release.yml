@@ -23,9 +23,9 @@ jobs:
             target: x86_64-pc-windows-msvc
             platform: windows-x64
           # Windows ARM64
-          - os: windows-latest
-            target: aarch64-pc-windows-msvc
-            platform: windows-arm64
+          # - os: windows-latest
+          #   target: aarch64-pc-windows-msvc
+          #   platform: windows-arm64
 
     runs-on: ${{ matrix.os }}
 
@@ -113,6 +113,5 @@ jobs:
             ./artifacts/easydb-macos-arm64/*.dmg
             ./artifacts/easydb-macos-x64/*.dmg
             ./artifacts/easydb-windows-x64/*.exe
-            ./artifacts/easydb-windows-arm64/*.exe
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
