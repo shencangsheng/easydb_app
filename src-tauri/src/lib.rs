@@ -1,6 +1,7 @@
 use crate::commands::app::restart_app;
-use crate::commands::query::fetch;
+use crate::commands::query::{fetch, sql_history};
 use crate::commands::utils::open_url;
+use crate::utils::db_utils;
 use tauri::Listener;
 
 pub mod commands;
@@ -23,9 +24,15 @@ pub fn run() {
                 )?;
             }
             app.handle().plugin(tauri_plugin_dialog::init())?;
+            db_utils::init(&app.handle());
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![fetch, open_url, restart_app])
+        .invoke_handler(tauri::generate_handler![
+            fetch,
+            open_url,
+            restart_app,
+            sql_history
+        ])
         .on_page_load(|window, _| {
             window.listen("tauri://error", |event| {
                 println!("Error event received: {:?}", event);

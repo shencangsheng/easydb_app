@@ -5,6 +5,7 @@ use glob::{GlobError, PatternError};
 use polars::error::PolarsError;
 use sqlparser::parser::ParserError;
 use tauri::ipc::InvokeError;
+use tauri::App;
 use tokio::task::JoinError;
 
 #[derive(Debug, Display, Error, Clone)]
@@ -23,8 +24,7 @@ impl AppError {
         }
     }
 
-    fn log_backtrace() {
-    }
+    fn log_backtrace() {}
 }
 
 impl From<PolarsError> for AppError {
@@ -90,6 +90,24 @@ impl From<XlsxError> for AppError {
 
 impl From<JoinError> for AppError {
     fn from(error: JoinError) -> Self {
+        AppError::log_backtrace();
+        BadRequest {
+            message: error.to_string(),
+        }
+    }
+}
+
+impl From<tauri::Error> for AppError {
+    fn from(error: tauri::Error) -> Self {
+        AppError::log_backtrace();
+        BadRequest {
+            message: error.to_string(),
+        }
+    }
+}
+
+impl From<rusqlite::Error> for AppError {
+    fn from(error: rusqlite::Error) -> Self {
         AppError::log_backtrace();
         BadRequest {
             message: error.to_string(),

@@ -1,7 +1,7 @@
 {
-  "version": "0.3.0",
-  "buildNumber": "4",
-  "releaseDate": "2025-09-25",
+  "version": "0.4.0",
+  "buildNumber": "5",
+  "releaseDate": "2025-09-26",
   "description": "EasyDB - 数据库管理工具",
   "author": "shencangsheng",
   "repository": "https://github.com/shencangsheng/easydb_app",

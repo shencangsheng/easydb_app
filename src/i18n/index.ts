@@ -23,6 +23,15 @@ export interface Translations {
     stop: string;
     format: string;
     clear: string;
+    history: {
+      title: string;
+      emptyState: {
+        icon: string;
+        title: string;
+        description: string;
+      };
+      clickToUse: string;
+    };
   };
   functions: {
     title: string;
@@ -127,6 +136,15 @@ const translations: Record<Language, Translations> = {
       stop: "停止",
       format: "格式化",
       clear: "清空",
+      history: {
+        title: "查询历史",
+        emptyState: {
+          icon: "📝",
+          title: "暂无查询历史",
+          description: "执行查询后将显示历史记录",
+        },
+        clickToUse: "点击使用此查询",
+      },
     },
     functions: {
       title: "函数",
@@ -235,6 +253,15 @@ const translations: Record<Language, Translations> = {
       stop: "Stop",
       format: "Format",
       clear: "Clear",
+      history: {
+        title: "Query History",
+        emptyState: {
+          icon: "📝",
+          title: "No Query History",
+          description: "Query history will appear after executing queries",
+        },
+        clickToUse: "Click to use this query",
+      },
     },
     functions: {
       title: "Functions",

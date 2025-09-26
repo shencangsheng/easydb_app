@@ -2,6 +2,7 @@ import { Tabs, Tab } from "@heroui/react";
 import { memo, useState } from "react";
 import DataTable from "./notebook-middle-table";
 import QueryHistory from "./notebook-middle-history";
+import { invoke } from "@tauri-apps/api/core";
 
 interface NotebookMiddleBottomProps {
   data: {
@@ -20,7 +21,6 @@ function NotebookMiddleBottom({
   setSql,
   sql,
 }: NotebookMiddleBottomProps) {
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [queryHistory, setQueryHistory] = useState<
     {
       sql: string;
@@ -36,7 +36,7 @@ function NotebookMiddleBottom({
         defaultSelectedKey="results"
         onSelectionChange={async (key) => {
           if (key === "history") {
-            alert("暂未实现");
+            setQueryHistory(await invoke("sql_history", {}));
           }
         }}
       >
