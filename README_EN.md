@@ -7,7 +7,7 @@
 **A simple yet powerful SQL desktop client supporting multiple file formats**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Version](https://img.shields.io/badge/version-0.4.0-blue.svg)](https://github.com/shencangsheng/easydb_app)
+[![Version](https://img.shields.io/badge/version-0.5.0-blue.svg)](https://github.com/shencangsheng/easydb_app)
 [![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20Windows-lightgrey.svg)](https://github.com/shencangsheng/easydb_app)
 
 [English](README_EN.md) | [中文](README.md)
@@ -41,7 +41,7 @@ EasyDB aims to simplify the text file querying process, allowing you to treat mu
 - [ ] Excel lazy loading performance optimization
 - [ ] Excel enhanced data type compatibility
 - [ ] Multi-session window support
-- [ ] Drag & drop file path support
+- [x] Drag & drop file automatically generate SQL statement
 - [ ] Directory browsing support
 - [ ] S3 remote file support
 - [ ] Support for direct querying of server files

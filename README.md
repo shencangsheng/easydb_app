@@ -7,7 +7,7 @@
 **一个简约强大的 SQL 桌面客户端，支持多种文件格式查询**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Version](https://img.shields.io/badge/version-0.4.0-blue.svg)](https://github.com/shencangsheng/easydb_app)
+[![Version](https://img.shields.io/badge/version-0.5.0-blue.svg)](https://github.com/shencangsheng/easydb_app)
 [![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20Windows-lightgrey.svg)](https://github.com/shencangsheng/easydb_app)
 
 [English](README_EN.md) | [中文](README.md)
@@ -41,11 +41,10 @@ EasyDB 旨在简化文本文件查询过程，让您能够将多个文本文件�
 - [ ] Excel 实现懒加载性能优化
 - [ ] Excel 兼容更多数据类型
 - [ ] 支持多会话窗口
-- [ ] 支持拖拽文件获取文件路径
+- [x] 支持拖拽文件自动生成 SQL 语句
 - [ ] 支持目录浏览
 - [ ] 支持 S3 远程文件
 - [ ] 支持直接查询服务器上的文件
-- [ ] 增强 SQL 查询功能
 - [ ] 支持数据可视化
 - [ ] 支持查询结果导出
 

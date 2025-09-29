@@ -1,15 +1,15 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
 import { Button } from "@heroui/react";
 import { useTranslation } from "../../../i18n";
 import SettingsModal from "../../../components/common/settings-modal";
 import AboutModal from "../../../components/common/about-modal";
+import { getVersion } from "../../../utils/version";
 
 function NotebookLeftBottom() {
-  const navigate = useNavigate();
   const { translate } = useTranslation();
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
   const [isAboutModalOpen, setIsAboutModalOpen] = useState(false);
+  const version = getVersion();
 
   return (
     <div
@@ -64,7 +64,7 @@ function NotebookLeftBottom() {
           </span>
         }
       >
-        {translate("common.about")} (v.0.1.0)
+        {translate("common.about")} (v.{version})
       </Button>
 
       {/* 设置弹窗 */}

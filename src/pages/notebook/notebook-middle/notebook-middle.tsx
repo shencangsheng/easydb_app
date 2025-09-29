@@ -15,14 +15,22 @@ import {
   DropdownMenu,
   DropdownTrigger,
 } from "@heroui/react";
-import { memo, useState } from "react";
+import { memo, useState, useRef, useEffect, useCallback } from "react";
 import { format } from "sql-formatter";
 import NotebookMiddleBottom from "./notebook-mddle-bottom";
 import { invoke } from "@tauri-apps/api/core";
 import { useTranslation } from "@/i18n";
+import { listen } from "@tauri-apps/api/event";
 
 interface NotebookMiddleProps {
   source: string;
+}
+
+function getFormatSql(sql: string) {
+  return format(sql, {
+    language: "sql",
+    keywordCase: "upper",
+  }).replace(/=\s>/g, "=>");
 }
 
 function NotebookMiddle({ source }: NotebookMiddleProps) {
@@ -39,6 +47,7 @@ function NotebookMiddle({ source }: NotebookMiddleProps) {
     rows: [],
     query_time: "",
   });
+  const dropAreaRef = useRef<HTMLDivElement>(null);
 
   const formatSql = () => {
     setSql(
@@ -49,14 +58,68 @@ function NotebookMiddle({ source }: NotebookMiddleProps) {
     );
   };
 
+  // 处理文件拖拽
+  const handleFileDrop = useCallback((filePath: string) => {
+    // 如果SQL编辑器为空，根据文件扩展名生成相应的SQL查询
+    const fileExtension = filePath.split(".").pop()?.toLowerCase();
+    let sqlQuery = "";
+
+    switch (fileExtension) {
+      case "csv":
+        sqlQuery = `SELECT * FROM read_csv('${filePath}', infer_schema => false) LIMIT 10;`;
+        break;
+      case "xlsx":
+      case "xls":
+        sqlQuery = `SELECT * FROM read_excel('${filePath}') LIMIT 10;`;
+        break;
+      case "json":
+        sqlQuery = `SELECT * FROM read_json('${filePath}') LIMIT 10;`;
+        break;
+      case "ndjson":
+        sqlQuery = `SELECT * FROM read_ndjson('${filePath}') LIMIT 10;`;
+        break;
+      case "parquet":
+        sqlQuery = `SELECT * FROM read_parquet('${filePath}') LIMIT 10;`;
+        break;
+      default:
+        return;
+    }
+
+    setSql(getFormatSql(sqlQuery));
+  }, []);
+
+  // 监听Tauri的拖拽事件
+  useEffect(() => {
+    const setupDragDropListeners = async () => {
+      // 监听文件拖拽完成事件
+      const unlistenDrop = await listen(
+        "tauri://drag-drop",
+        (event: { payload: { paths: string[] } }) => {
+          const filePaths = event.payload.paths;
+          if (filePaths && filePaths.length > 0) {
+            handleFileDrop(filePaths[0]); // 处理第一个文件
+          }
+        }
+      );
+
+      return () => {
+        unlistenDrop();
+      };
+    };
+
+    setupDragDropListeners();
+  }, [handleFileDrop]);
+
   return (
     <div
+      ref={dropAreaRef}
       style={{
         flex: "1",
         textAlign: "center",
         borderLeft: "1px solid rgba(17, 17, 17, 0.15)",
         borderRight: "1px solid rgba(17, 17, 17, 0.15)",
         overflow: "hidden",
+        position: "relative",
       }}
     >
       <div
