@@ -31,6 +31,23 @@ EasyDB aims to simplify the text file querying process, allowing you to treat mu
 - 🖥️ **Cross-platform**: Supports macOS and Windows platforms
 - 🎨 **Modern Interface**: Modern desktop application built with Tauri
 
+## 🗺️ Features & Roadmap
+
+- [x] CSV file query support
+- [x] TSV file query support
+- [x] JSON file query support
+- [x] Excel file query support
+- [ ] Parquet file query support
+- [ ] Excel lazy loading performance optimization
+- [ ] Excel enhanced data type compatibility
+- [ ] Multi-session window support
+- [ ] Drag & drop file path support
+- [ ] Directory browsing support
+- [ ] S3 remote file support
+- [ ] Support for direct querying of server files
+- [ ] Data visualization support
+- [ ] Query result export functionality
+
 ## 🛠️ Technical Architecture
 
 ### Core Technology Stack
