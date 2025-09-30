@@ -69,9 +69,8 @@ pub async fn fetch(app: AppHandle, sql: String) -> AppResult<FetchResult> {
 pub async fn sql_history(app: AppHandle) -> AppResult<Vec<FetchHistory>> {
     run_blocking(move || {
         let conn = db_utils::conn(&app)?;
-        let mut stmt = conn.prepare(
-            "select sql, status, created_at from sql_history order by id desc limit 30",
-        )?;
+        let mut stmt = conn
+            .prepare("select sql, status, created_at from sql_history order by id desc limit 30")?;
 
         let rows = stmt.query_map([], |row| {
             Ok(FetchHistory {

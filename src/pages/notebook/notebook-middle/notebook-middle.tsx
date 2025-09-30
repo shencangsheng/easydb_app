@@ -15,7 +15,7 @@ import {
   DropdownMenu,
   DropdownTrigger,
 } from "@heroui/react";
-import { memo, useState, useRef, useEffect, useCallback } from "react";
+import { memo, useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { format } from "sql-formatter";
 import NotebookMiddleBottom from "./notebook-mddle-bottom";
 import { invoke } from "@tauri-apps/api/core";
@@ -48,44 +48,111 @@ function NotebookMiddle({ source }: NotebookMiddleProps) {
     query_time: "",
   });
   const dropAreaRef = useRef<HTMLDivElement>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
-  const formatSql = () => {
-    setSql(
-      format(sql, {
-        language: "sql",
-        keywordCase: "upper",
-      }).replace(/=\s>/g, "=>")
-    );
-  };
+  // 使用 useCallback 缓存格式化函数
+  const formatSql = useCallback(() => {
+    setSql(getFormatSql(sql));
+  }, [sql]);
+
+  // 使用 useCallback 缓存清除函数
+  const clearSql = useCallback(() => {
+    setSql("");
+  }, []);
+
+  // 使用 useMemo 缓存文件扩展名到SQL查询的映射
+  const fileExtensionToSql = useMemo(
+    () => ({
+      csv: (filePath: string) =>
+        `SELECT * FROM read_csv('${filePath}') LIMIT 100;`,
+      xlsx: (filePath: string) =>
+        `SELECT * FROM read_excel('${filePath}') LIMIT 100;`,
+      json: (filePath: string) =>
+        `SELECT * FROM read_json('${filePath}') LIMIT 100;`,
+      ndjson: (filePath: string) =>
+        `SELECT * FROM read_ndjson('${filePath}') LIMIT 100;`,
+      parquet: (filePath: string) =>
+        `SELECT * FROM read_parquet('${filePath}') LIMIT 100;`,
+    }),
+    []
+  );
 
   // 处理文件拖拽
-  const handleFileDrop = useCallback((filePath: string) => {
-    // 如果SQL编辑器为空，根据文件扩展名生成相应的SQL查询
-    const fileExtension = filePath.split(".").pop()?.toLowerCase();
-    let sqlQuery = "";
+  const handleFileDrop = useCallback(
+    (filePath: string) => {
+      // 如果SQL编辑器为空，根据文件扩展名生成相应的SQL查询
+      const fileExtension = filePath.split(".").pop()?.toLowerCase();
 
-    switch (fileExtension) {
-      case "csv":
-        sqlQuery = `SELECT * FROM read_csv('${filePath}', infer_schema => false) LIMIT 10;`;
-        break;
-      case "xlsx":
-      case "xls":
-        sqlQuery = `SELECT * FROM read_excel('${filePath}') LIMIT 10;`;
-        break;
-      case "json":
-        sqlQuery = `SELECT * FROM read_json('${filePath}') LIMIT 10;`;
-        break;
-      case "ndjson":
-        sqlQuery = `SELECT * FROM read_ndjson('${filePath}') LIMIT 10;`;
-        break;
-      case "parquet":
-        sqlQuery = `SELECT * FROM read_parquet('${filePath}') LIMIT 10;`;
-        break;
-      default:
+      if (fileExtension && fileExtension in fileExtensionToSql) {
+        const sqlQuery =
+          fileExtensionToSql[fileExtension as keyof typeof fileExtensionToSql](
+            filePath
+          );
+        setSql(getFormatSql(sqlQuery));
+      }
+    },
+    [fileExtensionToSql]
+  );
+
+  // 使用 useCallback 缓存查询执行函数
+  const executeQuery = useCallback(async () => {
+    if (isRunning || !sql.trim()) return;
+
+    setIsRunning(true);
+    setIsLoading(true);
+    setData({ header: [], rows: [], query_time: "" });
+
+    // 创建 AbortController 用于取消请求
+    const abortController = new AbortController();
+    abortControllerRef.current = abortController;
+
+    try {
+      const results: {
+        header: string[];
+        rows: string[][];
+        query_time: string;
+      } = await invoke("fetch", { sql });
+
+      // 检查是否被取消
+      if (abortController.signal.aborted) {
+        setData({
+          header: ["Status"],
+          rows: [["Query cancelled"]],
+          query_time: "-",
+        });
         return;
-    }
+      }
 
-    setSql(getFormatSql(sqlQuery));
+      setData(results);
+    } catch (error) {
+      // 检查是否是被取消的错误
+      if (abortController.signal.aborted) {
+        setData({
+          header: ["Status"],
+          rows: [["Query cancelled"]],
+          query_time: "-",
+        });
+      } else {
+        setData({
+          header: ["Error"],
+          rows: [[`${error}`]],
+          query_time: "<1ms",
+        });
+      }
+    } finally {
+      setIsRunning(false);
+      setIsLoading(false);
+      abortControllerRef.current = null;
+    }
+  }, [sql, isRunning]);
+
+  // 使用 useCallback 缓存取消查询函数
+  const cancelQuery = useCallback(() => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      setIsRunning(false);
+      setIsLoading(false);
+    }
   }, []);
 
   // 监听Tauri的拖拽事件
@@ -110,25 +177,43 @@ function NotebookMiddle({ source }: NotebookMiddleProps) {
     setupDragDropListeners();
   }, [handleFileDrop]);
 
+  // 使用 useMemo 缓存样式对象
+  const containerStyle = useMemo(
+    () => ({
+      flex: "1",
+      textAlign: "center" as const,
+      borderLeft: "1px solid rgba(17, 17, 17, 0.15)",
+      borderRight: "1px solid rgba(17, 17, 17, 0.15)",
+      overflow: "hidden",
+      position: "relative" as const,
+    }),
+    []
+  );
+
+  const headerStyle = useMemo(
+    () => ({
+      height: 60,
+      borderBottom: "1px solid rgba(17, 17, 17, 0.15)",
+      backgroundColor: "#F5F5F5",
+    }),
+    []
+  );
+
+  const editorContainerStyle = useMemo(
+    () => ({
+      display: "flex",
+      justifyContent: "space-between",
+      height: "45%",
+      width: "100%",
+      overflowY: "auto" as const,
+      flex: 1,
+    }),
+    []
+  );
+
   return (
-    <div
-      ref={dropAreaRef}
-      style={{
-        flex: "1",
-        textAlign: "center",
-        borderLeft: "1px solid rgba(17, 17, 17, 0.15)",
-        borderRight: "1px solid rgba(17, 17, 17, 0.15)",
-        overflow: "hidden",
-        position: "relative",
-      }}
-    >
-      <div
-        style={{
-          height: 60,
-          borderBottom: "1px solid rgba(17, 17, 17, 0.15)",
-          backgroundColor: "#F5F5F5",
-        }}
-      >
+    <div ref={dropAreaRef} style={containerStyle}>
+      <div style={headerStyle}>
         <p
           style={{
             fontSize: "20px",
@@ -143,16 +228,7 @@ function NotebookMiddle({ source }: NotebookMiddleProps) {
           {source}
         </p>
       </div>
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          height: "45%",
-          width: "100%",
-          overflowY: "auto", // Enable vertical scrolling
-          flex: 1,
-        }}
-      >
+      <div style={editorContainerStyle}>
         <div
           style={{
             display: "flex",
@@ -168,32 +244,7 @@ function NotebookMiddle({ source }: NotebookMiddleProps) {
               isDisabled={sql === ""}
               style={{ backgroundColor: "transparent" }}
               aria-label={isRunning ? "Stop query" : "Run query"}
-              onPress={async () => {
-                setIsRunning(!isRunning);
-                if (!isRunning) {
-                  try {
-                    setData({ header: [], rows: [], query_time: "" });
-                    setIsLoading(true);
-                    const results: {
-                      header: string[];
-                      rows: string[][];
-                      query_time: string;
-                    } = await invoke("fetch", {
-                      sql: sql,
-                    });
-                    setData(results);
-                  } catch (error) {
-                    setData({
-                      header: ["Error"],
-                      rows: [[`${error}`]],
-                      query_time: "<1ms",
-                    });
-                  } finally {
-                    setIsRunning(false);
-                    setIsLoading(false);
-                  }
-                }
-              }}
+              onPress={isRunning ? cancelQuery : executeQuery}
             >
               <FontAwesomeIcon
                 icon={isRunning ? faStop : faPlay}
@@ -221,7 +272,7 @@ function NotebookMiddle({ source }: NotebookMiddleProps) {
                   />
                   Format
                 </DropdownItem>
-                <DropdownItem key="clear" onPress={() => setSql("")}>
+                <DropdownItem key="clear" onPress={clearSql}>
                   <FontAwesomeIcon
                     icon={faEraser}
                     style={{ marginRight: "5px" }}
@@ -243,7 +294,7 @@ function NotebookMiddle({ source }: NotebookMiddleProps) {
         >
           <CustomAceEditor
             value={sql}
-            onChange={(value) => setSql(value)}
+            onChange={setSql}
             placeholder={translate("notebook.editorPlaceholder")}
             fontSize={16}
             height="100%"
