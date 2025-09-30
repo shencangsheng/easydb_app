@@ -295,7 +295,9 @@ function NotebookMiddle({ source }: NotebookMiddleProps) {
           <CustomAceEditor
             value={sql}
             onChange={setSql}
-            placeholder={translate("notebook.editorPlaceholder")}
+            placeholder={`${translate(
+              "notebook.editorPlaceholder"
+            )}\n\n${translate("notebook.dragDropHint")}`}
             fontSize={16}
             height="100%"
             width="100%"

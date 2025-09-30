@@ -19,6 +19,7 @@ export interface Translations {
     methodList: string;
     server: string;
     editorPlaceholder: string;
+    dragDropHint: string;
     run: string;
     stop: string;
     format: string;
@@ -132,6 +133,7 @@ const translations: Record<Language, Translations> = {
       methodList: "方法列表",
       server: "服务器",
       editorPlaceholder: "示例: SELECT * FROM tablename, 或按 CTRL + space",
+      dragDropHint: "支持拖拽文件 (CSV, Excel, JSON, Parquet) 自动生成查询",
       run: "运行",
       stop: "停止",
       format: "格式化",
@@ -249,6 +251,8 @@ const translations: Record<Language, Translations> = {
       server: "Server",
       editorPlaceholder:
         "Example: SELECT * FROM tablename, or press CTRL + space",
+      dragDropHint:
+        "Drag and drop files (CSV, Excel, JSON, Parquet) to auto-generate queries",
       run: "Run",
       stop: "Stop",
       format: "Format",
