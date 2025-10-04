@@ -1189,6 +1189,7 @@ dependencies = [
  "calamine",
  "chrono",
  "derive_more 2.0.1",
+ "dirs",
  "glob",
  "log",
  "polars",

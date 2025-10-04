@@ -33,6 +33,18 @@ export interface Translations {
       };
       clickToUse: string;
     };
+    export: {
+      completed: string;
+      queryTime: string;
+      fileName: string;
+      sqlExportSettings: string;
+      tableName: string;
+      tableNamePlaceholder: string;
+      maxValuesPerInsert: string;
+      maxValuesPerInsertPlaceholder: string;
+      cancel: string;
+      confirmExport: string;
+    };
   };
   functions: {
     title: string;
@@ -146,6 +158,18 @@ const translations: Record<Language, Translations> = {
           description: "执行查询后将显示历史记录",
         },
         clickToUse: "点击使用此查询",
+      },
+      export: {
+        completed: "下载完成",
+        queryTime: "查询时间",
+        fileName: "文件名",
+        sqlExportSettings: "SQL 导出设置",
+        tableName: "表名",
+        tableNamePlaceholder: "请输入表名",
+        maxValuesPerInsert: "每批次最大行数",
+        maxValuesPerInsertPlaceholder: "请输入每批次最大行数",
+        cancel: "取消",
+        confirmExport: "确认导出",
       },
     },
     functions: {
@@ -265,6 +289,18 @@ const translations: Record<Language, Translations> = {
           description: "Query history will appear after executing queries",
         },
         clickToUse: "Click to use this query",
+      },
+      export: {
+        completed: "Download Completed",
+        queryTime: "Query Time",
+        fileName: "File Name",
+        sqlExportSettings: "SQL Export Settings",
+        tableName: "Table Name",
+        tableNamePlaceholder: "Enter table name",
+        maxValuesPerInsert: "Max Values Per Insert",
+        maxValuesPerInsertPlaceholder: "Enter max values per insert",
+        cancel: "Cancel",
+        confirmExport: "Confirm Export",
       },
     },
     functions: {

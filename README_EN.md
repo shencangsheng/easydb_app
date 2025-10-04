@@ -46,7 +46,7 @@ EasyDB aims to simplify the text file querying process, allowing you to treat mu
 - [ ] S3 remote file support
 - [ ] Support for direct querying of server files
 - [ ] Data visualization support
-- [ ] Query result export functionality
+- [x] Query result export functionality
 
 ## 🛠️ Technical Architecture
 
