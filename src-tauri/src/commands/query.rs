@@ -149,7 +149,7 @@ pub async fn writer(
 
         downloads_dir.push(format!(
             "easydb_{}.{}",
-            Utc::now().timestamp_millis(),
+            Utc::now().format("%Y%m%d%H%M%S").to_string(),
             file_extension
         ));
 
