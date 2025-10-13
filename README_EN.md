@@ -47,6 +47,7 @@ EasyDB aims to simplify the text file querying process, allowing you to treat mu
 - [ ] Support for direct querying of server files
 - [ ] Data visualization support
 - [x] Query result export functionality
+- [x] Export SQL statements (Insert, Update)
 
 ## 🛠️ Technical Architecture
 
