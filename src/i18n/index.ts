@@ -38,10 +38,18 @@ export interface Translations {
       queryTime: string;
       fileName: string;
       sqlExportSettings: string;
+      sqlStatementType: string;
+      sqlStatementTypePlaceholder: string;
+      insertDescription: string;
+      updateDescription: string;
+      whereColumn: string;
+      whereColumnPlaceholder: string;
+      whereColumnDisabledHint: string;
       tableName: string;
       tableNamePlaceholder: string;
       maxValuesPerInsert: string;
       maxValuesPerInsertPlaceholder: string;
+      batchSizeDisabledHint: string;
       cancel: string;
       confirmExport: string;
     };
@@ -164,10 +172,18 @@ const translations: Record<Language, Translations> = {
         queryTime: "查询时间",
         fileName: "文件名",
         sqlExportSettings: "SQL 导出设置",
+        sqlStatementType: "SQL 语句类型",
+        sqlStatementTypePlaceholder: "请选择 SQL 语句类型",
+        insertDescription: "配置 INSERT 语句的导出参数",
+        updateDescription: "配置 UPDATE 语句的导出参数",
+        whereColumn: "WHERE 字段",
+        whereColumnPlaceholder: "请选择 WHERE 字段",
+        whereColumnDisabledHint: "INSERT 语句不需要 WHERE 条件",
         tableName: "表名",
         tableNamePlaceholder: "请输入表名",
-        maxValuesPerInsert: "每批次最大行数",
-        maxValuesPerInsertPlaceholder: "请输入每批次最大行数",
+        maxValuesPerInsert: "单次插入行数",
+        maxValuesPerInsertPlaceholder: "设置单次插入的最大行数",
+        batchSizeDisabledHint: "UPDATE 语句不需要批次大小设置",
         cancel: "取消",
         confirmExport: "确认导出",
       },
@@ -295,10 +311,20 @@ const translations: Record<Language, Translations> = {
         queryTime: "Query Time",
         fileName: "File Name",
         sqlExportSettings: "SQL Export Settings",
+        sqlStatementType: "SQL Statement Type",
+        sqlStatementTypePlaceholder: "Please select SQL statement type",
+        insertDescription: "Configure export parameters for INSERT statements",
+        updateDescription: "Configure export parameters for UPDATE statements",
+        whereColumn: "WHERE Column",
+        whereColumnPlaceholder: "Please select WHERE column",
+        whereColumnDisabledHint:
+          "INSERT statements do not require WHERE conditions",
         tableName: "Table Name",
         tableNamePlaceholder: "Enter table name",
-        maxValuesPerInsert: "Max Values Per Insert",
-        maxValuesPerInsertPlaceholder: "Enter max values per insert",
+        maxValuesPerInsert: "Batch Size",
+        maxValuesPerInsertPlaceholder: "Set the number of rows per batch",
+        batchSizeDisabledHint:
+          "UPDATE statements do not require batch size settings",
         cancel: "Cancel",
         confirmExport: "Confirm Export",
       },

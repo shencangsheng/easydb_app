@@ -19,6 +19,10 @@ import {
   ModalBody,
   ModalFooter,
   Input,
+  Tabs,
+  Tab,
+  Select,
+  SelectItem,
 } from "@heroui/react";
 import { memo, useState, useEffect } from "react";
 import DataResult from "./notebook-middle-data-result";
@@ -45,6 +49,8 @@ function DataTable({ data, isLoading, sql }: TableProps) {
   const [isTableNameModalOpen, setIsTableNameModalOpen] = useState(false);
   const [tableName, setTableName] = useState("table_name");
   const [maxValuesPerInsert, setMaxValuesPerInsert] = useState(1000);
+  const [sqlStatementType, setSqlStatementType] = useState("INSERT");
+  const [whereColumn, setWhereColumn] = useState("");
   const { translate } = useTranslation();
 
   // 自动隐藏提示
@@ -60,7 +66,9 @@ function DataTable({ data, isLoading, sql }: TableProps) {
   async function exportResults(
     fileType: string,
     tableName?: string,
-    maxValuesPerInsert?: number
+    maxValuesPerInsert?: number,
+    sqlStatementType?: string,
+    whereColumn?: string
   ) {
     try {
       setIsDownloading(true);
@@ -71,6 +79,8 @@ function DataTable({ data, isLoading, sql }: TableProps) {
         fileType,
         tableName: fileType === "SQL" ? tableName : undefined,
         maxValuesPerInsert: fileType === "SQL" ? maxValuesPerInsert : undefined,
+        sqlStatementType: fileType === "SQL" ? sqlStatementType : undefined,
+        whereColumn: fileType === "SQL" ? whereColumn : undefined,
       });
       setExportResult(result);
     } catch (error) {
@@ -81,12 +91,23 @@ function DataTable({ data, isLoading, sql }: TableProps) {
   }
 
   async function handleSqlExport() {
+    // 重置所有状态到初始值
+    setSqlStatementType("INSERT");
+    setTableName("table_name");
+    setMaxValuesPerInsert(1000);
+    setWhereColumn("");
     setIsTableNameModalOpen(true);
   }
 
   async function confirmSqlExport() {
     setIsTableNameModalOpen(false);
-    await exportResults("SQL", tableName, maxValuesPerInsert);
+    await exportResults(
+      "SQL",
+      tableName,
+      maxValuesPerInsert,
+      sqlStatementType,
+      whereColumn
+    );
   }
 
   return (
@@ -224,58 +245,155 @@ function DataTable({ data, isLoading, sql }: TableProps) {
         onOpenChange={setIsTableNameModalOpen}
         placement="center"
         size="lg"
+        classNames={{
+          base: "bg-background",
+          backdrop: "bg-black/50",
+        }}
       >
         <ModalContent>
           {(onClose) => (
             <>
-              <ModalHeader
-                className="flex flex-col gap-1"
-                style={{ fontSize: "18px", fontWeight: "600" }}
-              >
-                {translate("notebook.export.sqlExportSettings")}
+              <ModalHeader className="flex flex-col gap-2 pb-4">
+                <h2 className="text-xl font-semibold text-foreground">
+                  {translate("notebook.export.sqlExportSettings")}
+                </h2>
+                <p className="text-sm text-default-500">
+                  {sqlStatementType === "INSERT"
+                    ? translate("notebook.export.insertDescription")
+                    : translate("notebook.export.updateDescription")}
+                </p>
               </ModalHeader>
-              <ModalBody style={{ fontSize: "16px" }}>
-                <Input
-                  label={translate("notebook.export.tableName")}
-                  placeholder={translate(
-                    "notebook.export.tableNamePlaceholder"
+
+              <ModalBody className="gap-6 py-6">
+                {/* SQL 语句类型选择 */}
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2">
+                    <label className="text-sm font-medium text-foreground">
+                      {translate("notebook.export.sqlStatementType")}
+                    </label>
+                    <span className="text-danger text-sm">*</span>
+                  </div>
+                  <Tabs
+                    selectedKey={sqlStatementType}
+                    onSelectionChange={(key) =>
+                      setSqlStatementType(key as string)
+                    }
+                    variant="solid"
+                    color="primary"
+                    size="lg"
+                    classNames={{
+                      base: "w-full",
+                      tabList:
+                        "gap-0 w-full relative rounded-xl p-1 bg-default-100",
+                      cursor: "w-full bg-background shadow-md rounded-lg",
+                      tab: "flex-1 px-6 h-12 min-w-0 w-1/2 font-medium",
+                      tabContent:
+                        "group-data-[selected=true]:text-primary text-center font-semibold",
+                    }}
+                  >
+                    <Tab key="INSERT" title="INSERT" />
+                    <Tab key="UPDATE" title="UPDATE" />
+                  </Tabs>
+                </div>
+
+                {/* 表名输入 */}
+                <div className="space-y-2">
+                  <Input
+                    label={translate("notebook.export.tableName")}
+                    placeholder={translate(
+                      "notebook.export.tableNamePlaceholder"
+                    )}
+                    value={tableName}
+                    onChange={(e) => setTableName(e.target.value)}
+                    autoFocus
+                    size="lg"
+                    isRequired
+                    variant="bordered"
+                    classNames={{
+                      input: "text-base",
+                      label: "text-sm font-medium",
+                      inputWrapper:
+                        "border-default-200 hover:border-primary-300 focus-within:border-primary-500",
+                    }}
+                  />
+                </div>
+
+                {/* WHERE 字段选择 */}
+                <div className="space-y-2">
+                  <Select
+                    label={translate("notebook.export.whereColumn")}
+                    placeholder={translate(
+                      "notebook.export.whereColumnPlaceholder"
+                    )}
+                    selectedKeys={whereColumn ? [whereColumn] : []}
+                    onSelectionChange={(keys) => {
+                      const selectedKey = Array.from(keys)[0] as string;
+                      setWhereColumn(selectedKey || "");
+                    }}
+                    size="lg"
+                    variant="bordered"
+                    isDisabled={sqlStatementType === "INSERT"}
+                    isRequired={sqlStatementType === "UPDATE"}
+                    classNames={{
+                      trigger:
+                        "text-base border-default-200 hover:border-primary-300 focus-within:border-primary-500",
+                      label: "text-sm font-medium",
+                      value: "text-base",
+                      listbox: "text-base",
+                    }}
+                  >
+                    {data.header.map((column) => (
+                      <SelectItem key={column} className="text-base">
+                        {column}
+                      </SelectItem>
+                    ))}
+                  </Select>
+                  {sqlStatementType === "INSERT" && (
+                    <p className="text-xs text-default-400">
+                      {translate("notebook.export.whereColumnDisabledHint")}
+                    </p>
                   )}
-                  value={tableName}
-                  onChange={(e) => setTableName(e.target.value)}
-                  autoFocus
-                  size="lg"
-                  isRequired
-                  classNames={{
-                    input: "text-lg",
-                    label: "text-lg font-medium",
-                  }}
-                />
-                <Input
-                  label={translate("notebook.export.maxValuesPerInsert")}
-                  placeholder={translate(
-                    "notebook.export.maxValuesPerInsertPlaceholder"
+                </div>
+
+                {/* 批次大小设置 */}
+                <div className="space-y-2">
+                  <Input
+                    label={translate("notebook.export.maxValuesPerInsert")}
+                    placeholder={translate(
+                      "notebook.export.maxValuesPerInsertPlaceholder"
+                    )}
+                    value={maxValuesPerInsert.toString()}
+                    onChange={(e) =>
+                      setMaxValuesPerInsert(parseInt(e.target.value) || 1000)
+                    }
+                    size="lg"
+                    type="number"
+                    min="1"
+                    variant="bordered"
+                    isDisabled={sqlStatementType === "UPDATE"}
+                    isRequired={sqlStatementType === "INSERT"}
+                    classNames={{
+                      input: "text-base",
+                      label: "text-sm font-medium",
+                      inputWrapper:
+                        "border-default-200 hover:border-primary-300 focus-within:border-primary-500",
+                    }}
+                  />
+                  {sqlStatementType === "UPDATE" && (
+                    <p className="text-xs text-default-400">
+                      {translate("notebook.export.batchSizeDisabledHint")}
+                    </p>
                   )}
-                  value={maxValuesPerInsert.toString()}
-                  onChange={(e) =>
-                    setMaxValuesPerInsert(parseInt(e.target.value) || 1000)
-                  }
-                  size="lg"
-                  type="number"
-                  min="1"
-                  isRequired
-                  classNames={{
-                    input: "text-lg",
-                    label: "text-lg font-medium",
-                  }}
-                />
+                </div>
               </ModalBody>
-              <ModalFooter style={{ fontSize: "16px" }}>
+
+              <ModalFooter className="gap-3 pt-4">
                 <Button
-                  color="danger"
+                  color="default"
                   variant="light"
                   onPress={onClose}
                   size="lg"
-                  className="text-lg font-medium"
+                  className="font-medium"
                 >
                   {translate("notebook.export.cancel")}
                 </Button>
@@ -285,9 +403,13 @@ function DataTable({ data, isLoading, sql }: TableProps) {
                     confirmSqlExport();
                     onClose();
                   }}
-                  isDisabled={!tableName.trim() || maxValuesPerInsert < 1}
+                  isDisabled={
+                    !tableName.trim() ||
+                    (sqlStatementType === "INSERT" && maxValuesPerInsert < 1) ||
+                    (sqlStatementType === "UPDATE" && !whereColumn.trim())
+                  }
                   size="lg"
-                  className="text-lg font-medium"
+                  className="font-medium"
                 >
                   {translate("notebook.export.confirmExport")}
                 </Button>

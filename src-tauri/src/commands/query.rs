@@ -2,7 +2,7 @@ use crate::commands::run_blocking;
 use crate::context::context::{collect, register};
 use crate::context::error::AppError;
 use crate::context::schema::AppResult;
-use crate::sql::generator::generate_sql_inserts;
+use crate::sql::generator::{generate_sql_inserts, generate_sql_update};
 use crate::utils::date_utils::time_difference_from_now;
 use crate::utils::db_utils;
 use crate::utils::db_utils::insert_query_history;
@@ -110,6 +110,8 @@ pub async fn writer(
     sql: String,
     table_name: Option<String>,
     max_values_per_insert: Option<usize>,
+    sql_statement_type: Option<String>,
+    where_column: Option<String>,
 ) -> AppResult<WriterResult> {
     run_blocking(move || {
         let mut downloads_dir = dirs::download_dir().ok_or_else(|| AppError::BadRequest {
@@ -124,10 +126,33 @@ pub async fn writer(
                     message: "Table name is required for SQL export".to_string(),
                 });
             }
-            if max_values_per_insert.is_none() {
-                return Err(AppError::BadRequest {
-                    message: "Max values per insert is required for SQL export".to_string(),
-                });
+
+            let statement_type = sql_statement_type
+                .as_ref()
+                .map(|s| s.to_uppercase())
+                .unwrap_or_else(|| "INSERT".to_string());
+            match statement_type.as_str() {
+                "INSERT" => {
+                    if max_values_per_insert.is_none() {
+                        return Err(AppError::BadRequest {
+                            message: "Max values per insert is required for INSERT statements"
+                                .to_string(),
+                        });
+                    }
+                }
+                "UPDATE" => {
+                    if where_column.is_none() {
+                        return Err(AppError::BadRequest {
+                            message: "WHERE column is required for UPDATE statements".to_string(),
+                        });
+                    }
+                }
+                _ => {
+                    return Err(AppError::BadRequest {
+                        message: "Invalid SQL statement type. Supported types: INSERT, UPDATE"
+                            .to_string(),
+                    });
+                }
             }
         }
 
@@ -165,12 +190,30 @@ pub async fn writer(
                 CsvWriter::new(file).with_separator(b'\t').finish(&mut df)?;
             }
             "sql" => {
-                // Generate SQL insert statements
-                // We already validated that these are not None above
+                // Generate SQL statements based on statement type
                 let table_name_value = table_name.unwrap();
-                let max_values = max_values_per_insert.unwrap();
-                let sql_content = generate_sql_inserts(&df, &table_name_value, max_values)?;
-                writeln!(file, "{}", sql_content)?;
+                let statement_type = sql_statement_type
+                    .as_ref()
+                    .map(|s| s.to_uppercase())
+                    .unwrap_or_else(|| "INSERT".to_string());
+
+                let sql_content = match statement_type.as_str() {
+                    "INSERT" => {
+                        let max_values = max_values_per_insert.unwrap();
+                        generate_sql_inserts(&df, &table_name_value, max_values)?
+                    }
+                    "UPDATE" => {
+                        let where_column_value = where_column.unwrap();
+                        generate_sql_update(&df, &table_name_value, &where_column_value)?
+                    }
+                    _ => {
+                        return Err(AppError::BadRequest {
+                            message: "Invalid SQL statement type".to_string(),
+                        });
+                    }
+                };
+
+                write!(file, "{}", sql_content)?;
             }
             _ => unreachable!(), // This case is handled above
         }
