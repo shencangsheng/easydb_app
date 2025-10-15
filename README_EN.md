@@ -159,6 +159,26 @@ FROM table1 t1
 JOIN table2 t2 ON t1.id = t2.id;
 ```
 
+### Syntax Problem
+
+Field names can be wrapped in ``, for example:
+
+```sql
+SELECT `id`, `name` FROM table where id = 1;
+```
+
+Can also be wrapped in single quotes, for example:
+
+```sql
+SELECT 'id', 'name' FROM table where id = '1';
+```
+
+When where is a string, use single quotes, for example:
+
+```sql
+SELECT * FROM table where id = '1';
+```
+
 ## 📖 Project Background
 
 ### From Server to App

@@ -159,6 +159,26 @@ FROM table1 t1
 JOIN table2 t2 ON t1.id = t2.id;
 ```
 
+### 语法问题
+
+字段名可以使用 `` 包裹，例如：
+
+```sql
+SELECT `id`, `name` FROM table where id = 1;
+```
+
+也可以使用单引号包裹，例如：
+
+```sql
+SELECT 'id', 'name' FROM table where id = '1';
+```
+
+where 字符串时，使用单引号包裹，例如：
+
+```sql
+SELECT * FROM table where id = '1';
+```
+
 ## 📖 项目背景
 
 ### 从 Server 到 App
