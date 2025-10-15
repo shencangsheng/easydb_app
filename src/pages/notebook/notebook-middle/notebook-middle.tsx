@@ -73,6 +73,8 @@ function NotebookMiddle({ source }: NotebookMiddleProps) {
         `SELECT * FROM read_ndjson('${filePath}') LIMIT 100;`,
       parquet: (filePath: string) =>
         `SELECT * FROM read_parquet('${filePath}') LIMIT 100;`,
+      tsv: (filePath: string) =>
+        `SELECT * FROM read_tsv('${filePath}') LIMIT 100;`,
     }),
     []
   );
@@ -111,7 +113,7 @@ function NotebookMiddle({ source }: NotebookMiddleProps) {
         header: string[];
         rows: string[][];
         query_time: string;
-      } = await invoke("fetch", { sql });
+      } = await invoke("fetch", { sql, offset: 0, limit: 200 });
 
       // 检查是否被取消
       if (abortController.signal.aborted) {

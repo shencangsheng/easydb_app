@@ -92,6 +92,10 @@ export interface Translations {
       description: string;
       inferSchema: string;
     };
+    readParquet: {
+      name: string;
+      description: string;
+    };
     regexpLike: {
       name: string;
       description: string;
@@ -228,6 +232,10 @@ const translations: Record<Language, Translations> = {
         description: "读取 Excel 文件为表。",
         inferSchema:
           "是否自动推断数据类型。为 true 时，将根据前 100 行进行推断。",
+      },
+      readParquet: {
+        name: "read_parquet",
+        description: "读取 Parquet 文件为表。",
       },
       regexpLike: {
         name: "REGEXP_LIKE",
@@ -369,6 +377,10 @@ const translations: Record<Language, Translations> = {
         description: "Read Excel file as table.",
         inferSchema:
           "Whether to automatically infer data types. If true, the first 100 rows are used for inference.",
+      },
+      readParquet: {
+        name: "read_parquet",
+        description: "Read Parquet file as table.",
       },
       regexpLike: {
         name: "REGEXP_LIKE",

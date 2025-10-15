@@ -95,6 +95,13 @@ const createMethods = (t: (key: string) => string) => [
     example: `select * from read_ndjson("data.ndjson")`,
   },
   {
+    name: "read_parquet",
+    description: t("functions.readParquet.description"),
+    type: "table-valued" as FunctionType,
+    params: [],
+    example: `select * from read_parquet("data.parquet")`,
+  },
+  {
     name: "read_excel",
     description: t("functions.readExcel.description"),
     type: "table-valued" as FunctionType,

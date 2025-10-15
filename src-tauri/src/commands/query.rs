@@ -38,12 +38,12 @@ pub struct WriterResult {
 }
 
 #[command]
-pub async fn fetch(app: AppHandle, sql: String) -> AppResult<FetchResult> {
+pub async fn fetch(app: AppHandle, sql: String, offset: usize, limit: usize) -> AppResult<FetchResult> {
     run_blocking(move || {
         let start = Utc::now();
         let mut context = SQLContext::new();
 
-        let new_sql = register(&mut context, &sql, Some("200".to_string()))?;
+        let new_sql = register(&mut context, &sql, Some(limit), Some(offset))?;
         let df = collect(&mut context, &new_sql).map_err(|err| {
             let _ = insert_query_history(&app, &sql, "fail");
             err
@@ -157,7 +157,7 @@ pub async fn writer(
         }
 
         let mut context = SQLContext::new();
-        let new_sql = register(&mut context, &sql, None)?;
+        let new_sql = register(&mut context, &sql, None, None)?;
         let mut df = collect(&mut context, &new_sql)?;
 
         // Determine file extension

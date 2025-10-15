@@ -5,11 +5,11 @@ use polars::sql::SQLContext;
 
 #[test]
 fn test_1() {
-    let sql = "select * from read_excel('/Users/shencangsheng/Downloads/20250916111918.xlsx', sheet_name => '其他')";
+    let sql = "select * from read_tsv('/Users/shencangsheng/Downloads/nightly-FeatureSummaries.tsv')";
 
     let mut context = SQLContext::new();
 
-    let new_sql = register(&mut context, &sql, Some("200".to_string())).unwrap();
+    let new_sql = register(&mut context, &sql, Some(200), None).unwrap();
 
     let df = collect(&mut context, &new_sql).unwrap();
 }
@@ -22,7 +22,7 @@ fn test_2() -> AppResult<()> {
 
     let mut context = SQLContext::new();
 
-    let new_sql = register(&mut context, &sql, Some("200".to_string()))?;
+    let new_sql = register(&mut context, &sql, Some(200), None)?;
 
     let df = collect(&mut context, &new_sql)?;
 
@@ -63,7 +63,7 @@ WHERE
     "#;
 
     let mut context = SQLContext::new();
-    let new_sql = register(&mut context, &sql, Some("200".to_string()))?;
+    let new_sql = register(&mut context, &sql, Some(200), None)?;
     let df = collect(&mut context, &new_sql)?;
 
     Ok(())

@@ -3,17 +3,19 @@ use crate::context::schema::AppResult;
 use crate::reader::excel::ExcelReader;
 use crate::sql::parse::{get_function_args, parse_statements};
 use polars::frame::DataFrame;
+use polars::io::mmap::MmapBytesReader;
 use polars::io::SerReader;
 use polars::prelude::{
-    IntoLazy, JsonReader, LazyCsvReader, LazyFileListReader, LazyFrame, LazyJsonLineReader, PlPath,
+    IntoLazy, JsonReader, LazyCsvReader, LazyFileListReader, LazyFrame, LazyJsonLineReader,
+    ParquetReader, PlPath,
 };
 use polars::sql::SQLContext;
-use sqlparser::ast::SetExpr::Select;
+use sqlparser::ast::SetExpr::{Query, Select};
 use sqlparser::ast::{
-    Expr, FunctionArg, FunctionArgExpr, Statement, TableFactor, TableFunctionArgs, Value,
+    Expr, FunctionArg, FunctionArgExpr, Offset, OffsetRows, Statement, TableFactor,
+    TableFunctionArgs, Value,
 };
 use std::fs::File;
-
 
 pub fn get_sql_context() -> SQLContext {
     SQLContext::new()
@@ -36,6 +38,10 @@ pub fn get_json_reader(path: PlPath) -> AppResult<JsonReader<'static, File>> {
 
 pub fn get_ndjson_reader(path: PlPath) -> LazyJsonLineReader {
     LazyJsonLineReader::new(path)
+}
+
+pub fn get_parquet_reader(path: PlPath) -> AppResult<ParquetReader<File>> {
+    Ok(ParquetReader::new(File::open(path.to_str())?))
 }
 
 pub fn get_path(args: &mut Option<TableFunctionArgs>) -> AppResult<PlPath> {
@@ -142,6 +148,14 @@ pub fn read_ndjson(
     reader.finish().map_err(|e| e.into())
 }
 
+pub fn read_parquet(
+    mut reader: ParquetReader<File>,
+    args: &mut Option<TableFunctionArgs>,
+) -> AppResult<DataFrame> {
+    let _args = get_function_args(args);
+    reader.finish().map_err(|e| e.into())
+}
+
 enum FrameType {
     Lazy(LazyFrame),
     Data(DataFrame),
@@ -165,6 +179,10 @@ fn register_table(
             "read_ndjson" => Some(FrameType::Lazy(read_ndjson(get_ndjson_reader(path), args)?)),
             "read_json" => Some(FrameType::Data(read_json(get_json_reader(path)?, args)?)),
             "read_excel" => Some(FrameType::Data(read_excel(get_excel_reader(path), args)?)),
+            "read_parquet" => Some(FrameType::Data(read_parquet(
+                get_parquet_reader(path)?,
+                args,
+            )?)),
             _ => None,
         };
 
@@ -187,7 +205,12 @@ fn register_table(
     Ok(table_count + 1)
 }
 
-pub fn register(ctx: &mut SQLContext, sql: &str, limit: Option<String>) -> AppResult<String> {
+pub fn register(
+    ctx: &mut SQLContext,
+    sql: &str,
+    limit: Option<usize>,
+    offset: Option<usize>,
+) -> AppResult<String> {
     let mut ast = parse_statements(sql)?;
 
     let statement = ast.get_mut(0).ok_or(AppError::BadRequest {
@@ -207,8 +230,24 @@ pub fn register(ctx: &mut SQLContext, sql: &str, limit: Option<String>) -> AppRe
             }
         }
         if limit.is_some() && query.limit.is_none() {
-            query.limit = Some(Expr::Value(Value::Number(limit.unwrap(), true)));
+            query.limit = Some(Expr::Value(Value::Number(limit.unwrap().to_string(), true)));
         }
+        if offset.is_some()
+            && query.limit.is_some()
+            && query.offset.is_none()
+            && offset.unwrap() > 0
+        {
+            if let Some(Expr::Value(Value::Number(value, _))) = &query.limit {
+                query.offset = Some(Offset {
+                    value: Expr::Value(Value::Number(
+                        (value.parse::<i64>().unwrap() * offset.unwrap() as i64).to_string(),
+                        true,
+                    )),
+                    rows: OffsetRows::None,
+                });
+            }
+        }
+
         Ok(query.to_string())
     } else {
         Err(AppError::BadRequest {
