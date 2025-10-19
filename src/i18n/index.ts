@@ -443,6 +443,12 @@ class I18n {
         const savedLanguage = localStorage.getItem("app-language") as Language;
         if (savedLanguage && ["zh-CN", "en-US"].includes(savedLanguage)) {
           this.currentLanguage = savedLanguage;
+        } else {
+          // 如果没有保存的语言设置，根据浏览器默认语言自动选择
+          const browserLanguage = this.detectBrowserLanguage();
+          this.currentLanguage = browserLanguage;
+          // 保存自动检测的语言设置
+          localStorage.setItem("app-language", browserLanguage);
         }
       }
       this.initialized = true;
@@ -451,6 +457,28 @@ class I18n {
       this.currentLanguage = "zh-CN";
       this.initialized = true;
     }
+  }
+
+  private detectBrowserLanguage(): Language {
+    try {
+      if (typeof window !== "undefined" && window.navigator) {
+        const browserLang =
+          window.navigator.language || window.navigator.languages?.[0];
+
+        // 检查是否是中文（包括简体中文、繁体中文等）
+        if (browserLang && browserLang.toLowerCase().includes("zh")) {
+          return "zh-CN";
+        }
+
+        // 其他情况默认使用英文
+        return "en-US";
+      }
+    } catch (error) {
+      console.warn("Failed to detect browser language:", error);
+    }
+
+    // 如果检测失败，默认使用中文
+    return "zh-CN";
   }
 
   getLanguage(): Language {
