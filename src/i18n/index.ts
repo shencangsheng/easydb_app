@@ -119,6 +119,17 @@ export interface Translations {
     description: string;
     descriptionDetail: string;
     checkUpdate: string;
+    checkingUpdate: string;
+    updateCheckTitle: string;
+    parseRepoError: string;
+    noReleaseAvailable: string;
+    newVersionAvailable: string;
+    newVersionTitle: string;
+    goToDownload: string;
+    cancel: string;
+    alreadyLatestVersion: string;
+    updateCheckError: string;
+    updateCheckFailed: string;
     privacyPolicy: string;
     userTerms: string;
     genuineAlert: string;
@@ -261,6 +272,17 @@ const translations: Record<Language, Translations> = {
       descriptionDetail:
         "EasyDB 是一个简约强大的 SQL 桌面客户端，基于 Rust 构建，具备高性能的文件查询能力，轻松处理数百兆乃至数GB的大型文本文件，仅需极少的硬件资源。支持 CSV、NdJson、JSON、Excel 和 Parquet 文件格式，无需进行文件转换，开箱即用。",
       checkUpdate: "检查更新",
+      checkingUpdate: "检查中...",
+      updateCheckTitle: "检查更新",
+      parseRepoError: "无法解析仓库地址，请手动访问 GitHub 检查更新。",
+      noReleaseAvailable: "当前没有可用的发布版本。",
+      newVersionAvailable: "发现新版本：{latestVersion}\n\n当前版本：{currentVersion}\n\n是否前往下载页面？",
+      newVersionTitle: "发现新版本",
+      goToDownload: "前往下载",
+      cancel: "取消",
+      alreadyLatestVersion: "当前已是最新版本（{currentVersion}）",
+      updateCheckError: "检查更新时发生错误，请稍后重试或手动访问 GitHub 检查。",
+      updateCheckFailed: "检查更新失败",
       privacyPolicy: "隐私政策",
       userTerms: "用户条款",
       genuineAlert: "正版提示",
@@ -407,6 +429,17 @@ const translations: Record<Language, Translations> = {
       descriptionDetail:
         "EasyDB is a simple yet powerful SQL desktop client built with Rust, featuring high-performance file querying capabilities that effortlessly handle hundreds of megabytes to multiple gigabytes of large text files with minimal hardware resources. It supports CSV, NdJson, JSON, Excel, and Parquet file formats without requiring file conversion, ready to use out of the box.",
       checkUpdate: "Check for Updates",
+      checkingUpdate: "Checking...",
+      updateCheckTitle: "Check for Updates",
+      parseRepoError: "Unable to parse repository URL. Please check GitHub manually for updates.",
+      noReleaseAvailable: "No releases are currently available.",
+      newVersionAvailable: "New version available: {latestVersion}\n\nCurrent version: {currentVersion}\n\nWould you like to go to the download page?",
+      newVersionTitle: "New Version Available",
+      goToDownload: "Go to Download",
+      cancel: "Cancel",
+      alreadyLatestVersion: "You are using the latest version ({currentVersion})",
+      updateCheckError: "An error occurred while checking for updates. Please try again later or check GitHub manually.",
+      updateCheckFailed: "Update Check Failed",
       privacyPolicy: "Privacy Policy",
       userTerms: "User Terms",
       genuineAlert: "Genuine Product Alert",

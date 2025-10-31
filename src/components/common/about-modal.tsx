@@ -8,7 +8,13 @@ import {
 } from "@heroui/react";
 import { useTranslation } from "../../i18n";
 import { invoke } from "@tauri-apps/api/core";
-import { getVersionInfo } from "../../utils/version";
+import {
+  getVersionInfo,
+  compareVersions,
+  fetchLatestRelease,
+} from "../../utils/version";
+import { message, ask } from "@tauri-apps/plugin-dialog";
+import { useState } from "react";
 
 interface AboutModalProps {
   isOpen: boolean;
@@ -18,10 +24,100 @@ interface AboutModalProps {
 function AboutModal({ isOpen, onClose }: AboutModalProps) {
   const { translate } = useTranslation();
   const versionInfo = getVersionInfo();
+  const [isChecking, setIsChecking] = useState(false);
 
-  const handleCheckUpdate = () => {
-    // 这里可以添加检查更新的逻辑
-    alert(translate("about.checkUpdate") + " - 当前已是最新版本");
+  // Helper function for variable replacement
+  const replaceVariables = (
+    text: string,
+    variables: Record<string, string>
+  ): string => {
+    let result = text;
+    for (const [key, value] of Object.entries(variables)) {
+      result = result.replace(new RegExp(`\\{${key}\\}`, "g"), value);
+    }
+    return result;
+  };
+
+  const handleCheckUpdate = async () => {
+    setIsChecking(true);
+    try {
+      // Extract owner and repo from repository URL
+      const repoUrl = versionInfo.repository;
+      const match = repoUrl.match(/github\.com\/([^/]+)\/([^/]+)/);
+
+      if (!match) {
+        await message(translate("about.parseRepoError"), {
+          title: translate("about.updateCheckTitle"),
+          kind: "error",
+        });
+        return;
+      }
+
+      const [, owner, repo] = match;
+
+      // Fetch latest release
+      const latestRelease = await fetchLatestRelease(owner, repo);
+
+      if (!latestRelease) {
+        await message(translate("about.noReleaseAvailable"), {
+          title: translate("about.updateCheckTitle"),
+          kind: "info",
+        });
+        return;
+      }
+
+      // Extract version number (remove 'v' prefix)
+      const latestVersion = latestRelease.tag_name.replace(/^v/i, "");
+      const currentVersion = versionInfo.version;
+
+      // Compare versions
+      const comparison = compareVersions(latestVersion, currentVersion);
+
+      if (comparison > 0) {
+        // New version available
+        const updateMessage = replaceVariables(
+          translate("about.newVersionAvailable"),
+          {
+            latestVersion,
+            currentVersion,
+          }
+        );
+
+        const shouldOpen = await ask(updateMessage, {
+          title: translate("about.newVersionTitle"),
+          kind: "info",
+          okLabel: translate("about.goToDownload"),
+          cancelLabel: translate("about.cancel"),
+        });
+
+        if (shouldOpen) {
+          await invoke("open_url", {
+            url: latestRelease.html_url,
+          });
+        }
+      } else {
+        // Already on latest version
+        const messageText = replaceVariables(
+          translate("about.alreadyLatestVersion"),
+          {
+            currentVersion,
+          }
+        );
+
+        await message(messageText, {
+          title: translate("about.updateCheckTitle"),
+          kind: "info",
+        });
+      }
+    } catch (error) {
+      console.error("Failed to check for updates:", error);
+      await message(translate("about.updateCheckError"), {
+        title: translate("about.updateCheckFailed"),
+        kind: "error",
+      });
+    } finally {
+      setIsChecking(false);
+    }
   };
 
   const handleGithubClick = async () => {
@@ -50,7 +146,7 @@ function AboutModal({ isOpen, onClose }: AboutModalProps) {
               </h2>
             </ModalHeader>
             <ModalBody>
-              {/* 应用信息区域 */}
+              {/* Application information section */}
               <div className="mb-6">
                 <div className="flex items-center mb-4">
                   <div className="w-16 h-16 bg-white rounded-xl flex items-center justify-center mr-4 text-3xl text-black border border-gray-200">
@@ -77,8 +173,12 @@ function AboutModal({ isOpen, onClose }: AboutModalProps) {
                       variant="solid"
                       onPress={handleCheckUpdate}
                       className="min-w-[120px]"
+                      isLoading={isChecking}
+                      isDisabled={isChecking}
                     >
-                      {translate("about.checkUpdate")}
+                      {isChecking
+                        ? translate("about.checkingUpdate")
+                        : translate("about.checkUpdate")}
                     </Button>
                   </div>
                 </div>
@@ -87,7 +187,7 @@ function AboutModal({ isOpen, onClose }: AboutModalProps) {
                   {translate("about.descriptionDetail")}
                 </p>
 
-                {/* 版本详细信息 */}
+                {/* Version details */}
                 <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-4">
                   <h4 className="text-sm font-semibold mb-3 m-0 text-gray-700">
                     版本信息
@@ -121,14 +221,14 @@ function AboutModal({ isOpen, onClose }: AboutModalProps) {
                 </div>
               </div>
 
-              {/* 社交媒体和联系方式 */}
+              {/* Social media and contact information */}
               <div className="mb-6">
                 <h3 className="text-lg font-semibold mb-4 text-gray-800">
                   {translate("about.socialMedia")}
                 </h3>
 
                 <div className="flex flex-col gap-3">
-                  {/* Github */}
+                  {/* GitHub */}
                   <div
                     onClick={handleGithubClick}
                     className="flex items-center p-3 bg-gray-50 rounded-lg cursor-pointer transition-colors hover:bg-gray-100"
@@ -154,7 +254,7 @@ function AboutModal({ isOpen, onClose }: AboutModalProps) {
                     <span className="ml-2 text-sm">→</span>
                   </div>
 
-                  {/* 邮箱 */}
+                  {/* Email */}
                   <div className="flex items-center p-3 bg-gray-50 rounded-lg">
                     <span className="text-xl mr-3">✉️</span>
                     <span className="text-sm font-medium">
@@ -168,14 +268,14 @@ function AboutModal({ isOpen, onClose }: AboutModalProps) {
                 </div>
               </div>
 
-              {/* 其他链接 */}
+              {/* Other links */}
               <div>
                 <h3 className="text-lg font-semibold mb-4 text-gray-800">
                   {translate("common.general")}
                 </h3>
 
                 <div className="flex flex-col gap-3">
-                  {/* 首页 */}
+                  {/* Homepage */}
                   <div
                     onClick={onClose}
                     className="flex items-center p-3 bg-gray-50 rounded-lg cursor-pointer transition-colors hover:bg-gray-100"
