@@ -16,7 +16,7 @@
 
 ## 📖 Introduction
 
-EasyDB is a lightweight desktop data query tool built with Rust that allows you to query local files directly using SQL. With a built-in query engine, there is no need to install additional databases or other tools. It treats files as database tables, enabling you to query CSV, Excel, JSON, and other formats using SQL. It effortlessly handles large text files from hundreds of MB to multiple GB and requires minimal hardware resources.
+EasyDB is a lightweight desktop data query tool built with Rust that queries local files directly using SQL. With a built-in query engine, there is no need to install additional databases or other tools. It treats files as database tables, enabling querying of CSV, Excel, JSON, and other formats using SQL. It effortlessly handles large text files from hundreds of MB to multiple GB and requires minimal hardware resources.
 
 ![demo.gif](assets/demo.gif)
 
