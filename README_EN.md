@@ -4,7 +4,7 @@
 
 ![EasyDB Logo](public/logo.png)
 
-**A simple yet powerful SQL desktop client supporting multiple file formats**
+**A simple yet powerful desktop data query tool that uses SQL to query local files directly with built-in query engine**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)](https://github.com/shencangsheng/easydb_app)
@@ -16,11 +16,9 @@
 
 ## 📖 Introduction
 
-EasyDB is a simple yet powerful SQL desktop client built with Rust, featuring high-performance file querying capabilities that effortlessly handle hundreds of megabytes to multiple gigabytes of large text files with minimal hardware resources. It supports CSV, NdJson, JSON, Excel, and Parquet file formats without requiring file conversion, ready to use out of the box.
+EasyDB is a lightweight desktop data query tool built with Rust that allows you to query local files directly using SQL. With a built-in query engine, there is no need to install additional databases or other tools. It treats files as database tables, enabling you to query CSV, Excel, JSON, and other formats using SQL. It effortlessly handles large text files from hundreds of MB to multiple GB and requires minimal hardware resources.
 
-### 🎯 Design Philosophy
-
-EasyDB aims to simplify the text file querying process, allowing you to treat multiple text files as a database and query them using familiar SQL syntax. Whether you're a data analyst, developer, or regular user, you can easily get started.
+![demo.gif](assets/demo.gif)
 
 ## ✨ Core Features
 

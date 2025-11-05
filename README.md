@@ -4,7 +4,7 @@
 
 ![EasyDB Logo](public/128x128.png)
 
-**一个简约强大的 SQL 桌面客户端，支持多种文件格式查询**
+**一个简约强大的桌面数据查询工具，使用 SQL 直接查询本地文件，内置查询引擎**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)](https://github.com/shencangsheng/easydb_app)
@@ -16,11 +16,9 @@
 
 ## 📖 简介
 
-EasyDB 是一个简约强大的 SQL 桌面客户端，基于 Rust 构建，具备高性能的文件查询能力，轻松处理数百兆乃至数 GB 的大型文本文件，仅需极少的硬件资源。支持 CSV、NdJson、JSON、Excel 和 Parquet 文件格式，无需进行文件转换，开箱即用。
+EasyDB 是一个轻量级桌面数据查询工具，基于 Rust 构建，让您使用 SQL 直接查询本地文件。内置查询引擎，无需额外安装数据库或其他工具。它将文件视为数据库表，使您能够使用 SQL 查询 CSV、Excel、JSON 和其他格式。轻松处理数百兆乃至数 GB 的大型文本文件，仅需极少的硬件资源。
 
-### 🎯 设计理念
-
-EasyDB 旨在简化文本文件查询过程，让您能够将多个文本文件视为一个数据库，并使用熟悉的 SQL 语法进行查询。无论是数据分析师、开发者还是普通用户，都能轻松上手。
+![demo.gif](assets/demo.gif)
 
 ## ✨ 核心特性
 
