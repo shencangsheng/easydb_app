@@ -4,7 +4,7 @@
 
 ![EasyDB Logo](public/logo.png)
 
-**A simple yet powerful desktop data query tool that uses SQL to query local files directly with built-in query engine**
+**A lightweight desktop data query tool that uses SQL to query local files directly with built-in query engine**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)](https://github.com/shencangsheng/easydb_app)
