@@ -2,8 +2,8 @@ use crate::context::error::AppError;
 use crate::context::schema::AppResult;
 use crate::reader::excel::ExcelReader;
 use crate::sql::parse::{get_function_args, parse_statements};
+use datafusion::prelude::{CsvReadOptions, NdJsonReadOptions, SessionContext};
 use polars::frame::DataFrame;
-use polars::io::mmap::MmapBytesReader;
 use polars::io::SerReader;
 use polars::prelude::{
     IntoLazy, JsonReader, LazyCsvReader, LazyFileListReader, LazyFrame, LazyJsonLineReader,
@@ -16,13 +16,14 @@ use sqlparser::ast::{
     TableFunctionArgs, Value,
 };
 use std::fs::File;
+use arrow_array::RecordBatch;
 
-pub fn get_sql_context() -> SQLContext {
-    SQLContext::new()
+pub fn get_sql_context() -> SessionContext {
+    SessionContext::new()
 }
 
-pub fn collect(ctx: &mut SQLContext, sql: &String) -> AppResult<DataFrame> {
-    ctx.execute(sql)?.collect().map_err(AppError::from)
+pub async fn collect(ctx: &mut SessionContext, sql: &String) -> AppResult<Vec<RecordBatch>> {
+    ctx.sql(sql).await?.collect().await.map_err(AppError::from)
 }
 
 pub fn get_csv_reader(path: PlPath) -> LazyCsvReader {
@@ -42,6 +43,56 @@ pub fn get_ndjson_reader(path: PlPath) -> LazyJsonLineReader {
 
 pub fn get_parquet_reader(path: PlPath) -> AppResult<ParquetReader<File>> {
     Ok(ParquetReader::new(File::open(path.to_str())?))
+}
+
+pub fn get_csv_read_options(args: &mut Option<TableFunctionArgs>) -> AppResult<CsvReadOptions> {
+    let args = get_function_args(args);
+    let mut options = CsvReadOptions::default();
+    if let Some(args) = args {
+        for arg in args {
+            if let FunctionArg::Named { name, arg, .. } = arg {
+                match name.value.as_str() {
+                    "infer_schema" => {
+                        if let FunctionArgExpr::Expr(Expr::Value(Value::Boolean(value))) = arg {
+                            if !value {
+                                options.schema_infer_max_records = 0;
+                            }
+                        }
+                        break;
+                    }
+                    _ => {}
+                }
+            }
+        }
+    }
+
+    Ok(options)
+}
+
+pub fn get_table_path(args: &mut Option<TableFunctionArgs>) -> AppResult<String> {
+    if args.is_none() {
+        return Err(AppError::BadRequest {
+            message: "The file path is missing.".to_string(),
+        });
+    }
+
+    let value = &args
+        .as_ref()
+        .unwrap()
+        .args
+        .get(0)
+        .ok_or(AppError::BadRequest {
+            message: "The file path is missing. 2".to_string(),
+        })?;
+
+    match value {
+        FunctionArg::Unnamed(FunctionArgExpr::Expr(Expr::Value(Value::SingleQuotedString(
+            value,
+        )))) => Ok(value.to_string()),
+        _ => Err(AppError::BadRequest {
+            message: "The file path is missing. 3".to_string(),
+        }),
+    }
 }
 
 pub fn get_path(args: &mut Option<TableFunctionArgs>) -> AppResult<PlPath> {
@@ -161,52 +212,69 @@ enum FrameType {
     Data(DataFrame),
 }
 
-fn register_table(
-    ctx: &mut SQLContext,
+pub async fn register_table(
+    ctx: &mut SessionContext,
     relation: &mut TableFactor,
     table_count: i32,
 ) -> AppResult<i32> {
     if let TableFactor::Table { name, args, .. } = relation {
         let table_name = format!("table{}", table_count);
-        let path = get_path(args)?;
-        let lazy_frame: Option<FrameType> = match name.to_string().as_str() {
-            "read_csv" => Some(FrameType::Lazy(read_csv(get_csv_reader(path), args)?)),
-            "read_tsv" => {
-                let mut reader = get_csv_reader(path);
-                reader = reader.with_separator(b'\t');
-                Some(FrameType::Lazy(read_csv(reader, args)?))
-            }
-            "read_ndjson" => Some(FrameType::Lazy(read_ndjson(get_ndjson_reader(path), args)?)),
-            "read_json" => Some(FrameType::Data(read_json(get_json_reader(path)?, args)?)),
-            "read_excel" => Some(FrameType::Data(read_excel(get_excel_reader(path), args)?)),
-            "read_parquet" => Some(FrameType::Data(read_parquet(
-                get_parquet_reader(path)?,
-                args,
-            )?)),
-            _ => None,
-        };
+        let table_path = get_table_path(args)?;
 
-        if lazy_frame.is_none() {
-            return Err(AppError::BadRequest {
-                message: format!("'{}' is not a supported table function", table_name),
-            });
+        match name.to_string().as_str() {
+            "read_csv" => {
+                ctx.register_csv(&table_name, &table_path, get_csv_read_options(args)?)
+                    .await?
+            }
+            "read_tsv" => {
+                let mut options = get_csv_read_options(args)?;
+                options.delimiter = b'\t';
+                ctx.register_csv(&table_name, &table_path, options)
+                    .await?
+            }
+            "read_ndjson" => {
+                ctx.register_json(&table_name, &table_path, NdJsonReadOptions::default())
+                    .await?
+            }
+            _ => {
+                return Err(AppError::BadRequest {
+                    message: format!("'{}' is not a supported table function", table_name),
+                })
+            }
         }
+
+        // let lazy_frame: Option<FrameType> = match name.to_string().as_str() {
+        //     "read_csv" => Some(FrameType::Lazy(read_csv(get_csv_reader(path), args)?)),
+        //     "read_tsv" => {
+        //         let mut reader = get_csv_reader(path);
+        //         reader = reader.with_separator(b'\t');
+        //         Some(FrameType::Lazy(read_csv(reader, args)?))
+        //     }
+        //     "read_ndjson" => Some(FrameType::Lazy(read_ndjson(get_ndjson_reader(path), args)?)),
+        //     "read_json" => Some(FrameType::Data(read_json(get_json_reader(path)?, args)?)),
+        //     "read_excel" => Some(FrameType::Data(read_excel(get_excel_reader(path), args)?)),
+        //     "read_parquet" => Some(FrameType::Data(read_parquet(
+        //         get_parquet_reader(path)?,
+        //         args,
+        //     )?)),
+        //     _ => None,
+        // };
+        //
+        // if lazy_frame.is_none() {
+        //     return Err(AppError::BadRequest {
+        //         message: format!("'{}' is not a supported table function", table_name),
+        //     });
+        // }
 
         *name = sqlparser::ast::ObjectName(vec![table_name.as_str().into()]);
         *args = None;
-        if let Some(frame) = lazy_frame {
-            match frame {
-                FrameType::Lazy(lazy) => ctx.register(table_name.as_str(), lazy),
-                FrameType::Data(data) => ctx.register(table_name.as_str(), data.lazy()),
-            }
-        }
     }
 
     Ok(table_count + 1)
 }
 
-pub fn register(
-    ctx: &mut SQLContext,
+pub async fn register(
+    ctx: &mut SessionContext,
     sql: &str,
     limit: Option<usize>,
     offset: Option<usize>,
@@ -222,10 +290,10 @@ pub fn register(
     if let Statement::Query(query) = statement {
         if let Select(select) = &mut *query.body {
             for table_with_joins in &mut select.from {
-                table_count = register_table(ctx, &mut table_with_joins.relation, table_count)?;
+                table_count = register_table(ctx, &mut table_with_joins.relation, table_count).await?;
 
                 for join in &mut table_with_joins.joins {
-                    table_count = register_table(ctx, &mut join.relation, table_count)?;
+                    table_count = register_table(ctx, &mut join.relation, table_count).await?;
                 }
             }
         }

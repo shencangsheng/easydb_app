@@ -1,5 +1,7 @@
+use arrow_schema::ArrowError;
 use crate::context::error::AppError::{BadRequest, InternalServer};
 use calamine::XlsxError;
+use datafusion::error::DataFusionError;
 use derive_more::with_trait::{Display, Error};
 use glob::{GlobError, PatternError};
 use polars::error::PolarsError;
@@ -108,6 +110,24 @@ impl From<tauri::Error> for AppError {
 
 impl From<rusqlite::Error> for AppError {
     fn from(error: rusqlite::Error) -> Self {
+        AppError::log_backtrace();
+        BadRequest {
+            message: error.to_string(),
+        }
+    }
+}
+
+impl From<DataFusionError> for AppError {
+    fn from(error: DataFusionError) -> Self {
+        AppError::log_backtrace();
+        BadRequest {
+            message: error.to_string(),
+        }
+    }
+}
+
+impl From<ArrowError> for AppError {
+    fn from(error: ArrowError) -> Self {
         AppError::log_backtrace();
         BadRequest {
             message: error.to_string(),
