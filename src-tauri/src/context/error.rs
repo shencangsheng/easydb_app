@@ -4,7 +4,6 @@ use calamine::XlsxError;
 use datafusion::error::DataFusionError;
 use derive_more::with_trait::{Display, Error};
 use glob::{GlobError, PatternError};
-use polars::error::PolarsError;
 use sqlparser::parser::ParserError;
 use tauri::ipc::InvokeError;
 use tauri::App;
@@ -27,15 +26,6 @@ impl AppError {
     }
 
     fn log_backtrace() {}
-}
-
-impl From<PolarsError> for AppError {
-    fn from(error: PolarsError) -> Self {
-        AppError::log_backtrace();
-        BadRequest {
-            message: error.to_string(),
-        }
-    }
 }
 
 impl From<ParserError> for AppError {

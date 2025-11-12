@@ -23,7 +23,6 @@ log = "0.4"
 tauri = { version = "2.7.0", features = [] }
 tauri-plugin-log = "2"
 tauri-plugin-dialog = "2"
-polars = { version = "0.51.0", features = ["polars-time", "lazy", "temporal", "describe", "json", "parquet", "dtype-datetime", "sql", "serde-lazy", "default", "csv", "dtype-date", "dtype-time", "polars-sql", "polars-plan"] }
 derive_more = { version = "2.0.1", features = ["full"] }
 sqlparser = "0.54.0"
 calamine = { version = "0.30.1", features = ["dates"] }

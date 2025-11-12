@@ -1,5 +1,5 @@
 use crate::commands::app::restart_app;
-use crate::commands::query::{fetch, sql_history};
+use crate::commands::query::{fetch, sql_history, writer};
 use crate::commands::utils::open_url;
 use crate::utils::db_utils;
 use tauri::Listener;
@@ -32,7 +32,7 @@ pub fn run() {
             open_url,
             restart_app,
             sql_history,
-            // writer
+            writer
         ])
         .on_page_load(|window, _| {
             window.listen("tauri://error", |event| {

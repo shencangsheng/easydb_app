@@ -2,50 +2,34 @@ use crate::context::error::AppError;
 use crate::context::schema::AppResult;
 use crate::reader::excel::ExcelReader;
 use crate::sql::parse::{get_function_args, parse_statements};
-use datafusion::prelude::{CsvReadOptions, NdJsonReadOptions, SessionContext};
-use polars::frame::DataFrame;
-use polars::io::SerReader;
-use polars::prelude::{
-    IntoLazy, JsonReader, LazyCsvReader, LazyFileListReader, LazyFrame, LazyJsonLineReader,
-    ParquetReader, PlPath,
-};
-use polars::sql::SQLContext;
-use sqlparser::ast::SetExpr::{Query, Select};
+use arrow_array::RecordBatch;
+use datafusion::dataframe::DataFrame;
+use datafusion::prelude::{CsvReadOptions, NdJsonReadOptions, ParquetReadOptions, SessionContext};
+use sqlparser::ast::SetExpr::Select;
 use sqlparser::ast::{
     Expr, FunctionArg, FunctionArgExpr, Offset, OffsetRows, Statement, TableFactor,
     TableFunctionArgs, Value,
 };
-use std::fs::File;
-use arrow_array::RecordBatch;
 
 pub fn get_sql_context() -> SessionContext {
     SessionContext::new()
 }
 
+pub async fn get_data_frame(ctx: &mut SessionContext, sql: &String) -> AppResult<DataFrame> {
+    ctx.sql(sql).await.map_err(AppError::from)
+}
+
 pub async fn collect(ctx: &mut SessionContext, sql: &String) -> AppResult<Vec<RecordBatch>> {
-    ctx.sql(sql).await?.collect().await.map_err(AppError::from)
+    get_data_frame(ctx, sql)
+        .await?
+        .collect()
+        .await
+        .map_err(AppError::from)
 }
 
-pub fn get_csv_reader(path: PlPath) -> LazyCsvReader {
-    LazyCsvReader::new(path)
-}
-pub fn get_excel_reader(path: PlPath) -> ExcelReader {
-    ExcelReader::new(path)
-}
-
-pub fn get_json_reader(path: PlPath) -> AppResult<JsonReader<'static, File>> {
-    Ok(JsonReader::new(File::open(path.to_str())?))
-}
-
-pub fn get_ndjson_reader(path: PlPath) -> LazyJsonLineReader {
-    LazyJsonLineReader::new(path)
-}
-
-pub fn get_parquet_reader(path: PlPath) -> AppResult<ParquetReader<File>> {
-    Ok(ParquetReader::new(File::open(path.to_str())?))
-}
-
-pub fn get_csv_read_options(args: &mut Option<TableFunctionArgs>) -> AppResult<CsvReadOptions> {
+pub fn get_csv_read_options(
+    args: &'_ mut Option<TableFunctionArgs>,
+) -> AppResult<CsvReadOptions<'_>> {
     let args = get_function_args(args);
     let mut options = CsvReadOptions::default();
     if let Some(args) = args {
@@ -95,7 +79,7 @@ pub fn get_table_path(args: &mut Option<TableFunctionArgs>) -> AppResult<String>
     }
 }
 
-pub fn get_path(args: &mut Option<TableFunctionArgs>) -> AppResult<PlPath> {
+pub fn get_path(args: &mut Option<TableFunctionArgs>) -> AppResult<String> {
     if args.is_none() {
         return Err(AppError::BadRequest {
             message: "The file path is missing.".to_string(),
@@ -114,44 +98,17 @@ pub fn get_path(args: &mut Option<TableFunctionArgs>) -> AppResult<PlPath> {
     match value {
         FunctionArg::Unnamed(FunctionArgExpr::Expr(Expr::Value(Value::SingleQuotedString(
             value,
-        )))) => Ok(PlPath::new(value)),
+        )))) => Ok(value.to_string()),
         _ => Err(AppError::BadRequest {
             message: "The file path is missing. 3".to_string(),
         }),
     }
 }
 
-pub fn read_csv(
-    mut reader: LazyCsvReader,
-    args: &mut Option<TableFunctionArgs>,
-) -> AppResult<LazyFrame> {
-    let args = get_function_args(args);
-
-    if let Some(args) = args {
-        for arg in args {
-            if let FunctionArg::Named { name, arg, .. } = arg {
-                match name.value.as_str() {
-                    "infer_schema" => {
-                        if let FunctionArgExpr::Expr(Expr::Value(Value::Boolean(value))) = arg {
-                            if !value {
-                                reader = reader.with_infer_schema_length(Some(0));
-                            }
-                        }
-                        break;
-                    }
-                    _ => {}
-                }
-            }
-        }
-    }
-
-    reader.finish().map_err(|e| e.into())
-}
-
 pub fn read_excel(
     mut reader: ExcelReader,
     args: &mut Option<TableFunctionArgs>,
-) -> AppResult<DataFrame> {
+) -> AppResult<RecordBatch> {
     let args = get_function_args(args);
 
     if let Some(args) = args {
@@ -183,35 +140,6 @@ pub fn read_excel(
     reader.finish().map_err(|e| e.into())
 }
 
-pub fn read_json(
-    mut reader: JsonReader<'static, File>,
-    args: &mut Option<TableFunctionArgs>,
-) -> AppResult<DataFrame> {
-    let args = get_function_args(args);
-    reader.finish().map_err(|e| e.into())
-}
-
-pub fn read_ndjson(
-    mut reader: LazyJsonLineReader,
-    args: &mut Option<TableFunctionArgs>,
-) -> AppResult<LazyFrame> {
-    let args = get_function_args(args);
-    reader.finish().map_err(|e| e.into())
-}
-
-pub fn read_parquet(
-    mut reader: ParquetReader<File>,
-    args: &mut Option<TableFunctionArgs>,
-) -> AppResult<DataFrame> {
-    let _args = get_function_args(args);
-    reader.finish().map_err(|e| e.into())
-}
-
-enum FrameType {
-    Lazy(LazyFrame),
-    Data(DataFrame),
-}
-
 pub async fn register_table(
     ctx: &mut SessionContext,
     relation: &mut TableFactor,
@@ -229,12 +157,18 @@ pub async fn register_table(
             "read_tsv" => {
                 let mut options = get_csv_read_options(args)?;
                 options.delimiter = b'\t';
-                ctx.register_csv(&table_name, &table_path, options)
-                    .await?
+                ctx.register_csv(&table_name, &table_path, options).await?
             }
             "read_ndjson" => {
                 ctx.register_json(&table_name, &table_path, NdJsonReadOptions::default())
                     .await?
+            }
+            "read_parquet" => {
+                ctx.register_parquet(&table_name, &table_path, ParquetReadOptions::default())
+                    .await?
+            }
+            "read_excel" | "read_xlsx" => {
+                ctx.register_batch(&table_name, read_excel(ExcelReader::new(table_path), args)?)?;
             }
             _ => {
                 return Err(AppError::BadRequest {
@@ -242,29 +176,6 @@ pub async fn register_table(
                 })
             }
         }
-
-        // let lazy_frame: Option<FrameType> = match name.to_string().as_str() {
-        //     "read_csv" => Some(FrameType::Lazy(read_csv(get_csv_reader(path), args)?)),
-        //     "read_tsv" => {
-        //         let mut reader = get_csv_reader(path);
-        //         reader = reader.with_separator(b'\t');
-        //         Some(FrameType::Lazy(read_csv(reader, args)?))
-        //     }
-        //     "read_ndjson" => Some(FrameType::Lazy(read_ndjson(get_ndjson_reader(path), args)?)),
-        //     "read_json" => Some(FrameType::Data(read_json(get_json_reader(path)?, args)?)),
-        //     "read_excel" => Some(FrameType::Data(read_excel(get_excel_reader(path), args)?)),
-        //     "read_parquet" => Some(FrameType::Data(read_parquet(
-        //         get_parquet_reader(path)?,
-        //         args,
-        //     )?)),
-        //     _ => None,
-        // };
-        //
-        // if lazy_frame.is_none() {
-        //     return Err(AppError::BadRequest {
-        //         message: format!("'{}' is not a supported table function", table_name),
-        //     });
-        // }
 
         *name = sqlparser::ast::ObjectName(vec![table_name.as_str().into()]);
         *args = None;
@@ -290,7 +201,8 @@ pub async fn register(
     if let Statement::Query(query) = statement {
         if let Select(select) = &mut *query.body {
             for table_with_joins in &mut select.from {
-                table_count = register_table(ctx, &mut table_with_joins.relation, table_count).await?;
+                table_count =
+                    register_table(ctx, &mut table_with_joins.relation, table_count).await?;
 
                 for join in &mut table_with_joins.joins {
                     table_count = register_table(ctx, &mut join.relation, table_count).await?;

@@ -32,6 +32,9 @@ export interface Translations {
         description: string;
       };
       clickToUse: string;
+      searchPlaceholder: string;
+      noResults: string;
+      noResultsDescription: string;
     };
     export: {
       completed: string;
@@ -181,6 +184,9 @@ const translations: Record<Language, Translations> = {
           description: "执行查询后将显示历史记录",
         },
         clickToUse: "点击使用此查询",
+        searchPlaceholder: "搜索查询历史...",
+        noResults: "未找到匹配的查询",
+        noResultsDescription: "请尝试使用其他关键词搜索",
       },
       export: {
         completed: "下载完成",
@@ -276,12 +282,14 @@ const translations: Record<Language, Translations> = {
       updateCheckTitle: "检查更新",
       parseRepoError: "无法解析仓库地址，请手动访问 GitHub 检查更新。",
       noReleaseAvailable: "当前没有可用的发布版本。",
-      newVersionAvailable: "发现新版本：{latestVersion}\n\n当前版本：{currentVersion}\n\n是否前往下载页面？",
+      newVersionAvailable:
+        "发现新版本：{latestVersion}\n\n当前版本：{currentVersion}\n\n是否前往下载页面？",
       newVersionTitle: "发现新版本",
       goToDownload: "前往下载",
       cancel: "取消",
       alreadyLatestVersion: "当前已是最新版本（{currentVersion}）",
-      updateCheckError: "检查更新时发生错误，请稍后重试或手动访问 GitHub 检查。",
+      updateCheckError:
+        "检查更新时发生错误，请稍后重试或手动访问 GitHub 检查。",
       updateCheckFailed: "检查更新失败",
       privacyPolicy: "隐私政策",
       userTerms: "用户条款",
@@ -335,6 +343,9 @@ const translations: Record<Language, Translations> = {
           description: "Query history will appear after executing queries",
         },
         clickToUse: "Click to use this query",
+        searchPlaceholder: "Search query history...",
+        noResults: "No matching queries found",
+        noResultsDescription: "Try using different search keywords",
       },
       export: {
         completed: "Download Completed",
@@ -431,14 +442,18 @@ const translations: Record<Language, Translations> = {
       checkUpdate: "Check for Updates",
       checkingUpdate: "Checking...",
       updateCheckTitle: "Check for Updates",
-      parseRepoError: "Unable to parse repository URL. Please check GitHub manually for updates.",
+      parseRepoError:
+        "Unable to parse repository URL. Please check GitHub manually for updates.",
       noReleaseAvailable: "No releases are currently available.",
-      newVersionAvailable: "New version available: {latestVersion}\n\nCurrent version: {currentVersion}\n\nWould you like to go to the download page?",
+      newVersionAvailable:
+        "New version available: {latestVersion}\n\nCurrent version: {currentVersion}\n\nWould you like to go to the download page?",
       newVersionTitle: "New Version Available",
       goToDownload: "Go to Download",
       cancel: "Cancel",
-      alreadyLatestVersion: "You are using the latest version ({currentVersion})",
-      updateCheckError: "An error occurred while checking for updates. Please try again later or check GitHub manually.",
+      alreadyLatestVersion:
+        "You are using the latest version ({currentVersion})",
+      updateCheckError:
+        "An error occurred while checking for updates. Please try again later or check GitHub manually.",
       updateCheckFailed: "Update Check Failed",
       privacyPolicy: "Privacy Policy",
       userTerms: "User Terms",

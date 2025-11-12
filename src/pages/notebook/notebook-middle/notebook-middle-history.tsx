@@ -1,5 +1,5 @@
 import { formatRelativeTime } from "@/utils/date-util";
-import { memo, useCallback, useMemo } from "react";
+import { memo, useCallback, useMemo, useState } from "react";
 import { useTranslation } from "@/i18n";
 
 interface QueryHistoryProps {
@@ -13,6 +13,7 @@ interface QueryHistoryProps {
 
 function QueryHistory({ setSql, data }: QueryHistoryProps) {
   const { t } = useTranslation();
+  const [searchText, setSearchText] = useState("");
 
   // 使用 useCallback 缓存点击处理函数
   const handleRowClick = useCallback(
@@ -21,6 +22,17 @@ function QueryHistory({ setSql, data }: QueryHistoryProps) {
     },
     [setSql]
   );
+
+  // 使用 useMemo 缓存过滤后的数据
+  const filteredData = useMemo(() => {
+    if (!searchText.trim()) {
+      return data;
+    }
+    const lowerSearchText = searchText.toLowerCase();
+    return data.filter((item) =>
+      item.sql.toLowerCase().includes(lowerSearchText)
+    );
+  }, [data, searchText]);
 
   // 使用 useMemo 缓存空状态内容
   const emptyStateContent = useMemo(
@@ -43,7 +55,7 @@ function QueryHistory({ setSql, data }: QueryHistoryProps) {
   // 使用 useMemo 缓存历史记录行
   const historyRows = useMemo(
     () =>
-      data.map((value, index) => (
+      filteredData.map((value, index) => (
         <tr
           key={index}
           className="border-b border-gray-200"
@@ -93,23 +105,61 @@ function QueryHistory({ setSql, data }: QueryHistoryProps) {
           </td>
         </tr>
       )),
-    [data, handleRowClick, t]
+    [filteredData, handleRowClick, t]
   );
 
   return (
     <div
       style={{
         height: "calc(40vh - 50px)",
-        overflow: "auto",
+        display: "flex",
+        flexDirection: "column",
       }}
     >
-      {data.length === 0 ? (
-        emptyStateContent
-      ) : (
-        <table className="w-full border-collapse border border-gray-200">
-          <tbody>{historyRows}</tbody>
-        </table>
+      {/* 搜索输入框 */}
+      {data.length > 0 && (
+        <div className="p-2 border-b border-gray-200">
+          <input
+            type="text"
+            placeholder={t("notebook.history.searchPlaceholder")}
+            value={searchText}
+            onChange={(e) => setSearchText(e.target.value)}
+            autoComplete="off"
+            spellCheck="false"
+            inputMode="search"
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            style={{
+              fontSize: "14px",
+            }}
+          />
+        </div>
       )}
+
+      {/* 历史记录列表 */}
+      <div
+        style={{
+          flex: 1,
+          overflow: "auto",
+        }}
+      >
+        {data.length === 0 ? (
+          emptyStateContent
+        ) : filteredData.length === 0 ? (
+          <div className="flex flex-col items-center justify-center h-full text-gray-500">
+            <div className="text-4xl mb-4">🔍</div>
+            <div className="text-lg font-medium mb-2">
+              {t("notebook.history.noResults")}
+            </div>
+            <div className="text-sm text-gray-400">
+              {t("notebook.history.noResultsDescription")}
+            </div>
+          </div>
+        ) : (
+          <table className="w-full border-collapse border border-gray-200">
+            <tbody>{historyRows}</tbody>
+          </table>
+        )}
+      </div>
     </div>
   );
 }

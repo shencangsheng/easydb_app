@@ -3,6 +3,11 @@ import { memo, useState, useCallback, useMemo } from "react";
 import DataTable from "./notebook-middle-table";
 import QueryHistory from "./notebook-middle-history";
 import { invoke } from "@tauri-apps/api/core";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import {
+  faCheckCircle,
+  faTimesCircle,
+} from "@fortawesome/free-solid-svg-icons";
 
 interface NotebookMiddleBottomProps {
   data: {
@@ -71,6 +76,55 @@ function NotebookMiddleBottom({
     [data.query_time]
   );
 
+  // 判断查询是否成功或失败
+  const queryStatus = useMemo(() => {
+    // 如果数据为空，返回 null（初始状态或加载中）
+    if (data.header.length === 0 && data.rows.length === 0) {
+      return null;
+    }
+
+    // 如果 header 是 "Error" 或 "Status"（且包含错误信息），则是失败
+    if (
+      data.header[0] === "Error" ||
+      (data.header[0] === "Status" &&
+        data.rows.length > 0 &&
+        data.rows[0][0]?.toLowerCase().includes("cancelled"))
+    ) {
+      return "failed";
+    }
+
+    // 否则是成功
+    return "success";
+  }, [data.header, data.rows]);
+
+  // 使用 useMemo 缓存 Results 标签页标题
+  const resultsTitle = useMemo(() => {
+    if (queryStatus === "success") {
+      return (
+        <span className="flex items-center gap-2">
+          Results
+          <FontAwesomeIcon
+            icon={faCheckCircle}
+            className="text-green-500"
+            style={{ fontSize: "0.9em" }}
+          />
+        </span>
+      );
+    } else if (queryStatus === "failed") {
+      return (
+        <span className="flex items-center gap-2">
+          Results
+          <FontAwesomeIcon
+            icon={faTimesCircle}
+            className="text-red-500"
+            style={{ fontSize: "0.9em" }}
+          />
+        </span>
+      );
+    }
+    return "Results";
+  }, [queryStatus]);
+
   return (
     <div className="flex w-full flex-col">
       <Tabs
@@ -81,7 +135,7 @@ function NotebookMiddleBottom({
         <Tab key="history" title="Query History">
           <QueryHistory setSql={setSql} data={queryHistory} />
         </Tab>
-        <Tab key="results" title={`Results`}>
+        <Tab key="results" title={resultsTitle}>
           <DataTable data={data} isLoading={isLoading} sql={sql} />
         </Tab>
         <Tab
