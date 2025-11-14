@@ -6,6 +6,10 @@ import { useEffect, useRef } from "react";
 import langTools from "ace-builds/src-noconflict/ext-language_tools";
 import { useTranslation } from "@/i18n";
 
+interface AceEditorInstance {
+  getSelectedText: () => string;
+}
+
 interface AceEditorProps {
   value: string;
   onChange: (value: string) => void;
@@ -21,6 +25,7 @@ interface AceEditorProps {
   enableSnippets?: boolean;
   showLineNumbers?: boolean;
   tabSize?: number;
+  onLoad?: (editor: AceEditorInstance) => void;
 }
 
 function CustomAceEditor({
@@ -38,6 +43,7 @@ function CustomAceEditor({
   enableSnippets = true,
   showLineNumbers = true,
   tabSize = 2,
+  onLoad,
 }: AceEditorProps) {
   const { translate } = useTranslation();
   const completerAdded = useRef(false);
@@ -115,6 +121,7 @@ function CustomAceEditor({
       placeholder={placeholder}
       value={value}
       onChange={onChange}
+      onLoad={onLoad}
       setOptions={{
         enableBasicAutocompletion,
         enableLiveAutocompletion,

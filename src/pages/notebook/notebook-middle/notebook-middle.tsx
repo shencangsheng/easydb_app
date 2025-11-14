@@ -49,6 +49,13 @@ function NotebookMiddle({ source }: NotebookMiddleProps) {
   });
   const dropAreaRef = useRef<HTMLDivElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
+  const editorRef = useRef<{ getSelectedText: () => string } | null>(null);
+  const popoverRef = useRef<HTMLDivElement>(null);
+  const [isDropModalOpen, setIsDropModalOpen] = useState(false);
+  const [droppedFilePath, setDroppedFilePath] = useState<string | null>(null);
+  const [droppedFileExtension, setDroppedFileExtension] = useState<
+    string | null
+  >(null);
 
   // 使用 useCallback 缓存格式化函数
   const formatSql = useCallback(() => {
@@ -79,26 +86,114 @@ function NotebookMiddle({ source }: NotebookMiddleProps) {
     []
   );
 
-  // 处理文件拖拽
+  // 使用 useMemo 缓存文件扩展名到 read_xxx 函数名的映射
+  const fileExtensionToReadFunction = useMemo(
+    () => ({
+      csv: "read_csv",
+      xlsx: "read_excel",
+      json: "read_json",
+      ndjson: "read_ndjson",
+      parquet: "read_parquet",
+      tsv: "read_tsv",
+    }),
+    []
+  );
+
+  // 处理文件拖拽 - 显示选项菜单
   const handleFileDrop = useCallback(
     (filePath: string) => {
-      // 如果SQL编辑器为空，根据文件扩展名生成相应的SQL查询
       const fileExtension = filePath.split(".").pop()?.toLowerCase();
 
       if (fileExtension && fileExtension in fileExtensionToSql) {
-        const sqlQuery =
-          fileExtensionToSql[fileExtension as keyof typeof fileExtensionToSql](
-            filePath
-          );
-        setSql(getFormatSql(sqlQuery));
+        setDroppedFilePath(filePath);
+        setDroppedFileExtension(fileExtension);
+        setIsDropModalOpen(true);
       }
     },
     [fileExtensionToSql]
   );
 
+  // 处理插入完整SQL
+  const handleInsertFullSql = useCallback(() => {
+    if (droppedFilePath && droppedFileExtension) {
+      const sqlQuery =
+        fileExtensionToSql[
+          droppedFileExtension as keyof typeof fileExtensionToSql
+        ](droppedFilePath);
+      setSql(getFormatSql(sqlQuery));
+      setIsDropModalOpen(false);
+      setDroppedFilePath(null);
+      setDroppedFileExtension(null);
+    }
+  }, [droppedFilePath, droppedFileExtension, fileExtensionToSql]);
+
+  // 处理仅插入 read_xxx
+  const handleInsertReadFunction = useCallback(() => {
+    if (droppedFilePath && droppedFileExtension) {
+      const readFunction =
+        fileExtensionToReadFunction[
+          droppedFileExtension as keyof typeof fileExtensionToReadFunction
+        ];
+      const readFunctionCall = `${readFunction}('${droppedFilePath}')`;
+      setSql((prevSql) => {
+        // 如果编辑器不为空，在末尾添加换行和内容
+        return prevSql ? `${prevSql}\n${readFunctionCall}` : readFunctionCall;
+      });
+      setIsDropModalOpen(false);
+      setDroppedFilePath(null);
+      setDroppedFileExtension(null);
+    }
+  }, [droppedFilePath, droppedFileExtension, fileExtensionToReadFunction]);
+
+  // 生成选项预览文本
+  const insertOptions = useMemo(() => {
+    if (!droppedFilePath || !droppedFileExtension) return [];
+
+    const readFunction =
+      fileExtensionToReadFunction[
+        droppedFileExtension as keyof typeof fileExtensionToReadFunction
+      ];
+    const fullSql =
+      fileExtensionToSql[
+        droppedFileExtension as keyof typeof fileExtensionToSql
+      ](droppedFilePath);
+
+    return [
+      {
+        key: "full",
+        title: translate("notebook.insertFullSql") || "插入完整 SQL",
+        preview: fullSql,
+        onClick: handleInsertFullSql,
+      },
+      {
+        key: "read",
+        title: translate("notebook.insertReadFunction") || "仅插入 read_xxx",
+        preview: `${readFunction}('${droppedFilePath}')`,
+        onClick: handleInsertReadFunction,
+      },
+    ];
+  }, [
+    droppedFilePath,
+    droppedFileExtension,
+    fileExtensionToSql,
+    fileExtensionToReadFunction,
+    handleInsertFullSql,
+    handleInsertReadFunction,
+    translate,
+  ]);
+
   // 使用 useCallback 缓存查询执行函数
   const executeQuery = useCallback(async () => {
-    if (isRunning || !sql.trim()) return;
+    // 获取选中的文本，如果有选中文本则使用选中的文本，否则使用整个 SQL
+    let sqlToExecute = sql;
+    if (editorRef.current) {
+      const selectedText = editorRef.current.getSelectedText();
+      if (selectedText && selectedText.trim()) {
+        sqlToExecute = selectedText;
+      }
+    }
+
+    if (isRunning || !sqlToExecute.trim()) return;
 
     setIsRunning(true);
     setIsLoading(true);
@@ -113,7 +208,7 @@ function NotebookMiddle({ source }: NotebookMiddleProps) {
         header: string[];
         rows: string[][];
         query_time: string;
-      } = await invoke("fetch", { sql, offset: 0, limit: 200 });
+      } = await invoke("fetch", { sql: sqlToExecute, offset: 0, limit: 200 });
 
       // 检查是否被取消
       if (abortController.signal.aborted) {
@@ -166,7 +261,7 @@ function NotebookMiddle({ source }: NotebookMiddleProps) {
         (event: { payload: { paths: string[] } }) => {
           const filePaths = event.payload.paths;
           if (filePaths && filePaths.length > 0) {
-            handleFileDrop(filePaths[0]); // 处理第一个文件
+            handleFileDrop(filePaths[0]);
           }
         }
       );
@@ -178,6 +273,28 @@ function NotebookMiddle({ source }: NotebookMiddleProps) {
 
     setupDragDropListeners();
   }, [handleFileDrop]);
+
+  // 点击外部关闭菜单
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        isDropModalOpen &&
+        popoverRef.current &&
+        !popoverRef.current.contains(event.target as Node)
+      ) {
+        setIsDropModalOpen(false);
+        setDroppedFilePath(null);
+        setDroppedFileExtension(null);
+      }
+    };
+
+    if (isDropModalOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+      return () => {
+        document.removeEventListener("mousedown", handleClickOutside);
+      };
+    }
+  }, [isDropModalOpen]);
 
   // 使用 useMemo 缓存样式对象
   const containerStyle = useMemo(
@@ -292,11 +409,15 @@ function NotebookMiddle({ source }: NotebookMiddleProps) {
             height: "100%",
             display: "flex",
             paddingTop: "10px",
+            position: "relative",
           }}
         >
           <CustomAceEditor
             value={sql}
             onChange={setSql}
+            onLoad={(editor) => {
+              editorRef.current = editor;
+            }}
             placeholder={`${translate(
               "notebook.editorPlaceholder"
             )}\n\n${translate("notebook.dragDropHint")}`}
@@ -312,6 +433,63 @@ function NotebookMiddle({ source }: NotebookMiddleProps) {
             showLineNumbers={true}
             tabSize={2}
           />
+          {/* 文件拖拽选项弹出菜单 */}
+          {isDropModalOpen && (
+            <div
+              ref={popoverRef}
+              style={{
+                position: "absolute",
+                left: "50%",
+                top: "50%",
+                transform: "translate(-50%, -50%)",
+                zIndex: 9999,
+                background: "#fff",
+                borderRadius: "8px",
+                border: "1px solid #e5e7eb",
+                boxShadow: "0 10px 25px rgba(0, 0, 0, 0.15)",
+                minWidth: "320px",
+                maxWidth: "400px",
+                padding: "12px",
+              }}
+            >
+              <div
+                style={{
+                  background: "#fff",
+                  borderRadius: "6px",
+                  overflow: "hidden",
+                }}
+              >
+                {insertOptions.map((option, index) => (
+                  <div
+                    key={option.key}
+                    onClick={option.onClick}
+                    style={{
+                      padding: "10px 12px",
+                      borderBottom:
+                        index === insertOptions.length - 1
+                          ? "none"
+                          : "1px solid #f3f4f6",
+                      cursor: "pointer",
+                      transition: "background-color 0.2s ease",
+                    }}
+                    className="hover:bg-gray-50"
+                  >
+                    <div
+                      style={{
+                        fontSize: "11px",
+                        color: "#6b7280",
+                        fontFamily: "monospace",
+                        wordBreak: "break-all",
+                        lineHeight: "1.4",
+                      }}
+                    >
+                      {option.preview}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       </div>
       <div style={{ marginTop: "20px", marginLeft: "50px" }}>
