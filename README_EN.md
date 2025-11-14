@@ -7,7 +7,7 @@
 **A lightweight desktop data query tool that uses SQL to query local files directly with built-in query engine**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)](https://github.com/shencangsheng/easydb_app)
+[![Version](https://img.shields.io/badge/version-2.0.0-blue.svg)](https://github.com/shencangsheng/easydb_app)
 [![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20Windows-lightgrey.svg)](https://github.com/shencangsheng/easydb_app)
 
 [English](README_EN.md) | [中文](README.md)
@@ -16,18 +16,19 @@
 
 ## 📖 Introduction
 
-EasyDB is a lightweight desktop data query tool built with Rust that queries local files directly using SQL. With a built-in query engine, there is no need to install additional databases or other tools. It treats files as database tables, enabling querying of CSV, Excel, JSON, and other formats using SQL. It effortlessly handles large text files from hundreds of MB to multiple GB and requires minimal hardware resources.
+EasyDB is a lightweight desktop data query tool built with Rust that queries local files directly using SQL. With a built-in DataFusion query engine, there is no need to install additional databases or other tools. It treats files as database tables, enabling querying of CSV, Excel, JSON, and other formats using standard SQL, supporting complex multi-table JOINs, subqueries, window functions, and other advanced SQL features. It effortlessly handles large text files from hundreds of MB to multiple GB and requires relatively minimal hardware resources.
 
 ![demo.gif](assets/demo.gif)
 
 ## ✨ Core Features
 
-- 🚀 **High Performance**: Built on Rust and Polars engine, effortlessly handles large files
-- 💾 **Low Memory Usage**: Stream processing capabilities, requires minimal hardware resources
+- 🚀 **High Performance**: Built on Rust and DataFusion engine, effortlessly handles large files
+- 💾 **Low Memory Usage**: Requires minimal hardware resources
 - 📁 **Multi-format Support**: CSV, NdJson, JSON, Excel, Parquet file formats
 - 🔧 **Ready to Use**: No file conversion required, query directly
 - 🖥️ **Cross-platform**: Supports macOS and Windows platforms
 - 🎨 **Modern Interface**: Modern desktop application built with Tauri
+- 🔍 **Complete SQL Support**: Supports complex SQL queries, including JOINs, subqueries, window functions, and other advanced features
 
 ## 🗺️ Features & Roadmap
 
@@ -53,16 +54,16 @@ EasyDB is a lightweight desktop data query tool built with Rust that queries loc
 
 - **Frontend**: React + TypeScript + Vite
 - **Backend**: Rust + Tauri
-- **Query Engine**: [pola-rs/polars](https://github.com/pola-rs/polars)
+- **Query Engine**: [apache/datafusion](https://github.com/apache/datafusion)
 - **UI Framework**: HeroUI + Tailwind CSS
 
 ### Query Engine Selection
 
-**Currently Using**: Polars
+**Currently Using**: DataFusion
 
-Compared to DataFusion, Polars has higher lightweight and stream processing capabilities, significantly reducing memory usage, making it more suitable for personal computers.
+DataFusion is part of the Apache Arrow project, providing complete SQL query capabilities and supporting complex SQL syntax, including multi-table JOINs, subqueries, window functions, and other advanced features. Compared to Polars, DataFusion offers more comprehensive SQL compatibility, meeting more complex query requirements.
 
-**Technical Considerations**: After in-depth use of Polars, its technical limitations have become apparent - it cannot support complex SQL queries, and the community's development resources are mainly focused on Python, requiring self-development or compatibility work for many features. Therefore, we are considering switching back to DataFusion for more complete SQL support.
+**Version Evolution**: Version v1.0 previously used the Polars engine. While Polars excelled in stream processing and memory usage, it had limitations in supporting complex SQL queries. Version v2.0 switched back to DataFusion to gain more complete SQL support while maintaining good performance and resource utilization efficiency.
 
 ## 📚 User Guide
 
@@ -139,42 +140,24 @@ WHERE status = 'active';
 2. In the "General" tab, find the blocked application
 3. Click the "Open Anyway" button
 
-### JOIN Query Error
-
-**Issue**: Getting `unsupported SQL join constraint` error when executing JOIN queries
-
-**Solution**: Remove parentheses from ON expressions. This is due to Polars' limitation: it currently only supports the simplest equality joins for join constraints.
-
-```sql
--- ❌ Incorrect syntax
-SELECT *
-FROM table1 t1
-JOIN table2 t2 ON (t1.id = t2.id);
-
--- ✅ Correct syntax
-SELECT *
-FROM table1 t1
-JOIN table2 t2 ON t1.id = t2.id;
-```
-
 ### Syntax Problem
 
-Field names can be wrapped in ``, for example:
+Field names can be wrapped in double quotes, for example:
 
 ```sql
-SELECT `id`, `name` FROM table where id = 1;
+SELECT "id", "name" FROM table WHERE "id" = 1;
 ```
 
-Can also be wrapped in single quotes, for example:
+Can also be wrapped in backticks, for example:
 
 ```sql
-SELECT 'id', 'name' FROM table where id = '1';
+SELECT `id`, `name` FROM table WHERE `id` = 1;
 ```
 
-When where is a string, use single quotes, for example:
+String values in WHERE clauses should be wrapped in single quotes, for example:
 
 ```sql
-SELECT * FROM table where id = '1';
+SELECT * FROM table WHERE "id" = '1';
 ```
 
 ## 📖 Project Background
@@ -190,7 +173,7 @@ For this reason, I developed the EasyDB App client, specifically optimized for m
 To better distinguish between the two projects:
 
 - **EasyDB Server**: Server-side version, based on DataFusion
-- **EasyDB App**: Desktop client version, based on Polars
+- **EasyDB App**: Desktop client version, based on DataFusion (v2.0+)
 
 ## 🤝 Contributing
 
@@ -235,7 +218,7 @@ MIT © Cangsheng Shen
 
 Thanks to the following open source projects:
 
-- [pola-rs/polars](https://github.com/pola-rs/polars) - High-performance data processing engine
+- [apache/datafusion](https://github.com/apache/datafusion) - High-performance SQL query engine
 - [Tauri](https://tauri.app/) - Modern desktop application framework
 - [React](https://reactjs.org/) - User interface library
 - [HeroUI](https://heroui.com/) - Modern UI component library

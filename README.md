@@ -7,7 +7,7 @@
 **一个轻量级的桌面数据查询工具，使用 SQL 直接查询本地文件，内置查询引擎**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)](https://github.com/shencangsheng/easydb_app)
+[![Version](https://img.shields.io/badge/version-2.0.0-blue.svg)](https://github.com/shencangsheng/easydb_app)
 [![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20Windows-lightgrey.svg)](https://github.com/shencangsheng/easydb_app)
 
 [English](README_EN.md) | [中文](README.md)
@@ -16,18 +16,19 @@
 
 ## 📖 简介
 
-EasyDB 是一个轻量级桌面数据查询工具，基于 Rust 构建，可以使用 SQL 直接查询本地文件。内置查询引擎，无需额外安装数据库或其他工具。它将文件视为数据库表，可以使用 SQL 查询 CSV、Excel、JSON 和其他格式。轻松处理数百兆乃至数 GB 的大型文本文件，仅需极少的硬件资源。
+EasyDB 是一个轻量级桌面数据查询工具，基于 Rust 构建，可以使用 SQL 直接查询本地文件。内置 DataFusion 查询引擎，无需额外安装数据库或其他工具。它将文件视为数据库表，可以使用标准 SQL 查询 CSV、Excel、JSON 和其他格式，支持复杂的多表 JOIN、子查询、窗口函数等高级 SQL 特性。轻松处理数百兆乃至数 GB 的大型文本文件，仅需较少的硬件资源。
 
 ![demo.gif](assets/demo.gif)
 
 ## ✨ 核心特性
 
-- 🚀 **高性能**: 基于 Rust 和 Polars 引擎，处理大型文件游刃有余
-- 💾 **低内存占用**: 流式计算能力，仅需极少的硬件资源
+- 🚀 **高性能**: 基于 Rust 和 DataFusion 引擎，处理大型文件游刃有余
+- 💾 **低内存占用**: 仅需较少的硬件资源
 - 📁 **多格式支持**: CSV、NdJson、JSON、Excel、Parquet 文件格式
 - 🔧 **开箱即用**: 无需文件转换，直接查询
 - 🖥️ **跨平台**: 支持 macOS 和 Windows 平台
 - 🎨 **现代界面**: 基于 Tauri 构建的现代化桌面应用
+- 🔍 **完整 SQL 支持**: 支持复杂 SQL 查询，包括 JOIN、子查询、窗口函数等高级特性
 
 ## 🗺️ 功能与路线图
 
@@ -53,16 +54,16 @@ EasyDB 是一个轻量级桌面数据查询工具，基于 Rust 构建，可以�
 
 - **前端**: React + TypeScript + Vite
 - **后端**: Rust + Tauri
-- **查询引擎**: [pola-rs/polars](https://github.com/pola-rs/polars)
+- **查询引擎**: [apache/datafusion](https://github.com/apache/datafusion)
 - **UI 框架**: HeroUI + Tailwind CSS
 
 ### 查询引擎选择
 
-**当前使用**: Polars
+**当前使用**: DataFusion
 
-与 DataFusion 相比，Polars 具备更高的轻量性和流式计算能力，显著降低了内存占用，更加适合个人电脑使用。
+DataFusion 是 Apache Arrow 项目的一部分，提供了完整的 SQL 查询能力，支持复杂的 SQL 语法，包括多表 JOIN、子查询、窗口函数等高级特性。相比 Polars，DataFusion 在 SQL 兼容性方面更加完善，能够满足更复杂的查询需求。
 
-**技术考虑**: 在深入使用 Polars 后发现其技术短板也很明显，无法支持复杂 SQL 查询，并且社区的开发资源主要集中在 Python 上，很多功能需要自己开发或兼容。因此正在考虑换回 DataFusion 以获得更完整的 SQL 支持。
+**版本演进**: v1.0 版本曾使用 Polars 引擎，虽然 Polars 在流式计算和内存占用方面表现优异，但在复杂 SQL 查询支持上存在限制。v2.0 版本切换回 DataFusion，以获得更完整的 SQL 支持，同时保持了良好的性能和资源利用效率。
 
 ## 📚 使用指南
 
@@ -139,42 +140,24 @@ WHERE status = 'active';
 2. 在"通用"标签页中，找到被阻止的应用
 3. 点击"仍要打开"按钮
 
-### JOIN 查询错误
-
-**问题**: 在执行 JOIN 查询时出现 `unsupported SQL join constraint` 异常
-
-**解决方案**: 去掉 ON 表达式的括号。这是因为 Polars 的限制：它目前的 join constraint 只支持最简单的等值连接。
-
-```sql
--- ❌ 错误写法
-SELECT *
-FROM table1 t1
-JOIN table2 t2 ON (t1.id = t2.id);
-
--- ✅ 正确写法
-SELECT *
-FROM table1 t1
-JOIN table2 t2 ON t1.id = t2.id;
-```
-
 ### 语法问题
 
-字段名可以使用 `` 包裹，例如：
+字段名可以使用双引号包裹，例如：
 
 ```sql
-SELECT `id`, `name` FROM table where id = 1;
+SELECT "id", "name" FROM table WHERE "id" = 1;
 ```
 
-也可以使用单引号包裹，例如：
+也可以使用反引号包裹，例如：
 
 ```sql
-SELECT 'id', 'name' FROM table where id = '1';
+SELECT `id`, `name` FROM table WHERE `id` = 1;
 ```
 
-where 字符串时，使用单引号包裹，例如：
+WHERE 子句中的字符串值使用单引号包裹，例如：
 
 ```sql
-SELECT * FROM table where id = '1';
+SELECT * FROM table WHERE "id" = '1';
 ```
 
 ## 📖 项目背景
@@ -190,7 +173,7 @@ SELECT * FROM table where id = '1';
 为了更好地区分两个项目：
 
 - **EasyDB Server**: 服务器端版本，基于 DataFusion
-- **EasyDB App**: 桌面客户端版本，基于 Polars
+- **EasyDB App**: 桌面客户端版本，基于 DataFusion（v2.0+）
 
 ## 🤝 贡献指南
 
@@ -235,7 +218,7 @@ MIT © Cangsheng Shen
 
 感谢以下开源项目的支持：
 
-- [pola-rs/polars](https://github.com/pola-rs/polars) - 高性能数据处理引擎
+- [apache/datafusion](https://github.com/apache/datafusion) - 高性能 SQL 查询引擎
 - [Tauri](https://tauri.app/) - 现代桌面应用框架
 - [React](https://reactjs.org/) - 用户界面库
 - [HeroUI](https://heroui.com/) - 现代化 UI 组件库
