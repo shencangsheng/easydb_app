@@ -36,7 +36,7 @@ EasyDB is a lightweight desktop data query tool built with Rust that queries loc
 - [x] TSV file query support
 - [x] JSON file query support
 - [x] Excel file query support
-- [ ] Parquet file query support
+- [x] Parquet file query support
 - [ ] Excel lazy loading performance optimization
 - [ ] Excel enhanced data type compatibility
 - [ ] Multi-session window support
