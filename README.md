@@ -73,19 +73,19 @@ DataFusion 是 Apache Arrow 项目的一部分，提供了完整的 SQL 查询�
 -- 查询 CSV 文件
 SELECT *
 FROM read_csv('/path/to/file.csv', infer_schema => false)
-WHERE age > 30
+WHERE `age` > 30
 LIMIT 10;
 
 -- 查询 Excel 文件
 SELECT *
 FROM read_excel('/path/to/file.xlsx', sheet_name => 'Sheet2')
-WHERE age > 30
+WHERE `age` > 30
 LIMIT 10;
 
 -- 查询 JSON 文件
 SELECT *
 FROM read_json('/path/to/file.json')
-WHERE status = 'active';
+WHERE `status` = 'active';
 ```
 
 ### 支持的文件格式

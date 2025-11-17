@@ -73,19 +73,19 @@ DataFusion is part of the Apache Arrow project, providing complete SQL query cap
 -- Query CSV files
 SELECT *
 FROM read_csv('/path/to/file.csv', infer_schema => false)
-WHERE age > 30
+WHERE `age` > 30
 LIMIT 10;
 
 -- Query Excel files
 SELECT *
 FROM read_excel('/path/to/file.xlsx', sheet_name => 'Sheet2')
-WHERE age > 30
+WHERE `age` > 30
 LIMIT 10;
 
 -- Query JSON files
 SELECT *
 FROM read_json('/path/to/file.json')
-WHERE status = 'active';
+WHERE `status` = 'active';
 ```
 
 ### Supported File Formats
