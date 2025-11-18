@@ -47,7 +47,7 @@ const createMethods = (t: (key: string) => string) => [
         example: "false",
       },
     ],
-    example: `select * from read_csv("data.csv", infer_schema => false)`,
+    example: `select * from read_csv('data.csv', infer_schema => false)`,
   },
   {
     name: "read_tsv",
@@ -62,7 +62,7 @@ const createMethods = (t: (key: string) => string) => [
         example: "false",
       },
     ],
-    example: `select * from read_tsv("data.tsv", infer_schema => false)`,
+    example: `select * from read_tsv('data.tsv', infer_schema => false)`,
   },
   // {
   //   name: "read_json",
@@ -92,14 +92,14 @@ const createMethods = (t: (key: string) => string) => [
         example: "false",
       },
     ],
-    example: `select * from read_ndjson("data.ndjson")`,
+    example: `select * from read_ndjson('data.ndjson')`,
   },
   {
     name: "read_parquet",
     description: t("functions.readParquet.description"),
     type: "table-valued" as FunctionType,
     params: [],
-    example: `select * from read_parquet("data.parquet")`,
+    example: `select * from read_parquet('data.parquet')`,
   },
   {
     name: "read_excel",
@@ -121,7 +121,7 @@ const createMethods = (t: (key: string) => string) => [
         example: "false",
       },
     ],
-    example: `select * from read_excel("data.xlsx", sheet_name => "Sheet2", infer_schema => false)`,
+    example: `select * from read_excel('data.xlsx', sheet_name => 'Sheet2', infer_schema => false)`,
     isBeta: true,
   },
   {
