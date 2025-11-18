@@ -8,6 +8,7 @@ use sqlparser::parser::ParserError;
 use tauri::ipc::InvokeError;
 use tauri::App;
 use tokio::task::JoinError;
+use crate::commands::query::WriterResult;
 
 #[derive(Debug, Display, Error, Clone)]
 pub enum AppError {

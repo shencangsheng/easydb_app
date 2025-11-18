@@ -45,11 +45,16 @@ pub async fn fetch(
     offset: usize,
     limit: usize,
 ) -> AppResult<FetchResult> {
-    run_blocking_async(async move || {
+    run_blocking_async(move || async move {
         let start = Utc::now();
         let mut context = get_sql_context();
 
-        let new_sql = register(&mut context, &sql, Some(limit), Some(offset)).await?;
+        let new_sql = register(&mut context, &sql, Some(limit), Some(offset))
+            .await
+            .map_err(|err| {
+                let _ = insert_query_history(&app, &sql, "fail");
+                err
+            })?;
         let records = collect(&mut context, &new_sql).await.map_err(|err| {
             let _ = insert_query_history(&app, &sql, "fail");
             err
@@ -132,7 +137,7 @@ pub async fn writer(
     sql_statement_type: Option<String>,
     where_column: Option<String>,
 ) -> AppResult<WriterResult> {
-    run_blocking_async(async move || {
+    run_blocking_async(move || async move {
         let mut downloads_dir = dirs::download_dir().ok_or_else(|| AppError::BadRequest {
             message: "Couldn't find the current working directory".to_string(),
         })?;
