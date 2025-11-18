@@ -1,14 +1,12 @@
-use arrow_schema::ArrowError;
 use crate::context::error::AppError::{BadRequest, InternalServer};
+use arrow_schema::ArrowError;
 use calamine::XlsxError;
 use datafusion::error::DataFusionError;
 use derive_more::with_trait::{Display, Error};
 use glob::{GlobError, PatternError};
 use sqlparser::parser::ParserError;
 use tauri::ipc::InvokeError;
-use tauri::App;
 use tokio::task::JoinError;
-use crate::commands::query::WriterResult;
 
 #[derive(Debug, Display, Error, Clone)]
 pub enum AppError {
