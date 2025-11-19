@@ -2,6 +2,8 @@ use crate::context::error::AppError::{BadRequest, InternalServer};
 use calamine::XlsxError;
 use datafusion::arrow::error::ArrowError;
 use datafusion::error::DataFusionError;
+use datafusion_table_providers::mysql;
+use datafusion_table_providers::sql::db_connection_pool::mysqlpool;
 use derive_more::with_trait::{Display, Error};
 use glob::{GlobError, PatternError};
 use sqlparser::parser::ParserError;
@@ -117,6 +119,33 @@ impl From<DataFusionError> for AppError {
 
 impl From<ArrowError> for AppError {
     fn from(error: ArrowError) -> Self {
+        AppError::log_backtrace();
+        BadRequest {
+            message: error.to_string(),
+        }
+    }
+}
+
+impl From<mysqlpool::Error> for AppError {
+    fn from(error: mysqlpool::Error) -> Self {
+        AppError::log_backtrace();
+        BadRequest {
+            message: error.to_string(),
+        }
+    }
+}
+
+impl From<mysql::Error> for AppError {
+    fn from(error: mysql::Error) -> Self {
+        AppError::log_backtrace();
+        BadRequest {
+            message: error.to_string(),
+        }
+    }
+}
+
+impl From<Box<dyn std::error::Error + Send + Sync>> for AppError {
+    fn from(error: Box<dyn std::error::Error + Send + Sync>) -> Self {
         AppError::log_backtrace();
         BadRequest {
             message: error.to_string(),

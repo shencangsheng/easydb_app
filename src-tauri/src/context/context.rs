@@ -2,6 +2,7 @@ use crate::context::error::AppError;
 use crate::context::schema::AppResult;
 use crate::reader::excel::ExcelReader;
 use crate::sql::parse::{get_function_args, parse_statements};
+use datafusion::arrow::record_batch::RecordBatch;
 use datafusion::dataframe::DataFrame;
 use datafusion::prelude::{CsvReadOptions, NdJsonReadOptions, ParquetReadOptions, SessionContext};
 use datafusion::sql::TableReference;
@@ -16,7 +17,6 @@ use sqlparser::ast::{
 };
 use std::collections::HashMap;
 use std::sync::Arc;
-use datafusion::arrow::record_batch::RecordBatch;
 
 pub fn get_sql_context() -> SessionContext {
     SessionContext::new()
@@ -147,6 +147,62 @@ pub fn read_excel(
     reader.finish().map_err(|e| e.into())
 }
 
+pub async fn register_mysql(
+    ctx: &mut SessionContext,
+    table_name: &String,
+    table_path: &String,
+    args: &mut Option<TableFunctionArgs>,
+) -> AppResult<()> {
+    let args = get_function_args(args);
+    let mut conn: Option<String> = None;
+
+    if let Some(args) = args {
+        for arg in args {
+            if let FunctionArg::Named { name, arg, .. } = arg {
+                match name.value.as_str() {
+                    "conn" => {
+                        if let FunctionArgExpr::Expr(Expr::Value(Value::SingleQuotedString(
+                            value,
+                        ))) = arg
+                        {
+                            conn = Some(value.to_string());
+                        }
+                        break;
+                    }
+                    _ => {}
+                }
+            }
+        }
+    }
+
+    if conn.is_none() {
+        return Err(AppError::BadRequest {
+            message: "'conn' parameter is required".to_string(),
+        });
+    }
+
+    let mysql_params = to_secret_map(HashMap::from([
+        ("connection_string".to_string(), conn.unwrap()),
+        ("sslmode".to_string(), "disabled".to_string()),
+    ]));
+
+    // Create MySQL connection pool
+    let mysql_pool = Arc::new(MySQLConnectionPool::new(mysql_params).await?);
+
+    // Create MySQL table provider factory
+    // Used to generate TableProvider instances that can read MySQL table data
+    let table_factory = MySQLTableFactory::new(mysql_pool);
+
+    ctx.register_table(
+        table_name,
+        table_factory
+            .table_provider(TableReference::bare(table_path.clone()))
+            .await?,
+    )?;
+
+    Ok(())
+}
+
 pub async fn register_table(
     ctx: &mut SessionContext,
     relation: &mut TableFactor,
@@ -178,33 +234,7 @@ pub async fn register_table(
                 ctx.register_batch(&table_name, read_excel(ExcelReader::new(table_path), args)?)?;
             }
             "read_mysql" => {
-                let mysql_params = to_secret_map(HashMap::from([
-                    (
-                        "connection_string".to_string(),
-                        "mysql://root:root@localhost:3306/mysql".to_string(),
-                    ),
-                    ("sslmode".to_string(), "disabled".to_string()),
-                ]));
-
-                // Create MySQL connection pool
-                let mysql_pool = Arc::new(
-                    MySQLConnectionPool::new(mysql_params)
-                        .await
-                        .expect("unable to create MySQL connection pool"),
-                );
-
-                // Create MySQL table provider factory
-                // Used to generate TableProvider instances that can read MySQL table data
-                let table_factory = MySQLTableFactory::new(mysql_pool);
-
-                ctx.register_table(
-                    &table_name,
-                    table_factory
-                        .table_provider(TableReference::bare(""))
-                        .await
-                        .expect("failed to register table provider"),
-                )
-                .expect("failed to register table");
+                register_mysql(ctx, &table_name, &table_path, args).await?;
             }
             _ => {
                 return Err(AppError::BadRequest {

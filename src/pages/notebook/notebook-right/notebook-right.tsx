@@ -17,6 +17,7 @@ interface MethodParam {
   default: string | boolean | undefined;
   desc: string;
   example: string;
+  required?: boolean;
 }
 
 // 定义函数类型
@@ -45,6 +46,7 @@ const createMethods = (t: (key: string) => string) => [
         default: true,
         desc: t("functions.readCsv.inferSchema"),
         example: "false",
+        required: false,
       },
     ],
     example: `select * from read_csv('data.csv', infer_schema => false)`,
@@ -60,6 +62,7 @@ const createMethods = (t: (key: string) => string) => [
         default: true,
         desc: t("functions.readTsv.inferSchema"),
         example: "false",
+        required: false,
       },
     ],
     example: `select * from read_tsv('data.tsv', infer_schema => false)`,
@@ -90,6 +93,7 @@ const createMethods = (t: (key: string) => string) => [
         default: true,
         desc: "",
         example: "false",
+        required: false,
       },
     ],
     example: `select * from read_ndjson('data.ndjson')`,
@@ -112,6 +116,7 @@ const createMethods = (t: (key: string) => string) => [
         default: "Sheet1",
         desc: "",
         example: "Sheet1",
+        required: false,
       },
       {
         name: "infer_schema",
@@ -119,9 +124,27 @@ const createMethods = (t: (key: string) => string) => [
         default: true,
         desc: t("functions.readExcel.inferSchema"),
         example: "false",
+        required: false,
       },
     ],
     example: `select * from read_excel('data.xlsx', sheet_name => 'Sheet2', infer_schema => false)`,
+    isBeta: true,
+  },
+  {
+    name: "read_mysql",
+    description: t("functions.readMysql.description"),
+    type: "table-valued" as FunctionType,
+    params: [
+      {
+        name: "conn",
+        type: "string",
+        default: undefined,
+        desc: t("functions.readMysql.conn"),
+        example: "mysql://user:password@host:port/database",
+        required: true,
+      },
+    ],
+    example: `select * from read_mysql('users', conn => 'mysql://user:password@localhost:3306/mydb')`,
     isBeta: true,
   },
   {
@@ -135,6 +158,7 @@ const createMethods = (t: (key: string) => string) => [
         default: undefined,
         desc: "",
         example: "my_column",
+        required: true,
       },
       {
         name: "pattern",
@@ -142,6 +166,7 @@ const createMethods = (t: (key: string) => string) => [
         default: undefined,
         desc: "",
         example: "^[0-9]+.[0-9]+?$",
+        required: true,
       },
     ],
     example: `REGEXP_LIKE("Distance",'^[0-9]+.[0-9]+?$')`,
@@ -508,9 +533,11 @@ function NotebookRight() {
                               textAlign: "center",
                             }}
                           >
-                            {param.default !== undefined
+                            {param.required === true
+                              ? translate("functions.required")
+                              : param.default !== undefined
                               ? String(param.default)
-                              : translate("functions.required")}
+                              : "-"}
                           </span>
                           <span
                             style={{

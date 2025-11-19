@@ -34,7 +34,8 @@ EasyDB 是一个轻量级桌面数据查询工具，基于 Rust 构建，可以�
 
 - [x] 支持 CSV 文件查询
 - [x] 支持 TSV 文件查询
-- [x] 支持 JSON 文件查询
+- [x] 支持 NDJSON 文件查询
+- [ ] 支持 JSON 文件查询
 - [x] 支持 Excel 文件查询
 - [x] 支持 Parquet 文件查询
 - [ ] Excel 实现懒加载性能优化
@@ -47,6 +48,7 @@ EasyDB 是一个轻量级桌面数据查询工具，基于 Rust 构建，可以�
 - [ ] 支持数据可视化
 - [x] 支持查询结果导出
 - [x] 支持将查询结果导出为 SQL 语句（Insert、Update）
+- [x] 支持 MySQL 数据库查询
 
 ## 🛠️ 技术架构
 
@@ -84,8 +86,12 @@ LIMIT 10;
 
 -- 查询 JSON 文件
 SELECT *
-FROM read_json('/path/to/file.json')
+FROM read_dnjson('/path/to/file.json')
 WHERE `status` = 'active';
+
+SELECT *
+FROM read_mysql('users', conn => 'mysql://user:password@localhost:3306/mydb')
+WHERE `age` > 30
 ```
 
 ### 支持的文件格式
@@ -222,6 +228,7 @@ MIT © Cangsheng Shen
 - [Tauri](https://tauri.app/) - 现代桌面应用框架
 - [React](https://reactjs.org/) - 用户界面库
 - [HeroUI](https://heroui.com/) - 现代化 UI 组件库
+- [datafusion-contrib](https://github.com/datafusion-contrib) - DataFusion 扩展
 
 ## 📞 联系我们
 

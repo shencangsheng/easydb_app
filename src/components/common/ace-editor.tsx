@@ -62,39 +62,64 @@ function CustomAceEditor({
           const completions = [
             {
               caption: translate("functions.readCsv.name"),
-              snippet: "read_csv(${1:path})",
+              snippet: "read_csv(${1:'path'})",
               meta: translate("functions.readCsv.description"),
               value: "read_csv",
             },
             {
               caption: translate("functions.readTsv.name"),
-              snippet: "read_tsv(${1:path})",
+              snippet: "read_tsv(${1:'path'})",
               meta: translate("functions.readTsv.description"),
               value: "read_tsv",
             },
             {
               caption: translate("functions.readJson.name"),
-              snippet: "read_json(${1:path})",
+              snippet: "read_json(${1:'path'})",
               meta: translate("functions.readJson.description"),
               value: "read_json",
             },
             {
               caption: translate("functions.readNdjson.name"),
-              snippet: "read_ndjson(${1:path})",
+              snippet: "read_ndjson(${1:'path'})",
               meta: translate("functions.readNdjson.description"),
               value: "read_ndjson",
             },
             {
               caption: translate("functions.readExcel.name"),
-              snippet: "read_excel(${1:path})",
+              snippet: "read_excel(${1:'path'})",
               meta: translate("functions.readExcel.description"),
               value: "read_excel",
+            },
+            {
+              caption: translate("functions.readMysql.name"),
+              snippet:
+                "read_mysql(${1:'table_name'}, ${2:conn => 'mysql://user:password@localhost:3306/mydb'})",
+              meta: translate("functions.readMysql.description"),
+              value: "read_mysql",
             },
             {
               caption: translate("functions.regexpLike.name"),
               snippet: "regexp_like(${1:column}, ${2:pattern})",
               meta: translate("functions.regexpLike.description"),
               value: "regexp_like",
+            },
+            {
+              caption: "conn",
+              snippet: "conn => ${1:'connection'}",
+              meta: translate("functions.readMysql.conn"),
+              value: "conn",
+            },
+            {
+              caption: "infer_schema",
+              snippet: "infer_schema => ${1:true}",
+              meta: translate("functions.readCsv.inferSchema"),
+              value: "infer_schema",
+            },
+            {
+              caption: "sheet_name",
+              snippet: "sheet_name => ${1:'Sheet1'}",
+              meta: translate("functions.readExcel.sheetName"),
+              value: "sheet_name",
             },
           ];
 

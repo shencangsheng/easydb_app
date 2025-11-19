@@ -94,10 +94,17 @@ export interface Translations {
       name: string;
       description: string;
       inferSchema: string;
+      sheetName: string;
     };
     readParquet: {
       name: string;
       description: string;
+    };
+    readMysql: {
+      name: string;
+      description: string;
+      table: string;
+      conn: string;
     };
     regexpLike: {
       name: string;
@@ -249,10 +256,17 @@ const translations: Record<Language, Translations> = {
         description: "读取 Excel 文件为表。",
         inferSchema:
           "是否自动推断数据类型。为 true 时，将根据前 100 行进行推断。",
+        sheetName: "要读取的工作表名称，默认为 'Sheet1'。",
       },
       readParquet: {
         name: "read_parquet",
         description: "读取 Parquet 文件为表。",
+      },
+      readMysql: {
+        name: "read_mysql",
+        description: "从 MySQL 数据库读取表数据。",
+        table: "要读取的表名称。",
+        conn: "MySQL 连接字符串，格式：mysql://user:password@host:port/database",
       },
       regexpLike: {
         name: "REGEXP_LIKE",
@@ -410,10 +424,17 @@ const translations: Record<Language, Translations> = {
         description: "Read Excel file as table.",
         inferSchema:
           "Whether to automatically infer data types. If true, the first 100 rows are used for inference.",
+        sheetName: "Name of the sheet to read, defaults to 'Sheet1'.",
       },
       readParquet: {
         name: "read_parquet",
         description: "Read Parquet file as table.",
+      },
+      readMysql: {
+        name: "read_mysql",
+        description: "Read table data from MySQL database.",
+        table: "Name of the table to read.",
+        conn: "MySQL connection string, format: mysql://user:password@host:port/database",
       },
       regexpLike: {
         name: "REGEXP_LIKE",
