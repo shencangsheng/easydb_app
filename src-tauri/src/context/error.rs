@@ -1,6 +1,6 @@
 use crate::context::error::AppError::{BadRequest, InternalServer};
-use arrow_schema::ArrowError;
 use calamine::XlsxError;
+use datafusion::arrow::error::ArrowError;
 use datafusion::error::DataFusionError;
 use derive_more::with_trait::{Display, Error};
 use glob::{GlobError, PatternError};

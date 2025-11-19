@@ -1,12 +1,13 @@
 use crate::context::error::AppError;
 use crate::context::schema::AppResult;
 use crate::utils::file_utils::find_files;
-use arrow_array::{Float64Array, Int64Array, RecordBatch, StringArray, TimestampNanosecondArray};
-use arrow_schema::{DataType, Field, Schema, TimeUnit};
 use calamine::{open_workbook, Data, HeaderRow, Range, Reader, Xlsx};
 use chrono::{DateTime, NaiveDateTime, Utc};
 use std::collections::HashSet;
 use std::sync::Arc;
+use datafusion::arrow::array::{Array, Float64Array, Int64Array, StringArray, TimestampNanosecondArray};
+use datafusion::arrow::datatypes::{DataType, Field, Schema, TimeUnit};
+use datafusion::arrow::record_batch::RecordBatch;
 
 pub struct ExcelReadOptions {}
 
@@ -141,7 +142,7 @@ impl ExcelReader {
 
                 let mut arrays = Vec::new();
                 for (i, field) in schema.fields().iter().enumerate() {
-                    let array: Arc<dyn arrow_array::Array> = match field.data_type() {
+                    let array: Arc<dyn Array> = match field.data_type() {
                         DataType::Int64 => Arc::new(Int64Array::from(int64_data[i].clone())),
                         DataType::Float64 => Arc::new(Float64Array::from(float64_data[i].clone())),
                         DataType::Timestamp(TimeUnit::Nanosecond, _) => {

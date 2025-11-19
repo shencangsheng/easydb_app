@@ -2,14 +2,21 @@ use crate::context::error::AppError;
 use crate::context::schema::AppResult;
 use crate::reader::excel::ExcelReader;
 use crate::sql::parse::{get_function_args, parse_statements};
-use arrow_array::RecordBatch;
 use datafusion::dataframe::DataFrame;
 use datafusion::prelude::{CsvReadOptions, NdJsonReadOptions, ParquetReadOptions, SessionContext};
+use datafusion::sql::TableReference;
+use datafusion_table_providers::{
+    mysql::MySQLTableFactory, sql::db_connection_pool::mysqlpool::MySQLConnectionPool,
+    util::secrets::to_secret_map,
+};
 use sqlparser::ast::SetExpr::Select;
 use sqlparser::ast::{
     Expr, FunctionArg, FunctionArgExpr, Offset, OffsetRows, Statement, TableFactor,
     TableFunctionArgs, Value,
 };
+use std::collections::HashMap;
+use std::sync::Arc;
+use datafusion::arrow::record_batch::RecordBatch;
 
 pub fn get_sql_context() -> SessionContext {
     SessionContext::new()
@@ -169,6 +176,35 @@ pub async fn register_table(
             }
             "read_excel" | "read_xlsx" => {
                 ctx.register_batch(&table_name, read_excel(ExcelReader::new(table_path), args)?)?;
+            }
+            "read_mysql" => {
+                let mysql_params = to_secret_map(HashMap::from([
+                    (
+                        "connection_string".to_string(),
+                        "mysql://root:root@localhost:3306/mysql".to_string(),
+                    ),
+                    ("sslmode".to_string(), "disabled".to_string()),
+                ]));
+
+                // Create MySQL connection pool
+                let mysql_pool = Arc::new(
+                    MySQLConnectionPool::new(mysql_params)
+                        .await
+                        .expect("unable to create MySQL connection pool"),
+                );
+
+                // Create MySQL table provider factory
+                // Used to generate TableProvider instances that can read MySQL table data
+                let table_factory = MySQLTableFactory::new(mysql_pool);
+
+                ctx.register_table(
+                    &table_name,
+                    table_factory
+                        .table_provider(TableReference::bare(""))
+                        .await
+                        .expect("failed to register table provider"),
+                )
+                .expect("failed to register table");
             }
             _ => {
                 return Err(AppError::BadRequest {

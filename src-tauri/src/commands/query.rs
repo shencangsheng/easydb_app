@@ -6,8 +6,6 @@ use crate::sql::generator::{generate_sql_inserts, generate_sql_update};
 use crate::utils::date_utils::time_difference_from_now;
 use crate::utils::db_utils;
 use crate::utils::db_utils::insert_query_history;
-use arrow::util::display::{ArrayFormatter, FormatOptions};
-use arrow_schema::ArrowError;
 use chrono::Utc;
 use datafusion::config::CsvOptions;
 use datafusion::dataframe::DataFrameWriteOptions;
@@ -16,6 +14,8 @@ use serde::Serialize;
 use std::fs;
 use std::fs::File;
 use std::io::Write;
+use datafusion::arrow::error::ArrowError;
+use datafusion::arrow::util::display::{ArrayFormatter, FormatOptions};
 use tauri::{command, AppHandle};
 
 #[derive(Serialize)]
