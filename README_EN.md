@@ -30,6 +30,10 @@ EasyDB is a lightweight desktop data query tool built with Rust that queries loc
 - 🎨 **Modern Interface**: Modern desktop application built with Tauri
 - 🔍 **Complete SQL Support**: Supports complex SQL queries, including JOINs, subqueries, window functions, and other advanced features
 
+## 📖 Changelog
+
+[Changelog](CHANGELOG_EN.md)
+
 ## 🗺️ Features & Roadmap
 
 - [x] read_csv()
