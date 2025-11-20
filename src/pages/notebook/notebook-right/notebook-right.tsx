@@ -490,7 +490,7 @@ function NotebookRight() {
                           key={param.name}
                           style={{
                             display: "flex",
-                            alignItems: "center",
+                            alignItems: "flex-start",
                             fontSize: "14px",
                             padding: "12px 16px",
                             gap: "12px",
@@ -546,7 +546,10 @@ function NotebookRight() {
                               color: "#374151",
                               fontSize: "13px",
                               fontFamily: "monospace",
-                              textAlign: "center",
+                              textAlign: "left",
+                              wordBreak: "break-all",
+                              overflowWrap: "break-word",
+                              lineHeight: "1.4",
                             }}
                           >
                             {param.example}
@@ -557,6 +560,8 @@ function NotebookRight() {
                               color: "#6b7280",
                               fontSize: "13px",
                               lineHeight: "1.4",
+                              wordBreak: "break-word",
+                              overflowWrap: "break-word",
                             }}
                           >
                             {param.desc}

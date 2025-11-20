@@ -266,7 +266,7 @@ const translations: Record<Language, Translations> = {
         name: "read_mysql",
         description: "从 MySQL 数据库读取表数据。",
         table: "要读取的表名称。",
-        conn: "MySQL 连接字符串，格式：mysql://user:password@host:port/database",
+        conn: "MySQL 连接字符串",
       },
       regexpLike: {
         name: "REGEXP_LIKE",
@@ -434,7 +434,7 @@ const translations: Record<Language, Translations> = {
         name: "read_mysql",
         description: "Read table data from MySQL database.",
         table: "Name of the table to read.",
-        conn: "MySQL connection string, format: mysql://user:password@host:port/database",
+        conn: "MySQL connection string.",
       },
       regexpLike: {
         name: "REGEXP_LIKE",
