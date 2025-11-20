@@ -1,0 +1,25 @@
+# Changelog
+
+v2.1.0 - 2025-11-20
+
+- Added read_mysql() function, supporting MySQL database queries
+- DataFusion version upgraded to 50.3.0
+- SQL intelligent completion function optimization
+
+v2.0.1 - 2025-11-18
+
+- Corrected errors in the example documentation
+
+v2.0.0 - 2025-11-15
+
+- Query engine switched to DataFusion
+- Temporarily removed read_json() function
+- Support only executing selected SQL, solving the problem of not being able to execute fragments
+- Dragging files is no longer directly generating complete SQL, but instead choosing whether to add file paths or complete SQL, making it easier to get file paths when multiple table joins are required
+
+v1.0.0 - 2025-10-30
+
+- Dragging files automatically generates SQL statements
+- Supports CSV, Excel, NdJson, JSON, Parquet file formats
+- Supports SQL history
+- Supports query result export (CSV, TSV, SQL)

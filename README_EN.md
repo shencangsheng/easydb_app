@@ -32,12 +32,12 @@ EasyDB is a lightweight desktop data query tool built with Rust that queries loc
 
 ## 🗺️ Features & Roadmap
 
-- [x] CSV file query support
-- [x] TSV file query support
-- [x] NDJSON file query support
-- [ ] JSON file query support
-- [x] Excel file query support
-- [x] Parquet file query support
+- [x] read_csv()
+- [x] read_tsv()
+- [x] read_ndjson()
+- [ ] read_json()
+- [x] read_excel()
+- [x] read_parquet()
 - [ ] Excel lazy loading performance optimization
 - [ ] Excel enhanced data type compatibility
 - [ ] Multi-session window support
@@ -48,7 +48,7 @@ EasyDB is a lightweight desktop data query tool built with Rust that queries loc
 - [ ] Data visualization support
 - [x] Query result export functionality
 - [x] Export SQL statements (Insert, Update)
-- [x] MySQL database query support
+- [x] read_mysql()
 
 ## 🛠️ Technical Architecture
 
@@ -89,6 +89,7 @@ SELECT *
 FROM read_json('/path/to/file.json')
 WHERE `status` = 'active';
 
+-- Query MySQL database
 SELECT *
 FROM read_mysql('users', conn => 'mysql://user:password@localhost:3306/mydb')
 WHERE `age` > 30
