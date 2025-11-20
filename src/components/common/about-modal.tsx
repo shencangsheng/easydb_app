@@ -7,6 +7,7 @@ import {
   ModalFooter,
 } from "@heroui/react";
 import { useTranslation } from "../../i18n";
+import { useLanguage } from "../../hooks/useLanguage";
 import { invoke } from "@tauri-apps/api/core";
 import {
   getVersionInfo,
@@ -23,6 +24,7 @@ interface AboutModalProps {
 
 function AboutModal({ isOpen, onClose }: AboutModalProps) {
   const { translate } = useTranslation();
+  const { language } = useLanguage();
   const versionInfo = getVersionInfo();
   const [isChecking, setIsChecking] = useState(false);
 
@@ -124,6 +126,14 @@ function AboutModal({ isOpen, onClose }: AboutModalProps) {
     await invoke("open_url", {
       url: "https://github.com/shencangsheng/easydb_app",
     });
+  };
+
+  const handleChangelogClick = async () => {
+    const url =
+      language === "zh-CN"
+        ? "https://github.com/shencangsheng/easydb_app/blob/main/CHANGELOG.md"
+        : "https://github.com/shencangsheng/easydb_app/blob/main/CHANGELOG_EN.md";
+    await invoke("open_url", { url });
   };
 
   return (
@@ -264,6 +274,18 @@ function AboutModal({ isOpen, onClose }: AboutModalProps) {
                       shencangsheng@126.com
                     </span>
                     <span className="ml-2 text-sm">→</span>
+                  </div>
+
+                  {/* Changelog */}
+                  <div
+                    onClick={handleChangelogClick}
+                    className="flex items-center p-3 bg-gray-50 rounded-lg cursor-pointer transition-colors hover:bg-gray-100"
+                  >
+                    <span className="text-xl mr-3">📝</span>
+                    <span className="text-sm font-medium">
+                      {translate("about.changelog")}
+                    </span>
+                    <span className="ml-auto text-sm">→</span>
                   </div>
                 </div>
               </div>
