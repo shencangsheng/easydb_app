@@ -235,6 +235,11 @@ Thanks to the following open source projects:
 - [HeroUI](https://heroui.com/) - Modern UI component library
 - [datafusion-table-providers](https://github.com/apache/arrow-datafusion-table-providers) - DataFusion extension
 
+### Contributors
+
+<a href="https://github.com/shencangsheng/easydb_app/contributors">
+  <img src="https://contrib.rocks/image?repo=shencangsheng/easydb_app" /></a>
+
 ## 📞 Contact Us
 
 - 🐛 **Bug Reports**: [GitHub Issues](https://github.com/shencangsheng/easydb_app/issues)

@@ -235,6 +235,11 @@ MIT © Cangsheng Shen
 - [HeroUI](https://heroui.com/) - 现代化 UI 组件库
 - [datafusion-contrib](https://github.com/datafusion-contrib) - DataFusion 扩展
 
+### 贡献者
+
+<a href="https://github.com/shencangsheng/easydb_app/contributors">
+  <img src="https://contrib.rocks/image?repo=shencangsheng/easydb_app" /></a>
+
 ## 📞 联系我们
 
 - 🐛 **问题反馈**: [GitHub Issues](https://github.com/shencangsheng/easydb_app/issues)
