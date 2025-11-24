@@ -75,9 +75,9 @@ function NotebookMiddle({ source }: NotebookMiddleProps) {
       xlsx: (filePath: string) =>
         `SELECT * FROM read_excel('${filePath}') LIMIT 100;`,
       json: (filePath: string) =>
-        `SELECT * FROM read_json('${filePath}') LIMIT 100;`,
-      ndjson: (filePath: string) =>
         `SELECT * FROM read_ndjson('${filePath}') LIMIT 100;`,
+      // ndjson: (filePath: string) =>
+      //   `SELECT * FROM read_ndjson('${filePath}') LIMIT 100;`,
       parquet: (filePath: string) =>
         `SELECT * FROM read_parquet('${filePath}') LIMIT 100;`,
       tsv: (filePath: string) =>
@@ -91,8 +91,8 @@ function NotebookMiddle({ source }: NotebookMiddleProps) {
     () => ({
       csv: "read_csv",
       xlsx: "read_excel",
-      json: "read_json",
-      ndjson: "read_ndjson",
+      json: "read_dnjson",
+      // ndjson: "read_ndjson",
       parquet: "read_parquet",
       tsv: "read_tsv",
     }),

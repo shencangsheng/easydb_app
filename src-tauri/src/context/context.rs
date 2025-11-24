@@ -49,7 +49,6 @@ pub fn get_csv_read_options(
                                 options.schema_infer_max_records = 0;
                             }
                         }
-                        break;
                     }
                     _ => {}
                 }
@@ -129,7 +128,6 @@ pub fn read_excel(
                         {
                             reader = reader.with_sheet_name(value.to_string());
                         }
-                        break;
                     }
                     "infer_schema" => {
                         if let FunctionArgExpr::Expr(Expr::Value(Value::Boolean(value))) = arg {
@@ -167,7 +165,6 @@ pub async fn register_mysql(
                         {
                             conn = Some(value.to_string());
                         }
-                        break;
                     }
                     _ => {}
                 }

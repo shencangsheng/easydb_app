@@ -1,3 +1,6 @@
+// use app_lib::context::context::{collect, get_sql_context, register};
+// use app_lib::context::schema::AppResult;
+
 // use app_lib::context::context::{collect, register};
 // use app_lib::context::schema::AppResult;
 // use polars::datatypes::AnyValue;
@@ -49,22 +52,18 @@
 //     Ok(())
 // }
 //
-// #[test]
-// fn test_3() -> AppResult<()> {
+// #[tokio::test]
+// async fn test_3() -> AppResult<()> {
 //     let sql = r#"
 //     SELECT
-//   *
-// FROM
-//   read_csv ('/tmp/output.csv', infer_schema => FALSE) as t1
-//   inner join
-//   read_tsv ('/tmp/o.tsv') as t2 on t1.ID1 = t2.order
-// WHERE
-//   REGEXP_LIKE (Distance, '^[0-9]+\.[0-9]+?$') = FALSE
+//    *
+//   FROM
+//   read_excel ('/Users/shencangsheng/Downloads/default.xlsx', sheet_name => 'Sheet2', infer_schema => false) as t1
 //     "#;
 //
-//     let mut context = SQLContext::new();
-//     let new_sql = register(&mut context, &sql, Some(200), None)?;
-//     let df = collect(&mut context, &new_sql)?;
+//     let mut context = get_sql_context();
+//     let new_sql = register(&mut context, &sql, Some(200), None).await?;
+//     let df = collect(&mut context, &new_sql).await?;
 //
 //     Ok(())
 // }
