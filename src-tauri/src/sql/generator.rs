@@ -1,7 +1,7 @@
+use crate::context::schema::AppResult;
 use datafusion::arrow::error::ArrowError;
 use datafusion::arrow::record_batch::RecordBatch;
 use datafusion::arrow::util::display::{ArrayFormatter, FormatOptions};
-use crate::context::schema::AppResult;
 use datafusion::dataframe::DataFrame;
 
 /// Helper function to format a value from Arrow Array for SQL

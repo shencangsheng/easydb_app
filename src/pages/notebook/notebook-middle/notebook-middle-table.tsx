@@ -309,6 +309,10 @@ function DataTable({ data, isLoading, sql }: TableProps) {
                     size="lg"
                     isRequired
                     variant="bordered"
+                    autoComplete="off"
+                    autoCapitalize="off"
+                    autoCorrect="off"
+                    spellCheck="false"
                     classNames={{
                       input: "text-base",
                       label: "text-sm font-medium",
