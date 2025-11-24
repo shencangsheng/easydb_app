@@ -2,7 +2,7 @@
 
 v2.1.1 - 2025-11-24
 
-- Fixed the problem that the table name input box cannot be automatically completed when exporting SQL statements
+- Fixed the problem that the table name input automatically completes the first letter of the table name to uppercase when exporting SQL statements
 - Fixed the problem that only one of the sheet_name and infer_schema parameters can take effect when using read_excel()
 
 v2.1.0 - 2025-11-20
