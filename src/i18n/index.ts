@@ -53,6 +53,10 @@ export interface Translations {
       maxValuesPerInsert: string;
       maxValuesPerInsertPlaceholder: string;
       batchSizeDisabledHint: string;
+      databaseDialect: string;
+      databaseDialectPlaceholder: string;
+      mysql: string;
+      postgresql: string;
       cancel: string;
       confirmExport: string;
     };
@@ -219,6 +223,10 @@ const translations: Record<Language, Translations> = {
         maxValuesPerInsert: "单次插入行数",
         maxValuesPerInsertPlaceholder: "设置单次插入的最大行数",
         batchSizeDisabledHint: "UPDATE 语句不需要批次大小设置",
+        databaseDialect: "数据库方言",
+        databaseDialectPlaceholder: "请选择数据库方言",
+        mysql: "MySQL",
+        postgresql: "PostgreSQL",
         cancel: "取消",
         confirmExport: "确认导出",
       },
@@ -395,6 +403,10 @@ const translations: Record<Language, Translations> = {
         maxValuesPerInsertPlaceholder: "Set the number of rows per batch",
         batchSizeDisabledHint:
           "UPDATE statements do not require batch size settings",
+        databaseDialect: "Database Dialect",
+        databaseDialectPlaceholder: "Please select database dialect",
+        mysql: "MySQL",
+        postgresql: "PostgreSQL",
         cancel: "Cancel",
         confirmExport: "Confirm Export",
       },

@@ -7,6 +7,8 @@ use crate::utils::date_utils::time_difference_from_now;
 use crate::utils::db_utils;
 use crate::utils::db_utils::insert_query_history;
 use chrono::Utc;
+use datafusion::arrow::error::ArrowError;
+use datafusion::arrow::util::display::{ArrayFormatter, FormatOptions};
 use datafusion::config::CsvOptions;
 use datafusion::dataframe::DataFrameWriteOptions;
 use dirs;
@@ -14,8 +16,6 @@ use serde::Serialize;
 use std::fs;
 use std::fs::File;
 use std::io::Write;
-use datafusion::arrow::error::ArrowError;
-use datafusion::arrow::util::display::{ArrayFormatter, FormatOptions};
 use tauri::{command, AppHandle};
 
 #[derive(Serialize)]
@@ -36,6 +36,26 @@ pub struct FetchHistory {
 pub struct WriterResult {
     pub query_time: String,
     pub file_name: String,
+}
+
+pub enum Dialect {
+    MySQL,
+    PostgreSQL,
+}
+
+impl Dialect {
+    fn from_str(s: &str) -> AppResult<Self> {
+        match s {
+            "MySQL" => Ok(Dialect::MySQL),
+            "PostgreSQL" => Ok(Dialect::PostgreSQL),
+            _ => Err(AppError::BadRequest {
+                message: format!(
+                    "Invalid dialect: '{}'. Please use 'MySQL' or 'PostgreSQL'.",
+                    s
+                ),
+            }),
+        }
+    }
 }
 
 #[command]
@@ -136,11 +156,18 @@ pub async fn writer(
     max_values_per_insert: Option<usize>,
     sql_statement_type: Option<String>,
     where_column: Option<String>,
+    dialect: Option<String>,
 ) -> AppResult<WriterResult> {
     run_blocking_async(move || async move {
         let mut downloads_dir = dirs::download_dir().ok_or_else(|| AppError::BadRequest {
             message: "Couldn't find the current working directory".to_string(),
         })?;
+
+        let db_dialect = match dialect {
+            Some(dialect) => Dialect::from_str(&dialect)?,
+            None => Dialect::MySQL,
+        };
+
         let start = Utc::now();
 
         // Validate required parameters for SQL export
@@ -225,11 +252,12 @@ pub async fn writer(
                 let sql_content = match statement_type.as_str() {
                     "INSERT" => {
                         let max_values = max_values_per_insert.unwrap();
-                        generate_sql_inserts(df, &table_name_value, max_values).await?
+                        generate_sql_inserts(df, &table_name_value, max_values, &db_dialect).await?
                     }
                     "UPDATE" => {
                         let where_column_value = where_column.unwrap();
-                        generate_sql_update(df, &table_name_value, &where_column_value).await?
+                        generate_sql_update(df, &table_name_value, &where_column_value, &db_dialect)
+                            .await?
                     }
                     _ => {
                         return Err(AppError::BadRequest {

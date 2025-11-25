@@ -1,8 +1,10 @@
+use crate::commands::query::Dialect;
 use crate::context::schema::AppResult;
 use datafusion::arrow::error::ArrowError;
 use datafusion::arrow::record_batch::RecordBatch;
 use datafusion::arrow::util::display::{ArrayFormatter, FormatOptions};
 use datafusion::dataframe::DataFrame;
+use datafusion_table_providers::mysql::MySQL;
 
 /// Helper function to format a value from Arrow Array for SQL
 fn format_value_for_sql(value: &str) -> String {
@@ -14,25 +16,17 @@ fn format_value_for_sql(value: &str) -> String {
     }
 }
 
-/// Helper function to extract rows from RecordBatch
-fn extract_rows_from_batches(
-    batches: Vec<RecordBatch>,
-) -> AppResult<(Vec<String>, Vec<Vec<String>>)> {
-    if batches.is_empty() {
-        return Ok((Vec::new(), Vec::new()));
-    }
+/// Helper function to extract rows from RecordBatch in a streaming fashion
+fn extract_rows_from_batches<F>(batches: Vec<RecordBatch>, mut on_row: F) -> AppResult<()>
+where
+    F: FnMut(Vec<String>) -> AppResult<()>,
+{
+    let Some(first_batch) = batches.first() else {
+        return Ok(());
+    };
 
-    let first_batch = &batches[0];
-    let headers: Vec<String> = first_batch
-        .schema()
-        .fields()
-        .iter()
-        .map(|f| f.name().to_string())
-        .collect();
-
-    let width = headers.len();
+    let width = first_batch.schema().fields().len();
     let options = FormatOptions::default().with_null("NULL");
-    let mut rows = Vec::new();
 
     for batch in batches {
         let formatters = batch
@@ -62,11 +56,26 @@ fn extract_rows_from_batches(
                 };
                 cells.push(sql_value);
             }
-            rows.push(cells);
+            on_row(cells)?;
         }
     }
 
-    Ok((headers, rows))
+    Ok(())
+}
+
+/// Helper function to extract column headers from the provided RecordBatches
+fn extract_headers_from_batches(batches: &[RecordBatch]) -> Vec<String> {
+    batches
+        .first()
+        .map(|batch| {
+            batch
+                .schema()
+                .fields()
+                .iter()
+                .map(|f| f.name().to_string())
+                .collect()
+        })
+        .unwrap_or_default()
 }
 
 /// Generate SQL insert statements from DataFrame
@@ -75,6 +84,7 @@ pub async fn generate_sql_inserts(
     df: DataFrame,
     table_name: &str,
     max_values_per_insert: usize,
+    db_dialect: &Dialect,
 ) -> AppResult<String> {
     // Collect RecordBatches from DataFrame
     let batches = df
@@ -84,41 +94,61 @@ pub async fn generate_sql_inserts(
             message: format!("Failed to collect DataFrame: {}", e),
         })?;
 
-    let (headers, rows) = extract_rows_from_batches(batches)?;
+    let headers = extract_headers_from_batches(&batches);
+    if headers.is_empty() {
+        return Ok(String::new());
+    }
 
     let mut sql_statements = String::new();
-
-    // Generate INSERT INTO statement header template
     let columns = headers
         .iter()
-        .map(|h| format!("`{}`", h))
+        .map(|h| match db_dialect {
+            Dialect::MySQL => format!("`{}`", h),
+            Dialect::PostgreSQL => format!("\"{}\"", h),
+        })
         .collect::<Vec<String>>()
         .join(", ");
-    let insert_header_template = format!("INSERT INTO `{}` ({}) VALUES\n", table_name, columns);
+    let insert_header_template = match db_dialect {
+        Dialect::MySQL => format!("INSERT INTO `{}` ({}) VALUES\n", table_name, columns),
+        Dialect::PostgreSQL => format!("INSERT INTO \"{}\" ({}) VALUES\n", table_name, columns)
+    };
+    let chunk_limit = max_values_per_insert.max(1);
+    let mut pending_rows: Vec<Vec<String>> = Vec::with_capacity(chunk_limit);
+    let mut is_first_insert = true;
 
-    // Split rows into chunks for multiple INSERT statements
-    let chunks: Vec<&[Vec<String>]> = rows.chunks(max_values_per_insert).collect();
+    let mut flush_chunk = |rows: &mut Vec<Vec<String>>| -> AppResult<()> {
+        if rows.is_empty() {
+            return Ok(());
+        }
 
-    for (chunk_index, chunk) in chunks.iter().enumerate() {
-        // Add header for each INSERT statement
+        if !is_first_insert {
+            sql_statements.push('\n');
+        } else {
+            is_first_insert = false;
+        }
+
         sql_statements.push_str(&insert_header_template);
 
-        // Generate VALUES clauses for this chunk
-        let mut values_clauses = Vec::new();
-        for row in *chunk {
-            let values = row.join(", ");
-            values_clauses.push(format!("({})", values));
-        }
+        let values_clauses = rows
+            .iter()
+            .map(|row| format!("({})", row.join(", ")))
+            .collect::<Vec<String>>()
+            .join(",\n");
 
-        // Add VALUES clauses
-        sql_statements.push_str(&values_clauses.join(",\n"));
+        sql_statements.push_str(&values_clauses);
         sql_statements.push(';');
+        rows.clear();
+        Ok(())
+    };
 
-        // Add newline between INSERT statements (except for the last one)
-        if chunk_index < chunks.len() - 1 {
-            sql_statements.push('\n');
+    extract_rows_from_batches(batches, |row| {
+        pending_rows.push(row);
+        if pending_rows.len() == chunk_limit {
+            flush_chunk(&mut pending_rows)?;
         }
-    }
+        Ok(())
+    })?;
+    flush_chunk(&mut pending_rows)?;
 
     Ok(sql_statements)
 }
@@ -129,6 +159,7 @@ pub async fn generate_sql_update(
     df: DataFrame,
     table_name: &str,
     where_column: &str,
+    db_dialect: &Dialect,
 ) -> AppResult<String> {
     // Collect RecordBatches from DataFrame
     let batches = df
@@ -138,7 +169,11 @@ pub async fn generate_sql_update(
             message: format!("Failed to collect DataFrame: {}", e),
         })?;
 
-    let (headers, rows) = extract_rows_from_batches(batches)?;
+    let headers = extract_headers_from_batches(&batches);
+
+    if headers.is_empty() {
+        return Ok(String::new());
+    }
 
     // Validate that the WHERE column exists
     if !headers.contains(&where_column.to_string()) {
@@ -157,34 +192,45 @@ pub async fn generate_sql_update(
 
     let mut sql_statements = String::new();
 
-    // Generate UPDATE statements for each row
-    for row in rows {
+    extract_rows_from_batches(batches, |row| {
         let mut set_clauses = Vec::new();
 
-        // Build SET clauses for all columns except the WHERE column
         for (col_index, (header, value)) in headers.iter().zip(row.iter()).enumerate() {
             if col_index != where_column_index {
-                set_clauses.push(format!("`{}` = {}", header, value));
+                set_clauses.push(match db_dialect {
+                    Dialect::MySQL => format!("`{}` = {}", header, value),
+                    Dialect::PostgreSQL => format!("\"{}\" = {}", header, value)
+                });
             }
         }
 
-        // Only generate UPDATE statement if there are columns to update
         if !set_clauses.is_empty() {
-            // Build WHERE clause
             let where_value = &row[where_column_index];
-            let where_clause = format!("`{}` = {}", where_column, where_value);
-
-            // Generate the complete UPDATE statement
-            let update_statement = format!(
-                "UPDATE `{}` SET {} WHERE {};\n",
-                table_name,
-                set_clauses.join(", "),
-                where_clause
-            );
-
+            let where_clause = 
+            match db_dialect {
+                Dialect::MySQL => format!("`{}` = {}", where_column, where_value),
+                Dialect::PostgreSQL => format!("\"{}\" = {}", where_column, where_value)
+            };
+            let update_statement = 
+            match db_dialect {
+                Dialect::MySQL => format!(
+                    "UPDATE `{}` SET {} WHERE {};\n",
+                    table_name,
+                    set_clauses.join(", "),
+                    where_clause
+                ),
+                Dialect::PostgreSQL => format!(
+                    "UPDATE \"{}\" SET {} WHERE {};\n",
+                    table_name,
+                    set_clauses.join(", "),
+                    where_clause
+                )
+            };
             sql_statements.push_str(&update_statement);
         }
-    }
+
+        Ok(())
+    })?;
 
     Ok(sql_statements)
 }

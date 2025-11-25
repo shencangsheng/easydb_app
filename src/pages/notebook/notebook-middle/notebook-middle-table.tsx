@@ -51,6 +51,7 @@ function DataTable({ data, isLoading, sql }: TableProps) {
   const [maxValuesPerInsert, setMaxValuesPerInsert] = useState(1000);
   const [sqlStatementType, setSqlStatementType] = useState("INSERT");
   const [whereColumn, setWhereColumn] = useState("");
+  const [databaseDialect, setDatabaseDialect] = useState("MySQL");
   const { translate } = useTranslation();
 
   // 自动隐藏提示
@@ -68,7 +69,8 @@ function DataTable({ data, isLoading, sql }: TableProps) {
     tableName?: string,
     maxValuesPerInsert?: number,
     sqlStatementType?: string,
-    whereColumn?: string
+    whereColumn?: string,
+    dialect?: string
   ) {
     try {
       setIsDownloading(true);
@@ -81,6 +83,7 @@ function DataTable({ data, isLoading, sql }: TableProps) {
         maxValuesPerInsert: fileType === "SQL" ? maxValuesPerInsert : undefined,
         sqlStatementType: fileType === "SQL" ? sqlStatementType : undefined,
         whereColumn: fileType === "SQL" ? whereColumn : undefined,
+        dialect: fileType === "SQL" ? dialect : undefined,
       });
       setExportResult(result);
     } catch (error) {
@@ -96,6 +99,7 @@ function DataTable({ data, isLoading, sql }: TableProps) {
     setTableName("table_name");
     setMaxValuesPerInsert(1000);
     setWhereColumn("");
+    setDatabaseDialect("MySQL");
     setIsTableNameModalOpen(true);
   }
 
@@ -106,7 +110,8 @@ function DataTable({ data, isLoading, sql }: TableProps) {
       tableName,
       maxValuesPerInsert,
       sqlStatementType,
-      whereColumn
+      whereColumn,
+      databaseDialect
     );
   }
 
@@ -388,6 +393,38 @@ function DataTable({ data, isLoading, sql }: TableProps) {
                       {translate("notebook.export.batchSizeDisabledHint")}
                     </p>
                   )}
+                </div>
+
+                {/* 数据库方言选择 */}
+                <div className="space-y-2">
+                  <Select
+                    label={translate("notebook.export.databaseDialect")}
+                    placeholder={translate(
+                      "notebook.export.databaseDialectPlaceholder"
+                    )}
+                    selectedKeys={databaseDialect ? [databaseDialect] : []}
+                    onSelectionChange={(keys) => {
+                      const selectedKey = Array.from(keys)[0] as string;
+                      setDatabaseDialect(selectedKey || "MySQL");
+                    }}
+                    size="lg"
+                    variant="bordered"
+                    defaultSelectedKeys={["MySQL"]}
+                    classNames={{
+                      trigger:
+                        "text-base border-default-200 hover:border-primary-300 focus-within:border-primary-500",
+                      label: "text-sm font-medium",
+                      value: "text-base",
+                      listbox: "text-base",
+                    }}
+                  >
+                    <SelectItem key="MySQL" className="text-base">
+                      {translate("notebook.export.mysql")}
+                    </SelectItem>
+                    <SelectItem key="PostgreSQL" className="text-base">
+                      {translate("notebook.export.postgresql")}
+                    </SelectItem>
+                  </Select>
                 </div>
               </ModalBody>
 
