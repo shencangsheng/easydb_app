@@ -217,6 +217,7 @@ pub async fn register_table(
             "read_tsv" => {
                 let mut options = get_csv_read_options(args)?;
                 options.delimiter = b'\t';
+                options.file_extension = ".tsv";
                 ctx.register_csv(&table_name, &table_path, options).await?
             }
             "read_ndjson" => {
