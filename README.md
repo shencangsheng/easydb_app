@@ -7,7 +7,7 @@
 **一个轻量级的桌面数据查询工具，使用 SQL 直接查询本地文件，内置查询引擎**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Version](https://img.shields.io/badge/version-2.1.1-blue.svg)](https://github.com/shencangsheng/easydb_app)
+[![Version](https://img.shields.io/badge/version-2.1.2-blue.svg)](https://github.com/shencangsheng/easydb_app)
 [![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20Windows-lightgrey.svg)](https://github.com/shencangsheng/easydb_app)
 
 [English](README_EN.md) | [中文](README.md)
