@@ -3,6 +3,8 @@
 v2.2.0 - 2025-11-25
 
 - 新增 read_csv() 和 read_tsv() 函数的 has_header、delimiter 和 file_extension 参数
+- 新增 SQL 语句导出时数据库方言选择
+- 优化 SQL 大文件导出性能
 
 v2.1.2 - 2025-11-25
 
