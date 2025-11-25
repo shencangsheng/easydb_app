@@ -1,5 +1,9 @@
 # Changelog
 
+v2.1.2 - 2025-11-25
+
+- Fixed the problem that the extension of read_tsv() is required to be .csv
+
 v2.1.1 - 2025-11-24
 
 - Fixed the problem that the table name input automatically completes the first letter of the table name to uppercase when exporting SQL statements
