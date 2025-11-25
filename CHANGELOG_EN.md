@@ -1,5 +1,9 @@
 # Changelog
 
+v2.2.0 - 2025-11-25
+
+- Added has_header, delimiter, and file_extension parameters to read_csv() and read_tsv() functions
+
 v2.1.2 - 2025-11-25
 
 - Fixed the problem that the extension of read_tsv() is required to be .csv

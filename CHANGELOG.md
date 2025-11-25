@@ -1,5 +1,9 @@
 # 更新日志
 
+v2.2.0 - 2025-11-25
+
+- 新增 read_csv() 和 read_tsv() 函数的 has_header、delimiter 和 file_extension 参数
+
 v2.1.2 - 2025-11-25
 
 - 修复 read_tsv() 扩展名要求是 .csv 的问题
