@@ -50,6 +50,32 @@ pub fn get_csv_read_options(
                             }
                         }
                     }
+                    "has_header" => {
+                        if let FunctionArgExpr::Expr(Expr::Value(Value::Boolean(value))) = arg {
+                            if !value {
+                                options.has_header = *value;
+                            }
+                        }
+                    }
+                    "delimiter" => {
+                        if let FunctionArgExpr::Expr(Expr::Value(Value::SingleQuotedString(
+                            value,
+                        ))) = arg
+                        {
+                            options.delimiter =
+                                value.parse().map_err(|_| AppError::BadRequest {
+                                    message: "Invalid delimiter format".to_string(),
+                                })?;
+                        }
+                    }
+                    "file_extension" => {
+                        if let FunctionArgExpr::Expr(Expr::Value(Value::SingleQuotedString(
+                            value,
+                        ))) = arg
+                        {
+                            options.file_extension = value;
+                        }
+                    }
                     _ => {}
                 }
             }

@@ -121,6 +121,24 @@ function CustomAceEditor({
               meta: translate("functions.readExcel.sheetName"),
               value: "sheet_name",
             },
+            {
+              caption: "has_header",
+              snippet: "has_header => ${1:false}",
+              meta: translate("functions.readCsv.hasHeader"),
+              value: "has_header",
+            },
+            {
+              caption: "delimiter",
+              snippet: "delimiter => ${1:',', '\t'}",
+              meta: translate("functions.readCsv.delimiter"),
+              value: "delimiter",
+            },
+            {
+              caption: "file_extension",
+              snippet: "file_extension => ${1:'.csv', '.tsv'}",
+              meta: translate("functions.readCsv.fileExtension"),
+              value: "file_extension",
+            },
           ];
 
           callback(null, completions);

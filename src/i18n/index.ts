@@ -76,11 +76,15 @@ export interface Translations {
       name: string;
       description: string;
       inferSchema: string;
+      hasHeader: string;
+      delimiter: string;
+      fileExtension: string;
     };
     readTsv: {
       name: string;
       description: string;
       inferSchema: string;
+      hasHeader: string;
     };
     readJson: {
       name: string;
@@ -89,6 +93,7 @@ export interface Translations {
     readNdjson: {
       name: string;
       description: string;
+      inferSchema: string;
     };
     readExcel: {
       name: string;
@@ -109,6 +114,8 @@ export interface Translations {
     regexpLike: {
       name: string;
       description: string;
+      column: string;
+      pattern: string;
     };
   };
   settings: {
@@ -236,12 +243,16 @@ const translations: Record<Language, Translations> = {
         description: "读取 CSV 文件为表。",
         inferSchema:
           "是否自动推断数据类型。为 true 时，将根据前 100 行进行推断。",
+        hasHeader: "文件是否包含表头行。为 true 时，第一行将被视为列名。",
+        delimiter: "字段分隔符，默认为逗号 ','。",
+        fileExtension: "文件扩展名，默认为 '.csv'。",
       },
       readTsv: {
         name: "read_tsv",
         description: "读取 TSV 文件为表。",
         inferSchema:
           "是否自动推断数据类型。为 true 时，将根据前 100 行进行推断。",
+        hasHeader: "文件是否包含表头行。为 true 时，第一行将被视为列名。",
       },
       readJson: {
         name: "read_json",
@@ -250,6 +261,8 @@ const translations: Record<Language, Translations> = {
       readNdjson: {
         name: "read_ndjson",
         description: "读取 NDJSON 文件为表。",
+        inferSchema:
+          "是否自动推断数据类型。为 true 时，将根据前 100 行进行推断。",
       },
       readExcel: {
         name: "read_excel",
@@ -271,6 +284,8 @@ const translations: Record<Language, Translations> = {
       regexpLike: {
         name: "REGEXP_LIKE",
         description: "正则表达式匹配函数。",
+        column: "要匹配的列名。",
+        pattern: "正则表达式模式，用于匹配列值。",
       },
     },
     settings: {
@@ -404,12 +419,18 @@ const translations: Record<Language, Translations> = {
         description: "Read CSV file as table.",
         inferSchema:
           "Whether to automatically infer data types. If true, the first 100 rows are used for inference.",
+        hasHeader:
+          "Whether the file contains a header row. If true, the first row will be treated as column names.",
+        delimiter: "Field delimiter, defaults to comma ','.",
+        fileExtension: "File extension, defaults to '.csv'.",
       },
       readTsv: {
         name: "read_tsv",
         description: "Read TSV file as table.",
         inferSchema:
           "Whether to automatically infer data types. If true, the first 100 rows are used for inference.",
+        hasHeader:
+          "Whether the file contains a header row. If true, the first row will be treated as column names.",
       },
       readJson: {
         name: "read_json",
@@ -418,6 +439,8 @@ const translations: Record<Language, Translations> = {
       readNdjson: {
         name: "read_ndjson",
         description: "Read NDJSON file as table.",
+        inferSchema:
+          "Whether to automatically infer data types. If true, the first 100 rows are used for inference.",
       },
       readExcel: {
         name: "read_excel",
@@ -439,6 +462,8 @@ const translations: Record<Language, Translations> = {
       regexpLike: {
         name: "REGEXP_LIKE",
         description: "Regular expression matching function.",
+        column: "The column name to match against.",
+        pattern: "Regular expression pattern used to match column values.",
       },
     },
     settings: {
