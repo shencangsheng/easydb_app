@@ -1,6 +1,9 @@
 // use app_lib::context::context::{collect, get_sql_context, register};
 // use app_lib::context::schema::AppResult;
 
+use app_lib::context::context::{collect, get_sql_context, register};
+use app_lib::context::schema::AppResult;
+
 // use app_lib::context::context::{collect, register};
 // use app_lib::context::schema::AppResult;
 // use polars::datatypes::AnyValue;
@@ -52,18 +55,27 @@
 //     Ok(())
 // }
 //
-// #[tokio::test]
-// async fn test_3() -> AppResult<()> {
-//     let sql = r#"
-//     SELECT
-//    *
-//   FROM
-//   read_excel ('/Users/shencangsheng/Downloads/default.xlsx', sheet_name => 'Sheet2', infer_schema => false) as t1
-//     "#;
-//
-//     let mut context = get_sql_context();
-//     let new_sql = register(&mut context, &sql, Some(200), None).await?;
-//     let df = collect(&mut context, &new_sql).await?;
-//
-//     Ok(())
-// }
+#[tokio::test]
+async fn test_3() -> AppResult<()> {
+    let sql = r#"
+SELECT
+  *
+FROM
+  (
+    SELECT
+      "性别"
+    FROM
+      read_excel (
+        '/Users/shencangsheng/Downloads/批次_20251118105626.xlsx'
+      )
+    GROUP BY
+      "性别"
+  ) as t1
+    "#;
+
+    let mut context = get_sql_context();
+    let new_sql = register(&mut context, &sql, Some(200), None).await?;
+    let df = collect(&mut context, &new_sql).await?;
+
+    Ok(())
+}

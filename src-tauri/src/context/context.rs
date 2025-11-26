@@ -2,6 +2,7 @@ use crate::context::error::AppError;
 use crate::context::schema::AppResult;
 use crate::reader::excel::ExcelReader;
 use crate::sql::parse::{get_function_args, parse_statements};
+use async_recursion::async_recursion;
 use datafusion::arrow::record_batch::RecordBatch;
 use datafusion::dataframe::DataFrame;
 use datafusion::prelude::{CsvReadOptions, NdJsonReadOptions, ParquetReadOptions, SessionContext};
@@ -12,10 +13,12 @@ use datafusion_table_providers::{
 };
 use sqlparser::ast::SetExpr::Select;
 use sqlparser::ast::{
-    Expr, FunctionArg, FunctionArgExpr, Offset, OffsetRows, Statement, TableFactor,
+    Expr, FunctionArg, FunctionArgExpr, Offset, OffsetRows, Query, Statement, TableFactor,
     TableFunctionArgs, Value,
 };
 use std::collections::HashMap;
+use std::future::Future;
+use std::pin::Pin;
 use std::sync::Arc;
 
 pub fn get_sql_context() -> SessionContext {
@@ -274,6 +277,40 @@ pub async fn register_table(
     Ok(table_count + 1)
 }
 
+#[async_recursion]
+pub async fn convert_table_name(
+    ctx: &mut SessionContext,
+    query: &mut Box<Query>,
+    mut table_count: i32,
+) -> AppResult<i32> {
+    if let Select(select) = &mut *query.body {
+        for table_with_joins in &mut select.from {
+            match &mut table_with_joins.relation {
+                TableFactor::Derived { subquery, .. } => {
+                    table_count = convert_table_name(ctx, subquery, table_count).await?;
+                }
+                relation => {
+                    table_count = register_table(ctx, relation, table_count).await?;
+                }
+            }
+            for join in &mut table_with_joins.joins {
+                match &mut join.relation {
+                    TableFactor::Derived { subquery, .. } => {
+                        table_count =
+                            convert_table_name(ctx, subquery, table_count).await?;
+                    }
+                    relation => {
+                        table_count =
+                            register_table(ctx, &mut join.relation, table_count).await?;
+                    }
+                }
+            }
+        }
+    }
+
+    Ok(table_count)
+}
+
 pub async fn register(
     ctx: &mut SessionContext,
     sql: &str,
@@ -286,19 +323,8 @@ pub async fn register(
         message: "invalid SQL statement".to_string(),
     })?;
 
-    let mut table_count = 1;
-
     if let Statement::Query(query) = statement {
-        if let Select(select) = &mut *query.body {
-            for table_with_joins in &mut select.from {
-                table_count =
-                    register_table(ctx, &mut table_with_joins.relation, table_count).await?;
-
-                for join in &mut table_with_joins.joins {
-                    table_count = register_table(ctx, &mut join.relation, table_count).await?;
-                }
-            }
-        }
+        convert_table_name(ctx, query, 0).await?;
         if limit.is_some() && query.limit.is_none() {
             query.limit = Some(Expr::Value(Value::Number(limit.unwrap().to_string(), true)));
         }
