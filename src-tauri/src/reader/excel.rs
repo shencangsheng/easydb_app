@@ -3,11 +3,13 @@ use crate::context::schema::AppResult;
 use crate::utils::file_utils::find_files;
 use calamine::{open_workbook, Data, HeaderRow, Range, Reader, Xlsx};
 use chrono::{DateTime, NaiveDateTime, Utc};
-use std::collections::HashSet;
-use std::sync::Arc;
-use datafusion::arrow::array::{Array, Float64Array, Int64Array, StringArray, TimestampNanosecondArray};
+use datafusion::arrow::array::{
+    Array, Float64Array, Int64Array, StringArray, TimestampNanosecondArray,
+};
 use datafusion::arrow::datatypes::{DataType, Field, Schema, TimeUnit};
 use datafusion::arrow::record_batch::RecordBatch;
+use std::collections::HashSet;
+use std::sync::Arc;
 
 pub struct ExcelReadOptions {}
 
@@ -15,7 +17,7 @@ pub struct ExcelParseOptions {}
 
 pub struct ExcelReader {
     path: String,
-    sheet_name: String,
+    sheet_name: Option<String>,
     infer_schema_length: usize,
     try_parse_dates: bool,
 }
@@ -24,14 +26,14 @@ impl ExcelReader {
     pub fn new(path: String) -> Self {
         Self {
             path,
-            sheet_name: "Sheet1".to_string(),
+            sheet_name: None,
             infer_schema_length: 100,
             try_parse_dates: false,
         }
     }
 
     pub fn with_sheet_name(mut self, sheet_name: String) -> Self {
-        self.sheet_name = sheet_name;
+        self.sheet_name = Some(sheet_name);
         self
     }
 
@@ -47,12 +49,17 @@ impl ExcelReader {
         let mut float64_data: Vec<Vec<Option<f64>>> = Vec::new();
         let mut timestamp_data: Vec<Vec<Option<i64>>> = Vec::new();
 
+        let default_sheet = "Sheet1".to_string();
         let files = find_files(&self.path)?;
         for file in files {
             let mut xlsx: Xlsx<_> = open_workbook(file)?;
-            let range = xlsx
-                .with_header_row(HeaderRow::Row(0))
-                .worksheet_range(&self.sheet_name)?;
+            let sheet_names = xlsx.sheet_names();
+            let range =
+                xlsx.with_header_row(HeaderRow::Row(0))
+                    .worksheet_range(match self.sheet_name {
+                        Some(ref sheet_name) => sheet_name,
+                        None => sheet_names.get(0).unwrap_or(&default_sheet)
+                    })?;
 
             if schema.is_none() {
                 let inferred = infer_field_schema(&range, self.infer_schema_length)?;
