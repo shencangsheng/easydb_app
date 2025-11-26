@@ -1,5 +1,10 @@
 # Changelog
 
+v2.3.0 - 2025-11-26
+
+- Fixed the problem that nested queries cannot be executed
+- Optimized read_excel() to select the first sheet instead of Sheet1 as the default sheet
+
 v2.2.0 - 2025-11-25
 
 - Added has_header, delimiter, and file_extension parameters to read_csv() and read_tsv() functions

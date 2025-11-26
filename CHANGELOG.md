@@ -1,5 +1,10 @@
 # 更新日志
 
+v2.3.0 - 2025-11-26
+
+- 修复无法嵌套查询的问题
+- 优化 read_excel() 不再默认使用 Sheet1 作为默认工作表，而是选择第一个工作表
+
 v2.2.0 - 2025-11-25
 
 - 新增 read_csv() 和 read_tsv() 函数的 has_header、delimiter 和 file_extension 参数
