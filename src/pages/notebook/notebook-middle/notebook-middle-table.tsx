@@ -43,6 +43,54 @@ interface ExportResult {
   file_name: string;
 }
 
+// 预定义静态样式对象，避免每次渲染创建新对象
+const CONTAINER_STYLE = {
+  display: "flex",
+  width: "100%",
+  position: "relative",
+} as const;
+
+const TOOLBAR_STYLE = {
+  display: "flex",
+  flexDirection: "column",
+  alignItems: "center",
+  paddingTop: "15px",
+} as const;
+
+const TOAST_STYLE = {
+  position: "absolute" as const,
+  top: "10px",
+  left: "50%",
+  transform: "translateX(-50%)",
+  zIndex: 1000,
+  padding: "12px 16px",
+  borderRadius: "8px",
+  fontSize: "14px",
+  fontWeight: 500,
+  backgroundColor: "#f0f9ff",
+  color: "#1e40af",
+  border: "1px solid #bfdbfe",
+  display: "flex",
+  alignItems: "center",
+  gap: "8px",
+  maxWidth: "300px",
+  boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)",
+} as const;
+
+const CLOSE_BUTTON_STYLE = {
+  background: "none",
+  border: "none",
+  color: "#1e40af",
+  cursor: "pointer",
+  padding: "4px",
+  borderRadius: "4px",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+} as const;
+
+const ICON_MARGIN_STYLE = { marginRight: "5px" };
+
 function DataTable({ data, isLoading, sql }: TableProps) {
   const [isDownloading, setIsDownloading] = useState(false);
   const [exportResult, setExportResult] = useState<ExportResult | null>(null);
@@ -93,8 +141,7 @@ function DataTable({ data, isLoading, sql }: TableProps) {
     }
   }
 
-  async function handleSqlExport() {
-    // 重置所有状态到初始值
+  function handleSqlExport() {
     setSqlStatementType("INSERT");
     setTableName("table_name");
     setMaxValuesPerInsert(1000);
@@ -115,39 +162,18 @@ function DataTable({ data, isLoading, sql }: TableProps) {
     );
   }
 
+  // 按钮禁用状态
+  const isExportDisabled = data.rows.length === 0 || isDownloading;
+  const isConfirmDisabled =
+    !tableName.trim() ||
+    (sqlStatementType === "INSERT" && maxValuesPerInsert < 1) ||
+    (sqlStatementType === "UPDATE" && !whereColumn.trim());
+
   return (
-    <div
-      style={{
-        display: "flex",
-        height: "calc(40vh - 50px)",
-        width: "100%",
-        overflow: "hidden",
-        // border: "1px solid rgba(17, 17, 17, 0.15)",
-      }}
-    >
+    <div style={CONTAINER_STYLE}>
       {/* 下载完成提示 */}
       {exportResult && (
-        <div
-          style={{
-            position: "absolute",
-            top: "10px",
-            left: "50%",
-            transform: "translateX(-50%)",
-            zIndex: 1000,
-            padding: "12px 16px",
-            borderRadius: "8px",
-            fontSize: "14px",
-            fontWeight: 500,
-            backgroundColor: "#f0f9ff",
-            color: "#1e40af",
-            border: "1px solid #bfdbfe",
-            display: "flex",
-            alignItems: "center",
-            gap: "8px",
-            maxWidth: "300px",
-            boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)",
-          }}
-        >
+        <div style={TOAST_STYLE}>
           <FontAwesomeIcon icon={faCheckCircle} />
           <div style={{ flex: 1 }}>
             <div style={{ fontWeight: 600, marginBottom: "4px" }}>
@@ -164,17 +190,7 @@ function DataTable({ data, isLoading, sql }: TableProps) {
           </div>
           <button
             onClick={() => setExportResult(null)}
-            style={{
-              background: "none",
-              border: "none",
-              color: "#1e40af",
-              cursor: "pointer",
-              padding: "4px",
-              borderRadius: "4px",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-            }}
+            style={CLOSE_BUTTON_STYLE}
             onMouseEnter={(e) => {
               e.currentTarget.style.backgroundColor = "rgba(30, 64, 175, 0.1)";
             }}
@@ -187,16 +203,9 @@ function DataTable({ data, isLoading, sql }: TableProps) {
         </div>
       )}
 
-      <div
-        style={{
-          justifyContent: "flex-end",
-          paddingTop: "15px",
-        }}
-      >
-        <Dropdown
-          placement="bottom-start"
-          isDisabled={data.rows.length === 0 || isDownloading}
-        >
+      {/* 左侧工具栏 */}
+      <div style={TOOLBAR_STYLE}>
+        <Dropdown placement="bottom-start" isDisabled={isExportDisabled}>
           <DropdownTrigger>
             <Button
               variant="light"
@@ -210,39 +219,31 @@ function DataTable({ data, isLoading, sql }: TableProps) {
               />
             </Button>
           </DropdownTrigger>
-          <DropdownMenu aria-label="Static Actions">
-            <DropdownItem
-              key="csv"
-              onPress={async () => await exportResults("CSV")}
-            >
-              <FontAwesomeIcon
-                icon={faFileCsv}
-                style={{ marginRight: "5px" }}
-              />
+          <DropdownMenu aria-label="Export options">
+            <DropdownItem key="csv" onPress={() => exportResults("CSV")}>
+              <FontAwesomeIcon icon={faFileCsv} style={ICON_MARGIN_STYLE} />
               CSV
             </DropdownItem>
-            <DropdownItem
-              key="tsv"
-              onPress={async () => await exportResults("TSV")}
-            >
-              <FontAwesomeIcon
-                icon={faFileCsv}
-                style={{ marginRight: "5px" }}
-              />
+            <DropdownItem key="tsv" onPress={() => exportResults("TSV")}>
+              <FontAwesomeIcon icon={faFileCsv} style={ICON_MARGIN_STYLE} />
               TSV
             </DropdownItem>
             <DropdownItem key="sql" onPress={handleSqlExport}>
-              <FontAwesomeIcon
-                icon={faFileCode}
-                style={{ marginRight: "5px" }}
-              />
+              <FontAwesomeIcon icon={faFileCode} style={ICON_MARGIN_STYLE} />
               SQL
             </DropdownItem>
           </DropdownMenu>
         </Dropdown>
       </div>
 
-      <DataResult data={data} isLoading={isLoading} />
+      {/* 表格区域 */}
+      <div className="flex-1 flex flex-col overflow-hidden">
+        {/* Total 统计 */}
+        <div className="text-xs text-default-500 px-1">
+          Total: {data.rows.length.toLocaleString()} rows
+        </div>
+        <DataResult data={data} isLoading={isLoading} />
+      </div>
 
       {/* 表名输入模态框 */}
       <Modal
@@ -372,9 +373,7 @@ function DataTable({ data, isLoading, sql }: TableProps) {
                       "notebook.export.maxValuesPerInsertPlaceholder"
                     )}
                     value={maxValuesPerInsert.toString()}
-                    onChange={(e) =>
-                      setMaxValuesPerInsert(parseInt(e.target.value) || 1000)
-                    }
+                    onChange={(e) => {setMaxValuesPerInsert(parseInt(e.target.value) || 1000)}}
                     size="lg"
                     type="number"
                     min="1"
@@ -444,11 +443,7 @@ function DataTable({ data, isLoading, sql }: TableProps) {
                     confirmSqlExport();
                     onClose();
                   }}
-                  isDisabled={
-                    !tableName.trim() ||
-                    (sqlStatementType === "INSERT" && maxValuesPerInsert < 1) ||
-                    (sqlStatementType === "UPDATE" && !whereColumn.trim())
-                  }
+                  isDisabled={isConfirmDisabled}
                   size="lg"
                   className="font-medium"
                 >

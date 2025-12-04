@@ -37,6 +37,7 @@ export interface Translations {
       noResultsDescription: string;
     };
     export: {
+      export: string;
       completed: string;
       queryTime: string;
       fileName: string;
@@ -207,6 +208,7 @@ const translations: Record<Language, Translations> = {
         noResultsDescription: "请尝试使用其他关键词搜索",
       },
       export: {
+        export: "导出",
         completed: "下载完成",
         queryTime: "查询时间",
         fileName: "文件名",
@@ -385,6 +387,7 @@ const translations: Record<Language, Translations> = {
         noResultsDescription: "Try using different search keywords",
       },
       export: {
+        export: "Export",
         completed: "Download Completed",
         queryTime: "Query Time",
         fileName: "File Name",

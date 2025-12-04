@@ -6,21 +6,10 @@ import {
   ModalContent,
   ModalHeader,
   Spinner,
-  Table,
-  TableBody,
-  TableCell,
-  TableColumn,
-  TableHeader,
-  TableRow,
   useDisclosure,
 } from "@heroui/react";
-import { memo, useState, useMemo, useCallback } from "react";
-
-type TableRow = {
-  id: string;
-  values: string[];
-  index: number;
-};
+import { memo, useState, useRef } from "react";
+import { useVirtualizer } from "@tanstack/react-virtual";
 
 interface DataResultProps {
   data: {
@@ -30,179 +19,158 @@ interface DataResultProps {
   isLoading: boolean;
 }
 
-// 缓存样式对象，避免重复创建
-const ROW_NUMBER_COLUMN_STYLE = {
-  backgroundColor: "white",
-  borderBottom: "1px solid rgba(17, 17, 17, 0.15)",
-  width: "40px",
-};
-
-const HEADER_COLUMN_STYLE = {
-  backgroundColor: "white",
-  borderBottom: "1px solid rgba(17, 17, 17, 0.15)",
-  fontWeight: "bold",
-  fontSize: "0.9em",
-};
-
-const STICKY_CELL_STYLE = {
-  position: "sticky" as const,
-  left: 0,
-  backgroundColor: "#f5f5f5",
-  zIndex: 1,
-};
-
-const EVEN_ROW_STYLE = { backgroundColor: "#f5f5f5" };
-const ODD_ROW_STYLE = { backgroundColor: "#ffffff" };
-const CELL_BORDER_STYLE = { borderBottom: "1px solid rgba(17, 17, 17, 0.15)" };
-
-const transformTableData = (rows: string[][]): TableRow[] => {
-  return rows.map((row, index) => ({
-    id: `row-${index}`,
-    values: [`${index + 1}`, ...row],
-    index: index,
-  }));
-};
-
-// 使用 useMemo 缓存表头，避免重复渲染
-const getHeaderColumns = (header: string[]) => {
-  const headers = [
-    <TableColumn key="row-number" style={ROW_NUMBER_COLUMN_STYLE}>
-      #
-    </TableColumn>,
-  ];
-
-  header?.forEach((column) => {
-    headers.push(
-      <TableColumn key={column} style={HEADER_COLUMN_STYLE}>
-        {column}
-      </TableColumn>
-    );
-  });
-
-  return headers;
-};
+const ROW_HEIGHT = 36;
 
 function DataResult({ data, isLoading }: DataResultProps) {
   const { isOpen, onOpen, onOpenChange } = useDisclosure();
-  const [selectedItem, setSelectedItem] = useState<TableRow | null>(null);
+  const [selectedRowIndex, setSelectedRowIndex] = useState<number | null>(null);
+  const parentRef = useRef<HTMLDivElement>(null);
 
-  // 使用 useMemo 缓存转换后的数据，避免每次渲染都重新计算
-  const tableData = useMemo(() => transformTableData(data.rows), [data.rows]);
+  // 虚拟化：只计算可见行，不创建任何中间数据结构
+  const virtualizer = useVirtualizer({
+    count: data.rows.length,
+    getScrollElement: () => parentRef.current,
+    estimateSize: () => ROW_HEIGHT,
+    overscan: 5, // 预渲染额外 5 行
+  });
 
-  // 使用 useMemo 缓存表头，避免重复渲染
-  const headerColumns = useMemo(
-    () => getHeaderColumns(data.header),
-    [data.header]
-  );
+  const handleRowDoubleClick = (index: number) => {
+    setSelectedRowIndex(index);
+    onOpen();
+  };
 
-  // 使用 useCallback 缓存事件处理函数
-  const handleRowDoubleClick = useCallback(
-    (item: TableRow) => {
-      setSelectedItem(item);
-      onOpen();
-    },
-    [onOpen]
-  );
+  const selectedRowData = selectedRowIndex !== null ? data.rows[selectedRowIndex] : null;
 
-  // 优化单元格渲染函数
-  const renderCell = useCallback(
-    (value: string, index: number, item: TableRow) => {
-      const isRowNumber = index === 0;
-      const cellStyle = {
-        whiteSpace: "nowrap" as const,
-        ...(isRowNumber
-          ? STICKY_CELL_STYLE
-          : item.index % 2 === 0
-          ? EVEN_ROW_STYLE
-          : ODD_ROW_STYLE),
-        ...CELL_BORDER_STYLE,
-      };
+  // Loading 状态
+  if (isLoading) {
+    return (
+      <div 
+        className="flex items-center justify-center w-full" 
+        style={{ height: "calc(40vh - 50px)" }}
+      >
+        <Spinner label="Loading..." />
+      </div>
+    );
+  }
 
-      return (
-        <TableCell key={`${item.id}-${index}`} style={cellStyle}>
-          {value}
-        </TableCell>
-      );
-    },
-    []
-  );
+  // 空数据状态
+  if (data.rows.length === 0) {
+    return (
+      <div 
+        className="flex flex-col items-center justify-center gap-2 text-gray-500 w-full"
+        style={{ height: "calc(40vh - 50px)" }}
+      >
+        <FontAwesomeIcon icon={faTable} size="2x" />
+        <p>No data available</p>
+        <p className="text-sm">Run a query to see results here</p>
+      </div>
+    );
+  }
+
+  // 计算表格总宽度：行号列 + 所有数据列
+  const columnWidth = 150;
+  const indexColumnWidth = 56;
+  const tableWidth = indexColumnWidth + data.header.length * columnWidth;
 
   return (
     <div className="w-full">
-      <Table
-        isVirtualized={true}
-        maxTableHeight={500}
-        rowHeight={40}
-        radius={"none"}
-        classNames={{
-          wrapper: "shadow-none",
-        }}
+      {/* 统一滚动容器 */}
+      <div
+        ref={parentRef}
+        className="overflow-auto"
+        style={{ height: "calc(40vh - 50px)" }}
       >
-        <TableHeader>{headerColumns}</TableHeader>
-        <TableBody
-          items={tableData}
-          isLoading={isLoading}
-          loadingContent={<Spinner label="Loading..." />}
-          emptyContent={
-            <div
-              style={{
-                padding: "20px",
-                textAlign: "center",
-                color: "#666",
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-                gap: "10px",
-              }}
+        {/* 表格内容区域 - 固定宽度 */}
+        <div style={{ width: tableWidth, minWidth: "100%" }}>
+          {/* 固定表头 */}
+          <div className="flex bg-default-100 border-b border-default-200 font-semibold text-sm text-default-600 sticky top-0 z-20">
+            {/* 行号列 */}
+            <div 
+              className="flex-shrink-0 px-3 py-2 text-center border-r border-default-200 sticky left-0 bg-default-100 z-30"
+              style={{ width: indexColumnWidth }}
             >
-              <FontAwesomeIcon icon={faTable} size="2x" />
-              <p>No data available</p>
-              <p style={{ fontSize: "14px" }}>
-                Run a query to see results here
-              </p>
+              #
             </div>
-          }
-        >
-          {(item: TableRow) => (
-            <TableRow
-              key={item.id}
-              onDoubleClick={() => handleRowDoubleClick(item)}
-            >
-              {item.values.map((value, index) =>
-                renderCell(value, index, item)
-              )}
-            </TableRow>
-          )}
-        </TableBody>
-      </Table>
-
-      <Modal
-        isOpen={isOpen}
-        onOpenChange={onOpenChange}
-        style={{ maxWidth: "40vw" }}
-      >
-        <ModalContent>
-          <ModalHeader>Row details</ModalHeader>
-          <ModalBody>
-            {selectedItem && (
+            {data.header.map((col, i) => (
               <div
-                style={{
-                  maxHeight: "80vh",
-                  overflowY: "auto",
-                }}
+                key={i}
+                className="px-3 py-2 truncate border-r border-default-200 last:border-r-0"
+                style={{ width: columnWidth }}
               >
-                <table className="w-full border-collapse border border-gray-200">
+                {col}
+              </div>
+            ))}
+          </div>
+
+          {/* 虚拟化行容器 */}
+          <div
+            style={{
+              height: virtualizer.getTotalSize(),
+              position: "relative",
+            }}
+          >
+            {virtualizer.getVirtualItems().map((virtualRow) => {
+              const row = data.rows[virtualRow.index];
+              const isEven = virtualRow.index % 2 === 0;
+
+              return (
+                <div
+                  key={virtualRow.index}
+                  className={`flex text-sm cursor-pointer hover:bg-primary-50 ${
+                    isEven ? "bg-default-50" : "bg-white"
+                  }`}
+                  style={{
+                    position: "absolute",
+                    top: 0,
+                    left: 0,
+                    width: "100%",
+                    height: virtualRow.size,
+                    transform: `translateY(${virtualRow.start}px)`,
+                  }}
+                  onDoubleClick={() => handleRowDoubleClick(virtualRow.index)}
+                >
+                  {/* 行号列 - sticky */}
+                  <div
+                    className={`flex-shrink-0 px-3 py-2 text-center text-default-500 border-r border-default-100 sticky left-0 z-10 ${
+                      isEven ? "bg-default-50" : "bg-white"
+                    }`}
+                    style={{ width: indexColumnWidth }}
+                  >
+                    {virtualRow.index + 1}
+                  </div>
+                  {row.map((cell, i) => (
+                    <div
+                      key={i}
+                      className="px-3 py-2 truncate border-r border-default-100 last:border-r-0"
+                      style={{ width: columnWidth }}
+                    >
+                      {cell}
+                    </div>
+                  ))}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+
+      {/* 行详情 Modal */}
+      <Modal isOpen={isOpen} onOpenChange={onOpenChange} size="lg">
+        <ModalContent>
+          <ModalHeader>Row Details</ModalHeader>
+          <ModalBody className="pb-6">
+            {selectedRowData && (
+              <div className="max-h-[60vh] overflow-y-auto">
+                <table className="w-full border-collapse">
                   <tbody>
-                    {selectedItem.values
-                      .filter((_value, index) => index !== 0)
-                      .map((value, index) => (
-                        <tr key={index} className="border-b border-gray-200">
-                          <th className="py-2 px-4 text-left bg-gray-50 font-medium">
-                            {data.header[index]}
-                          </th>
-                          <td className="py-2 px-4">{value}</td>
-                        </tr>
-                      ))}
+                    {data.header.map((header, index) => (
+                      <tr key={index} className="border-b border-gray-200">
+                        <th className="py-2 px-4 text-left bg-gray-50 font-medium w-1/3">
+                          {header}
+                        </th>
+                        <td className="py-2 px-4">{selectedRowData[index]}</td>
+                      </tr>
+                    ))}
                   </tbody>
                 </table>
               </div>
