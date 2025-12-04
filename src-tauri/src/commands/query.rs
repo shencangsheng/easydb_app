@@ -75,20 +75,12 @@ pub async fn fetch(
                 let _ = insert_query_history(&app, &sql, "fail");
                 err
             })?;
-        let records = collect(&mut context, &new_sql).await.map_err(|err| {
+
+        let (header, records) = collect(&mut context, &new_sql).await.map_err(|err| {
             let _ = insert_query_history(&app, &sql, "fail");
             err
         })?;
-
-        let row = &records[0];
-        let width = row.columns().len();
-
-        let header: Vec<String> = row
-            .schema()
-            .fields()
-            .iter()
-            .map(|c| c.name().to_string())
-            .collect();
+        let width = header.len();
 
         // Pre-calculate the total number of rows to avoid frequent reallocation
         let total_rows: usize = records.iter().map(|r| r.num_rows()).sum();

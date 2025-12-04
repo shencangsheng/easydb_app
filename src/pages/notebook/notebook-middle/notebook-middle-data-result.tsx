@@ -113,8 +113,8 @@ function DataResult({ data, isLoading }: DataResultProps) {
         ...(isRowNumber
           ? STICKY_CELL_STYLE
           : item.index % 2 === 0
-          ? EVEN_ROW_STYLE
-          : ODD_ROW_STYLE),
+            ? EVEN_ROW_STYLE
+            : ODD_ROW_STYLE),
         ...CELL_BORDER_STYLE,
       };
 
@@ -156,10 +156,16 @@ function DataResult({ data, isLoading }: DataResultProps) {
               }}
             >
               <FontAwesomeIcon icon={faTable} size="2x" />
-              <p>No data available</p>
-              <p style={{ fontSize: "14px" }}>
-                Run a query to see results here
-              </p>
+              {data.header.length > 0 ? (
+                <p>No records found</p>
+              ) : (
+                <>
+                  <p>No data available</p>
+                  <p style={{ fontSize: "14px" }}>
+                    Run a query to see results here
+                  </p>
+                </>
+              )}
             </div>
           }
         >
