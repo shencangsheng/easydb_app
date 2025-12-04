@@ -54,7 +54,7 @@ const TOOLBAR_STYLE = {
   display: "flex",
   flexDirection: "column",
   alignItems: "center",
-  paddingTop: "15px",
+  paddingRight: "8px",
 } as const;
 
 const TOAST_STYLE = {
@@ -237,12 +237,14 @@ function DataTable({ data, isLoading, sql }: TableProps) {
       </div>
 
       {/* 表格区域 */}
-      <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Total 统计 */}
-        <div className="text-xs text-default-500 px-1">
-          Total: {data.rows.length.toLocaleString()} rows
-        </div>
+      <div className="flex-1 flex flex-col overflow-hidden relative">
         <DataResult data={data} isLoading={isLoading} />
+        {/* Total 统计悬浮标签 */}
+        {data.rows.length > 0 && (
+          <div className="absolute bottom-2 left-2 px-2 py-0.5 text-[10px] text-default-500 bg-default-100/80 rounded backdrop-blur-sm">
+            Total: {data.rows.length.toLocaleString()} rows
+          </div>
+        )}
       </div>
 
       {/* 表名输入模态框 */}

@@ -53,16 +53,27 @@ function DataResult({ data, isLoading }: DataResultProps) {
     );
   }
 
-  // 空数据状态
+  // 空数据状态：显示表头和空状态提示
   if (data.rows.length === 0) {
     return (
-      <div 
-        className="flex flex-col items-center justify-center gap-2 text-gray-500 w-full"
-        style={{ height: "calc(40vh - 50px)" }}
-      >
-        <FontAwesomeIcon icon={faTable} size="2x" />
-        <p>No data available</p>
-        <p className="text-sm">Run a query to see results here</p>
+      <div className="w-full">
+        <div style={{ height: "calc(40vh - 50px)" }}>
+          {/* 表头 */}
+          <div className="flex bg-default-100 border-b border-default-200 font-semibold text-base text-default-600">
+            <div 
+              className="flex-shrink-0 px-3 py-2 text-center border-r border-default-200"
+              style={{ width: 56 }}
+            >
+              #
+            </div>
+          </div>
+          {/* 空状态提示 */}
+          <div className="flex flex-col items-center justify-center gap-2 text-default-400 pt-16">
+            <FontAwesomeIcon icon={faTable} size="2x" />
+            <p className="font-medium text-default-500">No data available</p>
+            <p className="text-sm">Run a query to see results here</p>
+          </div>
+        </div>
       </div>
     );
   }
