@@ -55,7 +55,7 @@ function DataResult({ data, isLoading }: DataResultProps) {
           <table className="border-collapse" style={{ minWidth: '100%' }}>
             <thead className="bg-default-100">
               <tr className="border-b border-default-200 font-semibold text-sm text-default-600">
-                <th className="px-3 py-2 text-center border-r border-default-200 w-14">#</th>
+                <th className="px-3 py-2 text-left border-r border-default-200 w-14">#</th>
                 {data.header.map((col, i) => (
                   <th
                     key={i}
