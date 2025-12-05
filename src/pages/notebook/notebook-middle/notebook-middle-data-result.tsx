@@ -8,8 +8,14 @@ import {
   Spinner,
   useDisclosure,
 } from "@heroui/react";
-import { memo, useState, useRef } from "react";
+import { memo, useState, useRef, useMemo, useCallback, useEffect } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
+import {
+  useReactTable,
+  getCoreRowModel,
+  flexRender,
+  ColumnDef,
+} from "@tanstack/react-table";
 
 interface DataResultProps {
   data: {
@@ -20,12 +26,48 @@ interface DataResultProps {
 }
 
 const ROW_HEIGHT = 36;
+const DEFAULT_COLUMN_WIDTH = 150;
 
 function DataResult({ data, isLoading }: DataResultProps) {
   const { isOpen, onOpen, onOpenChange } = useDisclosure();
   const [selectedRowIndex, setSelectedRowIndex] = useState<number | null>(null);
   const parentRef = useRef<HTMLDivElement>(null);
 
+  // 动态生成列定义
+  const columns = useMemo<ColumnDef<string[]>[]>(() => {
+    // 行号列
+    const indexColumn: ColumnDef<string[]> = {
+      id: "_index",
+      header: "#",
+      size: 56,
+      minSize: 56,
+      maxSize: 56,
+      enableResizing: false,
+      cell: ({ row }) => row.index + 1,
+    };
+
+    // 数据列
+    const dataColumns: ColumnDef<string[]>[] = data.header.map((header, index) => ({
+      id: `col_${index}`,
+      accessorFn: (row: string[]) => row[index],
+      header: header,
+      size: DEFAULT_COLUMN_WIDTH,
+      minSize: 50,
+    }));
+
+    return [indexColumn, ...dataColumns];
+  }, [data.header]);
+
+  // 表格实例
+  const table = useReactTable({
+    data: data.rows,
+    columns,
+    columnResizeMode: "onChange",
+    enableColumnResizing: true,
+    getCoreRowModel: getCoreRowModel(),
+  });
+
+  // 虚拟化
   const virtualizer = useVirtualizer({
     count: data.rows.length,
     getScrollElement: () => parentRef.current,
@@ -33,12 +75,21 @@ function DataResult({ data, isLoading }: DataResultProps) {
     overscan: 5,
   });
 
-  const handleRowDoubleClick = (index: number) => {
+  // 数据变化时重置选中状态，防止显示旧数据
+  useEffect(() => {
+    setSelectedRowIndex(null);
+  }, [data.rows]);
+
+  // 使用 useCallback 避免不必要的重渲染
+  const handleRowDoubleClick = useCallback((index: number) => {
     setSelectedRowIndex(index);
     onOpen();
-  };
+  }, [onOpen]);
 
-  const selectedRowData = selectedRowIndex !== null ? data.rows[selectedRowIndex] : null;
+  // 安全获取选中行数据，防止索引越界
+  const selectedRowData = selectedRowIndex !== null && selectedRowIndex < data.rows.length 
+    ? data.rows[selectedRowIndex] 
+    : null;
 
   if (isLoading) {
     return (
@@ -52,7 +103,7 @@ function DataResult({ data, isLoading }: DataResultProps) {
     return (
       <div className="w-full">
         <div style={{ height: "calc(40vh - 50px)" }} className="overflow-auto">
-          <table className="border-collapse" style={{ minWidth: '100%' }}>
+          <table className="border-collapse" style={{ minWidth: "100%" }}>
             <thead className="bg-default-100">
               <tr className="border-b border-default-200 font-semibold text-sm text-default-600">
                 <th className="px-3 py-2 text-left border-r border-default-200 w-14">#</th>
@@ -78,6 +129,11 @@ function DataResult({ data, isLoading }: DataResultProps) {
     );
   }
 
+  const virtualItems = virtualizer.getVirtualItems();
+  const totalSize = virtualizer.getTotalSize();
+  const { rows: tableRows } = table.getRowModel();
+  const tableWidth = table.getTotalSize();
+
   return (
     <div className="w-full">
       <div
@@ -85,90 +141,77 @@ function DataResult({ data, isLoading }: DataResultProps) {
         className="overflow-auto"
         style={{ height: "calc(40vh - 50px)" }}
       >
-        <table className="border-collapse" style={{ minWidth: '100%' }}>
-          {/* 表头 */}
-          <thead className="bg-default-100">
-            <tr className="border-b border-default-200 font-semibold text-sm text-default-600">
-              <th className="px-3 py-2 text-center border-r border-default-200 sticky left-0 bg-default-100 z-30 whitespace-nowrap w-14">
-                #
-              </th>
-              {data.header.map((col, i) => (
-                <th
-                  key={i}
-                  className="px-3 py-2 text-left font-semibold whitespace-nowrap border-r border-default-200 last:border-r-0"
-                  style={{ minWidth: 100 }}
-                >
-                  {col}
-                </th>
-              ))}
-            </tr>
-          </thead>
+        <div style={{ width: tableWidth, minWidth: "100%" }}>
+          {/* 固定表头 */}
+          <div
+            className="sticky top-0 z-20 bg-default-100"
+            style={{ width: tableWidth }}
+          >
+            {table.getHeaderGroups().map((headerGroup) => (
+              <div key={headerGroup.id} className="flex border-b border-default-200">
+                {headerGroup.headers.map((header) => (
+                  <div
+                    key={header.id}
+                    className={`relative px-3 py-2 font-semibold text-sm text-default-600 border-r border-default-200 last:border-r-0 whitespace-nowrap overflow-hidden text-ellipsis ${
+                      header.id === "_index" ? "text-center sticky left-0 bg-default-100 z-30" : "text-left"
+                    }`}
+                    style={{ width: header.getSize() }}
+                  >
+                    {flexRender(header.column.columnDef.header, header.getContext())}
+                    {/* 拖拽调整列宽手柄 */}
+                    {header.column.getCanResize() && (
+                      <div
+                        onMouseDown={header.getResizeHandler()}
+                        onTouchStart={header.getResizeHandler()}
+                        className={`absolute right-0 top-0 h-full w-1 cursor-col-resize select-none touch-none hover:bg-primary-400 ${
+                          header.column.getIsResizing() ? "bg-primary-500" : ""
+                        }`}
+                      />
+                    )}
+                  </div>
+                ))}
+              </div>
+            ))}
+          </div>
 
-          {/* 数据区域 - 使用真正的 tr/td */}
-          <tbody>
-            {(() => {
-              const virtualItems = virtualizer.getVirtualItems();
-              if (virtualItems.length === 0) return null;
-
-              const firstItem = virtualItems[0];
-              const lastItem = virtualItems[virtualItems.length - 1];
-              const paddingTop = firstItem.start;
-              const paddingBottom = virtualizer.getTotalSize() - lastItem.end;
+          {/* 虚拟化数据行容器 */}
+          <div style={{ height: totalSize, position: "relative" }}>
+            {virtualItems.map((virtualRow) => {
+              const row = tableRows[virtualRow.index];
+              if (!row) return null;
+              const isEven = virtualRow.index % 2 === 0;
 
               return (
-                <>
-                  {/* 虚拟化占位 - 上方 */}
-                  {paddingTop > 0 && (
-                    <tr style={{ height: paddingTop }}>
-                      <td colSpan={data.header.length + 1} />
-                    </tr>
-                  )}
-
-                  {/* 可见行 */}
-                  {virtualItems.map((virtualRow) => {
-                    const row = data.rows[virtualRow.index];
-                    if (!row) return null; // 边界检查
-                    const isEven = virtualRow.index % 2 === 0;
-
-                    return (
-                      <tr
-                        key={virtualRow.index}
-                        className={`text-sm cursor-pointer hover:bg-primary-50 ${
-                          isEven ? "bg-default-50" : "bg-white"
-                        }`}
-                        style={{ height: ROW_HEIGHT }}
-                        onDoubleClick={() => handleRowDoubleClick(virtualRow.index)}
-                      >
-                        <td
-                          className={`px-3 py-2 text-center text-default-500 border-r border-default-100 sticky left-0 z-10 whitespace-nowrap ${
-                            isEven ? "bg-default-50" : "bg-white"
-                          }`}
-                        >
-                          {virtualRow.index + 1}
-                        </td>
-                        {row.map((cell, i) => (
-                          <td
-                            key={i}
-                            className="px-3 py-2 text-left whitespace-nowrap border-r border-default-100 last:border-r-0"
-                          >
-                            {cell}
-                          </td>
-                        ))}
-                      </tr>
-                    );
-                  })}
-
-                  {/* 虚拟化占位 - 下方 */}
-                  {paddingBottom > 0 && (
-                    <tr style={{ height: paddingBottom }}>
-                      <td colSpan={data.header.length + 1} />
-                    </tr>
-                  )}
-                </>
+                <div
+                  key={virtualRow.index}
+                  className={`absolute left-0 flex text-sm cursor-pointer hover:bg-primary-50 ${
+                    isEven ? "bg-default-50" : "bg-white"
+                  }`}
+                  style={{
+                    height: ROW_HEIGHT,
+                    width: tableWidth,
+                    transform: `translateY(${virtualRow.start}px)`,
+                  }}
+                  onDoubleClick={() => handleRowDoubleClick(virtualRow.index)}
+                >
+                  {row.getVisibleCells().map((cell) => (
+                    <div
+                      key={cell.id}
+                      className={`px-3 py-2 border-r border-default-100 last:border-r-0 whitespace-nowrap overflow-hidden text-ellipsis ${
+                        cell.column.id === "_index"
+                          ? `text-center text-default-500 sticky left-0 z-10 ${isEven ? "bg-default-50" : "bg-white"}`
+                          : "text-left"
+                      }`}
+                      style={{ width: cell.column.getSize() }}
+                    >
+                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                    </div>
+                  ))}
+                </div>
               );
-            })()}
-          </tbody>
-        </table>
+            })}
+          </div>
+        </div>
       </div>
 
       {/* 行详情 Modal */}
