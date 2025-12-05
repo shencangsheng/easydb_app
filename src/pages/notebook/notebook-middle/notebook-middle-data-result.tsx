@@ -33,9 +33,9 @@ function DataResult({ data, isLoading }: DataResultProps) {
   const [selectedRowIndex, setSelectedRowIndex] = useState<number | null>(null);
   const parentRef = useRef<HTMLDivElement>(null);
 
-  // 动态生成列定义
+  // Dynamically generate column definitions
   const columns = useMemo<ColumnDef<string[]>[]>(() => {
-    // 行号列
+    // Row number column
     const indexColumn: ColumnDef<string[]> = {
       id: "_index",
       header: "#",
@@ -46,19 +46,21 @@ function DataResult({ data, isLoading }: DataResultProps) {
       cell: ({ row }) => row.index + 1,
     };
 
-    // 数据列
-    const dataColumns: ColumnDef<string[]>[] = data.header.map((header, index) => ({
-      id: `col_${index}`,
-      accessorFn: (row: string[]) => row[index],
-      header: header,
-      size: DEFAULT_COLUMN_WIDTH,
-      minSize: 50,
-    }));
+    // Data columns
+    const dataColumns: ColumnDef<string[]>[] = data.header.map(
+      (header, index) => ({
+        id: `col_${index}`,
+        accessorFn: (row: string[]) => row[index],
+        header: header,
+        size: DEFAULT_COLUMN_WIDTH,
+        minSize: 50,
+      })
+    );
 
     return [indexColumn, ...dataColumns];
   }, [data.header]);
 
-  // 表格实例
+  // Table instance
   const table = useReactTable({
     data: data.rows,
     columns,
@@ -67,7 +69,7 @@ function DataResult({ data, isLoading }: DataResultProps) {
     getCoreRowModel: getCoreRowModel(),
   });
 
-  // 虚拟化
+  // Virtualization
   const virtualizer = useVirtualizer({
     count: data.rows.length,
     getScrollElement: () => parentRef.current,
@@ -75,25 +77,45 @@ function DataResult({ data, isLoading }: DataResultProps) {
     overscan: 5,
   });
 
-  // 数据变化时重置选中状态，防止显示旧数据
+  // Reset selected state when data changes to prevent showing old data
   useEffect(() => {
     setSelectedRowIndex(null);
   }, [data.rows]);
 
-  // 使用 useCallback 避免不必要的重渲染
-  const handleRowDoubleClick = useCallback((index: number) => {
-    setSelectedRowIndex(index);
-    onOpen();
-  }, [onOpen]);
+  // Use useCallback to avoid unnecessary re-renders
+  const handleRowDoubleClick = useCallback(
+    (index: number) => {
+      setSelectedRowIndex(index);
+      onOpen();
+    },
+    [onOpen]
+  );
 
-  // 安全获取选中行数据，防止索引越界
-  const selectedRowData = selectedRowIndex !== null && selectedRowIndex < data.rows.length 
-    ? data.rows[selectedRowIndex] 
-    : null;
+  // Handle column width adjustment, prevent selection effect
+  const handleResize = useCallback(
+    (
+      e: React.MouseEvent | React.TouchEvent,
+      handler: (e: MouseEvent | TouchEvent) => void
+    ) => {
+      e.preventDefault();
+      e.stopPropagation();
+      handler(e.nativeEvent);
+    },
+    []
+  );
+
+  // Safely get selected row data to prevent index out of bounds
+  const selectedRowData =
+    selectedRowIndex !== null && selectedRowIndex < data.rows.length
+      ? data.rows[selectedRowIndex]
+      : null;
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center w-full" style={{ height: "calc(40vh - 50px)" }}>
+      <div
+        className="flex items-center justify-center w-full"
+        style={{ height: "calc(40vh - 50px)" }}
+      >
         <Spinner label="Loading..." />
       </div>
     );
@@ -106,7 +128,9 @@ function DataResult({ data, isLoading }: DataResultProps) {
           <table className="border-collapse" style={{ minWidth: "100%" }}>
             <thead className="bg-default-100">
               <tr className="border-b border-default-200 font-semibold text-sm text-default-600">
-                <th className="px-3 py-2 text-left border-r border-default-200 w-14">#</th>
+                <th className="px-3 py-2 text-left border-r border-default-200 w-14">
+                  #
+                </th>
                 {data.header.map((col, i) => (
                   <th
                     key={i}
@@ -142,30 +166,43 @@ function DataResult({ data, isLoading }: DataResultProps) {
         style={{ height: "calc(40vh - 50px)" }}
       >
         <div style={{ width: tableWidth, minWidth: "100%" }}>
-          {/* 固定表头 */}
+          {/* Fixed table header */}
           <div
-            className="sticky top-0 z-20 bg-default-100"
+            className="sticky top-0 z-20 bg-default-100 select-none"
             style={{ width: tableWidth }}
           >
             {table.getHeaderGroups().map((headerGroup) => (
-              <div key={headerGroup.id} className="flex border-b border-default-200">
+              <div
+                key={headerGroup.id}
+                className="flex border-b border-default-200"
+              >
                 {headerGroup.headers.map((header) => (
                   <div
                     key={header.id}
                     className={`relative px-3 py-2 font-semibold text-sm text-default-600 border-r border-default-200 last:border-r-0 whitespace-nowrap overflow-hidden text-ellipsis ${
-                      header.id === "_index" ? "text-center sticky left-0 bg-default-100 z-30" : "text-left"
+                      header.id === "_index"
+                        ? "text-center sticky left-0 bg-default-100 z-30"
+                        : "text-left"
                     }`}
                     style={{ width: header.getSize() }}
                   >
-                    {flexRender(header.column.columnDef.header, header.getContext())}
-                    {/* 拖拽调整列宽手柄 */}
+                    {flexRender(
+                      header.column.columnDef.header,
+                      header.getContext()
+                    )}
+                    {/* Drag handle for column width adjustment */}
                     {header.column.getCanResize() && (
                       <div
-                        onMouseDown={header.getResizeHandler()}
-                        onTouchStart={header.getResizeHandler()}
+                        onMouseDown={(e) =>
+                          handleResize(e, header.getResizeHandler())
+                        }
+                        onTouchStart={(e) =>
+                          handleResize(e, header.getResizeHandler())
+                        }
                         className={`absolute right-0 top-0 h-full w-1 cursor-col-resize select-none touch-none hover:bg-primary-400 ${
                           header.column.getIsResizing() ? "bg-primary-500" : ""
                         }`}
+                        style={{ userSelect: "none" }}
                       />
                     )}
                   </div>
@@ -174,7 +211,7 @@ function DataResult({ data, isLoading }: DataResultProps) {
             ))}
           </div>
 
-          {/* 虚拟化数据行容器 */}
+          {/* Virtualized data row container */}
           <div style={{ height: totalSize, position: "relative" }}>
             {virtualItems.map((virtualRow) => {
               const row = tableRows[virtualRow.index];
@@ -199,12 +236,17 @@ function DataResult({ data, isLoading }: DataResultProps) {
                       key={cell.id}
                       className={`px-3 py-2 border-r border-default-100 last:border-r-0 whitespace-nowrap overflow-hidden text-ellipsis ${
                         cell.column.id === "_index"
-                          ? `text-center text-default-500 sticky left-0 z-10 ${isEven ? "bg-default-50" : "bg-white"}`
+                          ? `text-center text-default-500 sticky left-0 z-10 ${
+                              isEven ? "bg-default-50" : "bg-white"
+                            }`
                           : "text-left"
                       }`}
                       style={{ width: cell.column.getSize() }}
                     >
-                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                      {flexRender(
+                        cell.column.columnDef.cell,
+                        cell.getContext()
+                      )}
                     </div>
                   ))}
                 </div>
@@ -214,7 +256,7 @@ function DataResult({ data, isLoading }: DataResultProps) {
         </div>
       </div>
 
-      {/* 行详情 Modal */}
+      {/* Row details Modal */}
       <Modal isOpen={isOpen} onOpenChange={onOpenChange} size="lg">
         <ModalContent>
           <ModalHeader>Row Details</ModalHeader>
@@ -228,7 +270,9 @@ function DataResult({ data, isLoading }: DataResultProps) {
                         <th className="py-2 px-4 text-left bg-gray-50 font-medium w-1/3">
                           {header}
                         </th>
-                        <td className="py-2 px-4">{selectedRowData[index] ?? ''}</td>
+                        <td className="py-2 px-4">
+                          {selectedRowData[index] ?? ""}
+                        </td>
                       </tr>
                     ))}
                   </tbody>
