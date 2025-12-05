@@ -17,8 +17,6 @@ use sqlparser::ast::{
     TableFunctionArgs, Value,
 };
 use std::collections::HashMap;
-use std::future::Future;
-use std::pin::Pin;
 use std::sync::Arc;
 
 pub fn get_sql_context() -> SessionContext {
@@ -29,12 +27,23 @@ pub async fn get_data_frame(ctx: &mut SessionContext, sql: &String) -> AppResult
     ctx.sql(sql).await.map_err(AppError::from)
 }
 
-pub async fn collect(ctx: &mut SessionContext, sql: &String) -> AppResult<Vec<RecordBatch>> {
-    get_data_frame(ctx, sql)
-        .await?
-        .collect()
-        .await
-        .map_err(AppError::from)
+pub async fn collect(
+    ctx: &mut SessionContext,
+    sql: &String,
+) -> AppResult<(Vec<String>, Vec<RecordBatch>)> {
+    let df = get_data_frame(ctx, sql).await?;
+
+    // Get header from DataFrame's schema (column information can be retrieved even if there's no data)
+    let header: Vec<String> = df
+        .schema()
+        .fields()
+        .iter()
+        .map(|f| f.name().to_string())
+        .collect();
+
+    let records = df.collect().await.map_err(AppError::from)?;
+
+    Ok((header, records))
 }
 
 pub fn get_csv_read_options(
@@ -296,12 +305,10 @@ pub async fn convert_table_name(
             for join in &mut table_with_joins.joins {
                 match &mut join.relation {
                     TableFactor::Derived { subquery, .. } => {
-                        table_count =
-                            convert_table_name(ctx, subquery, table_count).await?;
+                        table_count = convert_table_name(ctx, subquery, table_count).await?;
                     }
                     relation => {
-                        table_count =
-                            register_table(ctx, &mut join.relation, table_count).await?;
+                        table_count = register_table(ctx, &mut join.relation, table_count).await?;
                     }
                 }
             }

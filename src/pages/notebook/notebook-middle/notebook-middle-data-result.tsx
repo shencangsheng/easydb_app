@@ -145,8 +145,16 @@ function DataResult({ data, isLoading }: DataResultProps) {
           </table>
           <div className="flex flex-col items-center justify-center gap-2 text-default-400 pt-16">
             <FontAwesomeIcon icon={faTable} size="2x" />
-            <p className="font-medium text-default-500">No data available</p>
-            <p className="text-sm">Run a query to see results here</p>
+            {data.header.length > 0 ? (
+              <p className="font-medium text-default-500">No records found</p>
+            ) : (
+              <>
+                <p className="font-medium text-default-500">
+                  No data available
+                </p>
+                <p className="text-sm">Run a query to see results here</p>
+              </>
+            )}
           </div>
         </div>
       </div>
