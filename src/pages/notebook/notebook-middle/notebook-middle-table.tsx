@@ -241,7 +241,7 @@ function DataTable({ data, isLoading, sql }: TableProps) {
         <DataResult data={data} isLoading={isLoading} />
         {/* Total 统计悬浮标签 */}
         {data.rows.length > 0 && (
-          <div className="absolute bottom-2 left-2 px-2 py-0.5 text-[10px] text-default-500 bg-default-100/80 rounded backdrop-blur-sm">
+          <div className="absolute bottom-2 left-2 px-2 py-0.5 text-[10px] text-default-500 bg-default-100/80 rounded backdrop-blur-sm z-40">
             Total: {data.rows.length.toLocaleString()} rows
           </div>
         )}

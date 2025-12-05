@@ -87,7 +87,7 @@ function DataResult({ data, isLoading }: DataResultProps) {
       >
         <table className="border-collapse" style={{ minWidth: '100%' }}>
           {/* 表头 */}
-          <thead className="sticky top-0 z-20 bg-default-100">
+          <thead className="bg-default-100">
             <tr className="border-b border-default-200 font-semibold text-sm text-default-600">
               <th className="px-3 py-2 text-center border-r border-default-200 sticky left-0 bg-default-100 z-30 whitespace-nowrap w-14">
                 #
