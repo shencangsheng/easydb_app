@@ -91,7 +91,7 @@ function NotebookMiddle({ source }: NotebookMiddleProps) {
     () => ({
       csv: "read_csv",
       xlsx: "read_excel",
-      json: "read_dnjson",
+      json: "read_ndjson",
       // ndjson: "read_ndjson",
       parquet: "read_parquet",
       tsv: "read_tsv",

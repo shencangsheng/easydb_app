@@ -1,5 +1,11 @@
 # Changelog
 
+v2.4.0 - 2025-12-05
+
+- Fixed the problem that the data table rendering is stuck
+- Fixed the problem that when the file has no data, it returns an error instead of displaying an empty table
+- Fixed the problem that `read_ndjson()` function is mistakenly written as `read_dnjson()`
+
 v2.3.0 - 2025-11-26
 
 - Fixed the problem that nested queries cannot be executed
