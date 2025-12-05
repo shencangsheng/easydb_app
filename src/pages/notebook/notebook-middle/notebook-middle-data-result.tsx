@@ -47,12 +47,14 @@ function DataResult({ data, isLoading }: DataResultProps) {
     };
 
     // Data columns
+    const isSingleColumn = data.header.length === 1;
+
     const dataColumns: ColumnDef<string[]>[] = data.header.map(
       (header, index) => ({
         id: `col_${index}`,
         accessorFn: (row: string[]) => row[index],
         header: header,
-        size: DEFAULT_COLUMN_WIDTH,
+        size: isSingleColumn ? 9999 : DEFAULT_COLUMN_WIDTH,
         minSize: 50,
       })
     );
@@ -165,6 +167,7 @@ function DataResult({ data, isLoading }: DataResultProps) {
   const totalSize = virtualizer.getTotalSize();
   const { rows: tableRows } = table.getRowModel();
   const tableWidth = table.getTotalSize();
+  const isSingleColumn = data.header.length === 1;
 
   return (
     <div className="w-full">
@@ -192,7 +195,11 @@ function DataResult({ data, isLoading }: DataResultProps) {
                         ? "text-center sticky left-0 bg-default-100 z-30"
                         : "text-left"
                     }`}
-                    style={{ width: header.getSize() }}
+                    style={
+                      isSingleColumn && header.id !== "_index"
+                        ? { flex: 1 }
+                        : { width: header.getSize() }
+                    }
                   >
                     {flexRender(
                       header.column.columnDef.header,
@@ -249,7 +256,11 @@ function DataResult({ data, isLoading }: DataResultProps) {
                             }`
                           : "text-left"
                       }`}
-                      style={{ width: cell.column.getSize() }}
+                      style={
+                        isSingleColumn && cell.column.id !== "_index"
+                          ? { flex: 1 }
+                          : { width: cell.column.getSize() }
+                      }
                     >
                       {flexRender(
                         cell.column.columnDef.cell,
