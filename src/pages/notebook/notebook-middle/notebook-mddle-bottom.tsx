@@ -1,5 +1,5 @@
 import { Tabs, Tab } from "@heroui/react";
-import { memo, useState, useCallback, useMemo } from "react";
+import { memo, useState } from "react";
 import DataTable from "./notebook-middle-table";
 import QueryHistory from "./notebook-middle-history";
 import { invoke } from "@tauri-apps/api/core";
@@ -27,16 +27,11 @@ function NotebookMiddleBottom({
   sql,
 }: NotebookMiddleBottomProps) {
   const [queryHistory, setQueryHistory] = useState<
-    {
-      sql: string;
-      created_at: string;
-      status: string;
-    }[]
+    { sql: string; created_at: string; status: string }[]
   >([]);
   const [isHistoryLoaded, setIsHistoryLoaded] = useState(false);
 
-  // 使用 useCallback 缓存历史数据获取函数
-  const loadQueryHistory = useCallback(async () => {
+  const loadQueryHistory = async () => {
     if (!isHistoryLoaded) {
       try {
         const history = (await invoke("sql_history", {})) as {
@@ -50,80 +45,58 @@ function NotebookMiddleBottom({
         console.error("Failed to load query history:", error);
       }
     }
-  }, [isHistoryLoaded]);
+  };
 
-  // 使用 useCallback 缓存标签页切换处理函数
-  const handleTabChange = useCallback(
-    async (key: string | number) => {
-      if (key === "history") {
-        await loadQueryHistory();
-      }
-    },
-    [loadQueryHistory]
-  );
-
-  // 使用 useMemo 缓存查询时间显示
-  const queryTimeTitle = useMemo(
-    () => (
-      <span className="text-gray-500 cursor-default">
-        Query Time (
-        <span className="text-green-600 font-medium">
-          {data.query_time ?? "-"}
-        </span>
-        )
-      </span>
-    ),
-    [data.query_time]
-  );
-
-  // 判断查询是否成功或失败
-  const queryStatus = useMemo(() => {
-    // 如果数据为空，返回 null（初始状态或加载中）
-    if (data.header.length === 0 && data.rows.length === 0) {
-      return null;
+  const handleTabChange = async (key: string | number) => {
+    if (key === "history") {
+      await loadQueryHistory();
     }
+  };
 
-    // 如果 header 是 "Error" 或 "Status"（且包含错误信息），则是失败
+  // 判断查询状态
+  const getQueryStatus = () => {
+    if (data.header.length === 0 && data.rows.length === 0) return null;
     if (
       data.header[0] === "Error" ||
       (data.header[0] === "Status" &&
-        data.rows.length > 0 &&
-        data.rows[0][0]?.toLowerCase().includes("cancelled"))
+        data.rows[0]?.[0]?.toLowerCase().includes("cancelled"))
     ) {
       return "failed";
     }
-
-    // 否则是成功
     return "success";
-  }, [data.header, data.rows]);
+  };
 
-  // 使用 useMemo 缓存 Results 标签页标题
-  const resultsTitle = useMemo(() => {
-    if (queryStatus === "success") {
-      return (
-        <span className="flex items-center gap-2">
-          Results
-          <FontAwesomeIcon
-            icon={faCheckCircle}
-            className="text-green-500"
-            style={{ fontSize: "0.9em" }}
-          />
-        </span>
-      );
-    } else if (queryStatus === "failed") {
-      return (
-        <span className="flex items-center gap-2">
-          Results
-          <FontAwesomeIcon
-            icon={faTimesCircle}
-            className="text-red-500"
-            style={{ fontSize: "0.9em" }}
-          />
-        </span>
-      );
-    }
-    return "Results";
-  }, [queryStatus]);
+  const queryStatus = getQueryStatus();
+
+  const resultsTitle = (
+    <span className="flex items-center gap-2">
+      Results
+      {queryStatus === "success" && (
+        <FontAwesomeIcon
+          icon={faCheckCircle}
+          className="text-green-500"
+          style={{ fontSize: "0.9em" }}
+        />
+      )}
+      {queryStatus === "failed" && (
+        <FontAwesomeIcon
+          icon={faTimesCircle}
+          className="text-red-500"
+          style={{ fontSize: "0.9em" }}
+        />
+      )}
+    </span>
+  );
+
+  const queryTimeTitle = (
+    <span className="text-gray-500 cursor-default">
+      Query Time (
+      <span className="text-green-600 font-medium">
+        {data.query_time ?? "-"}
+      </span>
+      )
+    </span>
+  );
 
   return (
     <div className="flex w-full flex-col">
@@ -131,6 +104,7 @@ function NotebookMiddleBottom({
         variant="underlined"
         defaultSelectedKey="results"
         onSelectionChange={handleTabChange}
+        destroyInactiveTabPanel={false}
       >
         <Tab key="history" title="Query History">
           <QueryHistory setSql={setSql} data={queryHistory} />
@@ -147,7 +121,7 @@ function NotebookMiddleBottom({
               ? "opacity-100"
               : "opacity-60"
           }`}
-        ></Tab>
+        />
       </Tabs>
     </div>
   );
