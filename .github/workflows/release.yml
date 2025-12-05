@@ -47,14 +47,12 @@ jobs:
       - name: Install Rust dependencies (Windows)
         if: matrix.os == 'windows-latest'
         run: |
-          rustup target add ${{ matrix.target }}
-          cargo install tauri-cli --version "^2.0"
+          npm install -g @tauri-apps/cli
 
       - name: Install Rust dependencies (macOS)
         if: matrix.os == 'macos-latest'
         run: |
-          rustup target add ${{ matrix.target }}
-          cargo install tauri-cli --version "^2.0"
+          npm install -g @tauri-apps/cli
 
       - name: Install frontend dependencies
         run: yarn install --frozen-lockfile
