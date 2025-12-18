@@ -46,6 +46,36 @@ pub async fn collect(
     Ok((header, records))
 }
 
+/// Parse delimiter string to u8 byte value
+/// Supports escape sequences like \t, \n, \r, \\, and single characters
+fn parse_delimiter(value: &str) -> AppResult<u8> {
+    // Handle escape sequences (e.g., "\t" -> tab character)
+    if value.starts_with('\\') && value.len() == 2 {
+        match value.chars().nth(1) {
+            Some('t') => return Ok(b'\t'),
+            Some('n') => return Ok(b'\n'),
+            Some('r') => return Ok(b'\r'),
+            Some('\\') => return Ok(b'\\'),
+            Some('0') => return Ok(b'\0'),
+            _ => {}
+        }
+    }
+
+    // Handle single character (including space) - directly convert to u8
+    if value.len() == 1 {
+        return Ok(value.as_bytes()[0]);
+    }
+
+    // Try parsing as numeric string (e.g., "9", "65")
+    if let Ok(num) = value.parse::<u8>() {
+        return Ok(num);
+    }
+
+    Err(AppError::BadRequest {
+        message: format!("Invalid delimiter format: '{}'. Expected a single character, escape sequence (\\t, \\n, \\r), or numeric value (0-255)", value),
+    })
+}
+
 pub fn get_csv_read_options(
     args: &'_ mut Option<TableFunctionArgs>,
 ) -> AppResult<CsvReadOptions<'_>> {
@@ -74,10 +104,7 @@ pub fn get_csv_read_options(
                             value,
                         ))) = arg
                         {
-                            options.delimiter =
-                                value.parse().map_err(|_| AppError::BadRequest {
-                                    message: "Invalid delimiter format".to_string(),
-                                })?;
+                            options.delimiter = parse_delimiter(&value)?;
                         }
                     }
                     "file_extension" => {

@@ -129,13 +129,13 @@ function CustomAceEditor({
             },
             {
               caption: "delimiter",
-              snippet: "delimiter => ${1:',', '\t'}",
+              snippet: "delimiter => ${1:','}",
               meta: translate("functions.readCsv.delimiter"),
               value: "delimiter",
             },
             {
               caption: "file_extension",
-              snippet: "file_extension => ${1:'.csv', '.tsv'}",
+              snippet: "file_extension => ${1:'.csv'}",
               meta: translate("functions.readCsv.fileExtension"),
               value: "file_extension",
             },
