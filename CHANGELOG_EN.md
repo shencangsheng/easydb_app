@@ -1,5 +1,9 @@
 # Changelog
 
+v2.4.1 - 2025-12-18
+
+- Fixed the problem that the delimiter parameter in read_csv() and read_tsv() functions supports escape sequences (e.g., \t, \n, \r, \\)
+
 v2.4.0 - 2025-12-05
 
 - Fixed the problem that the data table rendering is stuck
