@@ -76,11 +76,11 @@ fn parse_delimiter(value: &str) -> AppResult<u8> {
     })
 }
 
-pub fn get_csv_read_options(
-    args: &'_ mut Option<TableFunctionArgs>,
-) -> AppResult<CsvReadOptions<'_>> {
+pub fn get_csv_read_options<'a>(
+    args: &'a mut Option<TableFunctionArgs>,
+    mut options: CsvReadOptions<'a>,
+) -> AppResult<CsvReadOptions<'a>> {
     let args = get_function_args(args);
-    let mut options = CsvReadOptions::default();
     if let Some(args) = args {
         for arg in args {
             if let FunctionArg::Named { name, arg, .. } = arg {
@@ -276,14 +276,23 @@ pub async fn register_table(
 
         match name.to_string().as_str() {
             "read_csv" => {
-                ctx.register_csv(&table_name, &table_path, get_csv_read_options(args)?)
-                    .await?
+                ctx.register_csv(
+                    &table_name,
+                    &table_path,
+                    get_csv_read_options(args, CsvReadOptions::default())?,
+                )
+                .await?
             }
             "read_tsv" => {
-                let mut options = get_csv_read_options(args)?;
+                let mut options = CsvReadOptions::default();
                 options.delimiter = b'\t';
                 options.file_extension = ".tsv";
-                ctx.register_csv(&table_name, &table_path, options).await?
+                ctx.register_csv(
+                    &table_name,
+                    &table_path,
+                    get_csv_read_options(args, options)?,
+                )
+                .await?
             }
             "read_ndjson" => {
                 ctx.register_json(&table_name, &table_path, NdJsonReadOptions::default())
@@ -298,6 +307,17 @@ pub async fn register_table(
             }
             "read_mysql" => {
                 register_mysql(ctx, &table_name, &table_path, args).await?;
+            }
+            "read_text" => {
+                let mut options = CsvReadOptions::default();
+                options.delimiter = b'\t';
+                options.file_extension = ".txt";
+                ctx.register_csv(
+                    &table_name,
+                    &table_path,
+                    get_csv_read_options(args, options)?,
+                )
+                    .await?
             }
             _ => {
                 return Err(AppError::BadRequest {

@@ -82,6 +82,8 @@ function NotebookMiddle({ source }: NotebookMiddleProps) {
         `SELECT * FROM read_parquet('${filePath}') LIMIT 100;`,
       tsv: (filePath: string) =>
         `SELECT * FROM read_tsv('${filePath}') LIMIT 100;`,
+      text: (filePath: string) =>
+        `SELECT * FROM read_text('${filePath}') LIMIT 100;`,
     }),
     []
   );
@@ -95,6 +97,7 @@ function NotebookMiddle({ source }: NotebookMiddleProps) {
       // ndjson: "read_ndjson",
       parquet: "read_parquet",
       tsv: "read_tsv",
+      text: "read_text",
     }),
     []
   );
@@ -104,9 +107,12 @@ function NotebookMiddle({ source }: NotebookMiddleProps) {
     (filePath: string) => {
       const fileExtension = filePath.split(".").pop()?.toLowerCase();
 
-      if (fileExtension && fileExtension in fileExtensionToSql) {
+      if (fileExtension) {
+        // 如果文件扩展名不在映射中，使用默认值 "text"（对应 read_text）
+        const extensionKey =
+          fileExtension in fileExtensionToSql ? fileExtension : "text";
         setDroppedFilePath(filePath);
-        setDroppedFileExtension(fileExtension);
+        setDroppedFileExtension(extensionKey);
         setIsDropModalOpen(true);
       }
     },

@@ -67,6 +67,12 @@ function CustomAceEditor({
               value: "read_csv",
             },
             {
+              caption: translate("functions.readText.name"),
+              snippet: "read_text(${1:'path'})",
+              meta: translate("functions.readText.description"),
+              value: "read_text",
+            },
+            {
               caption: translate("functions.readTsv.name"),
               snippet: "read_tsv(${1:'path'})",
               meta: translate("functions.readTsv.description"),

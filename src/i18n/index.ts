@@ -85,6 +85,14 @@ export interface Translations {
       delimiter: string;
       fileExtension: string;
     };
+    readText: {
+      name: string;
+      description: string;
+      inferSchema: string;
+      hasHeader: string;
+      delimiter: string;
+      fileExtension: string;
+    };
     readTsv: {
       name: string;
       description: string;
@@ -256,6 +264,15 @@ const translations: Record<Language, Translations> = {
         hasHeader: "文件是否包含表头行。为 true 时，第一行将被视为列名。",
         delimiter: "字段分隔符，默认为逗号 ','。",
         fileExtension: "文件扩展名，默认为 '.csv'。",
+      },
+      readText: {
+        name: "read_text",
+        description: "读取文本文件为表。",
+        inferSchema:
+          "是否自动推断数据类型。为 true 时，将根据前 100 行进行推断。",
+        hasHeader: "文件是否包含表头行。为 true 时，第一行将被视为列名。",
+        delimiter: "字段分隔符，默认为逗号 ','。",
+        fileExtension: "文件扩展名，默认为 '.txt'。",
       },
       readTsv: {
         name: "read_tsv",
@@ -438,6 +455,16 @@ const translations: Record<Language, Translations> = {
           "Whether the file contains a header row. If true, the first row will be treated as column names.",
         delimiter: "Field delimiter, defaults to comma ','.",
         fileExtension: "File extension, defaults to '.csv'.",
+      },
+      readText: {
+        name: "read_text",
+        description: "Read text file as table.",
+        inferSchema:
+          "Whether to automatically infer data types. If true, the first 100 rows are used for inference.",
+        hasHeader:
+          "Whether the file contains a header row. If true, the first row will be treated as column names.",
+        delimiter: "Field delimiter, defaults to comma ','.",
+        fileExtension: "File extension, defaults to '.txt'.",
       },
       readTsv: {
         name: "read_tsv",
