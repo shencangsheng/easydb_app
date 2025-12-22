@@ -5,6 +5,7 @@ import {
   faCheckCircle,
   faTimes,
   faFileCode,
+  faTrash,
 } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
@@ -36,6 +37,7 @@ interface TableProps {
   };
   isLoading: boolean;
   sql: string;
+  onClear?: () => void;
 }
 
 interface ExportResult {
@@ -91,7 +93,7 @@ const CLOSE_BUTTON_STYLE = {
 
 const ICON_MARGIN_STYLE = { marginRight: "5px" };
 
-function DataTable({ data, isLoading, sql }: TableProps) {
+function DataTable({ data, isLoading, sql, onClear }: TableProps) {
   const [isDownloading, setIsDownloading] = useState(false);
   const [exportResult, setExportResult] = useState<ExportResult | null>(null);
   const [isTableNameModalOpen, setIsTableNameModalOpen] = useState(false);
@@ -164,6 +166,7 @@ function DataTable({ data, isLoading, sql }: TableProps) {
 
   // 按钮禁用状态
   const isExportDisabled = data.rows.length === 0 || isDownloading;
+  const isClearDisabled = data.rows.length === 0 || isLoading;
   const isConfirmDisabled =
     !tableName.trim() ||
     (sqlStatementType === "INSERT" && maxValuesPerInsert < 1) ||
@@ -234,6 +237,20 @@ function DataTable({ data, isLoading, sql }: TableProps) {
             </DropdownItem>
           </DropdownMenu>
         </Dropdown>
+        <Button
+          variant="light"
+          isIconOnly
+          aria-label={translate("notebook.clear")}
+          isDisabled={isClearDisabled}
+          onPress={() => {
+            if (onClear) {
+              onClear();
+            }
+          }}
+          style={{ marginTop: "8px" }}
+        >
+          <FontAwesomeIcon icon={faTrash} />
+        </Button>
       </div>
 
       {/* 表格区域 */}
@@ -375,7 +392,9 @@ function DataTable({ data, isLoading, sql }: TableProps) {
                       "notebook.export.maxValuesPerInsertPlaceholder"
                     )}
                     value={maxValuesPerInsert.toString()}
-                    onChange={(e) => {setMaxValuesPerInsert(parseInt(e.target.value) || 1000)}}
+                    onChange={(e) => {
+                      setMaxValuesPerInsert(parseInt(e.target.value) || 1000);
+                    }}
                     size="lg"
                     type="number"
                     min="1"

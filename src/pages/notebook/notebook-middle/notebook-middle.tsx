@@ -258,6 +258,15 @@ function NotebookMiddle({ source }: NotebookMiddleProps) {
     }
   }, []);
 
+  // 使用 useCallback 缓存清除数据函数
+  const clearData = useCallback(() => {
+    setData({
+      header: [],
+      rows: [],
+      query_time: "",
+    });
+  }, []);
+
   // 监听Tauri的拖拽事件
   useEffect(() => {
     const setupDragDropListeners = async () => {
@@ -504,6 +513,7 @@ function NotebookMiddle({ source }: NotebookMiddleProps) {
           isLoading={isLoading}
           setSql={setSql}
           sql={sql}
+          onClearData={clearData}
         />
       </div>
     </div>
