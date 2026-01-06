@@ -26,6 +26,7 @@ interface AceEditorProps {
   showLineNumbers?: boolean;
   tabSize?: number;
   onLoad?: (editor: AceEditorInstance) => void;
+  tableColumns?: string[];
 }
 
 function CustomAceEditor({
@@ -44,12 +45,19 @@ function CustomAceEditor({
   showLineNumbers = true,
   tabSize = 2,
   onLoad,
+  tableColumns = [],
 }: AceEditorProps) {
   const { translate } = useTranslation();
   const completerAdded = useRef(false);
+  const tableColumnsRef = useRef<string[]>([]);
+
+  // Update table columns reference
+  useEffect(() => {
+    tableColumnsRef.current = tableColumns || [];
+  }, [tableColumns]);
 
   useEffect(() => {
-    // 确保自动完成器只添加一次
+    // Ensure the completer is only added once
     if (!completerAdded.current) {
       const customCompleter = {
         getCompletions: (
@@ -147,7 +155,17 @@ function CustomAceEditor({
             },
           ];
 
-          callback(null, completions);
+          // Add table columns to completion list
+          const columnCompletions = tableColumnsRef.current
+            .filter((column) => column && column.trim())
+            .map((column) => ({
+              caption: column,
+              snippet: column,
+              meta: "column",
+              value: column,
+            }));
+
+          callback(null, [...completions, ...columnCompletions]);
         },
       };
 

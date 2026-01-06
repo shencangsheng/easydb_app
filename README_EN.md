@@ -7,7 +7,7 @@
 **A lightweight desktop data query tool that uses SQL to query local files directly with built-in query engine**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Version](https://img.shields.io/badge/version-2.4.1-blue.svg)](https://github.com/shencangsheng/easydb_app)
+[![Version](https://img.shields.io/badge/version-2.5.0-blue.svg)](https://github.com/shencangsheng/easydb_app)
 [![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20Windows-lightgrey.svg)](https://github.com/shencangsheng/easydb_app)
 
 [English](README_EN.md) | [中文](README.md)
@@ -98,12 +98,19 @@ SELECT *
 FROM read_mysql('users', conn => 'mysql://user:password@localhost:3306/mydb')
 WHERE `age` > 30;
 
+-- Joint query
 SELECT *
 FROM read_excel('/path/to/file.xlsx', sheet_name => 'Sheet1') as t1
 inner join
 read_mysql('users', conn => 'mysql://user:password@localhost:3306/mydb') as t2
 on (t1.`user_id` = t2.`id`)
 WHERE t1.`age` > 30;
+
+-- Query text file
+SELECT *
+FROM read_text('/path/to/file.txt')
+WHERE `age` > 30
+LIMIT 10;
 ```
 
 ### Supported File Formats
