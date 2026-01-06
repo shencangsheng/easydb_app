@@ -447,6 +447,7 @@ function NotebookMiddle({ source }: NotebookMiddleProps) {
             enableSnippets={false}
             showLineNumbers={true}
             tabSize={2}
+            tableColumns={data.header}
           />
           {/* 文件拖拽选项弹出菜单 */}
           {isDropModalOpen && (
