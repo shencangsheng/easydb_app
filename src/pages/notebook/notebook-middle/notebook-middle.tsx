@@ -57,17 +57,17 @@ function NotebookMiddle({ source }: NotebookMiddleProps) {
     string | null
   >(null);
 
-  // 使用 useCallback 缓存格式化函数
+  // Cache format function with useCallback
   const formatSql = useCallback(() => {
     setSql(getFormatSql(sql));
   }, [sql]);
 
-  // 使用 useCallback 缓存清除函数
+  // Cache clear function with useCallback
   const clearSql = useCallback(() => {
     setSql("");
   }, []);
 
-  // 使用 useMemo 缓存文件扩展名到SQL查询的映射
+  // Cache file extension to SQL query mapping with useMemo
   const fileExtensionToSql = useMemo(
     () => ({
       csv: (filePath: string) =>
@@ -88,7 +88,7 @@ function NotebookMiddle({ source }: NotebookMiddleProps) {
     []
   );
 
-  // 使用 useMemo 缓存文件扩展名到 read_xxx 函数名的映射
+  // Cache file extension to read_xxx function name mapping with useMemo
   const fileExtensionToReadFunction = useMemo(
     () => ({
       csv: "read_csv",
@@ -102,13 +102,13 @@ function NotebookMiddle({ source }: NotebookMiddleProps) {
     []
   );
 
-  // 处理文件拖拽 - 显示选项菜单
+  // Handle file drop - show options menu
   const handleFileDrop = useCallback(
     (filePath: string) => {
       const fileExtension = filePath.split(".").pop()?.toLowerCase();
 
       if (fileExtension) {
-        // 如果文件扩展名不在映射中，使用默认值 "text"（对应 read_text）
+        // If file extension is not in mapping, use default "text" (corresponds to read_text)
         const extensionKey =
           fileExtension in fileExtensionToSql ? fileExtension : "text";
         setDroppedFilePath(filePath);
@@ -119,7 +119,7 @@ function NotebookMiddle({ source }: NotebookMiddleProps) {
     [fileExtensionToSql]
   );
 
-  // 处理插入完整SQL
+  // Handle inserting full SQL
   const handleInsertFullSql = useCallback(() => {
     if (droppedFilePath && droppedFileExtension) {
       const sqlQuery =
@@ -133,7 +133,7 @@ function NotebookMiddle({ source }: NotebookMiddleProps) {
     }
   }, [droppedFilePath, droppedFileExtension, fileExtensionToSql]);
 
-  // 处理仅插入 read_xxx
+  // Handle inserting only read_xxx
   const handleInsertReadFunction = useCallback(() => {
     if (droppedFilePath && droppedFileExtension) {
       const readFunction =
@@ -142,7 +142,7 @@ function NotebookMiddle({ source }: NotebookMiddleProps) {
         ];
       const readFunctionCall = `${readFunction}('${droppedFilePath}')`;
       setSql((prevSql) => {
-        // 如果编辑器不为空，在末尾添加换行和内容
+        // If editor is not empty, add newline and content at the end
         return prevSql ? `${prevSql}\n${readFunctionCall}` : readFunctionCall;
       });
       setIsDropModalOpen(false);
@@ -151,7 +151,7 @@ function NotebookMiddle({ source }: NotebookMiddleProps) {
     }
   }, [droppedFilePath, droppedFileExtension, fileExtensionToReadFunction]);
 
-  // 生成选项预览文本
+  // Generate option preview text
   const insertOptions = useMemo(() => {
     if (!droppedFilePath || !droppedFileExtension) return [];
 
@@ -188,9 +188,9 @@ function NotebookMiddle({ source }: NotebookMiddleProps) {
     translate,
   ]);
 
-  // 使用 useCallback 缓存查询执行函数
+  // Cache query execution function with useCallback
   const executeQuery = useCallback(async () => {
-    // 获取选中的文本，如果有选中文本则使用选中的文本，否则使用整个 SQL
+    // Get selected text, use selected text if available, otherwise use entire SQL
     let sqlToExecute = sql;
     if (editorRef.current) {
       const selectedText = editorRef.current.getSelectedText();
@@ -205,7 +205,7 @@ function NotebookMiddle({ source }: NotebookMiddleProps) {
     setIsLoading(true);
     setData({ header: [], rows: [], query_time: "" });
 
-    // 创建 AbortController 用于取消请求
+    // Create AbortController for canceling request
     const abortController = new AbortController();
     abortControllerRef.current = abortController;
 
@@ -216,7 +216,7 @@ function NotebookMiddle({ source }: NotebookMiddleProps) {
         query_time: string;
       } = await invoke("fetch", { sql: sqlToExecute, offset: 0, limit: 1000 });
 
-      // 检查是否被取消
+      // Check if cancelled
       if (abortController.signal.aborted) {
         setData({
           header: ["Status"],
@@ -228,7 +228,7 @@ function NotebookMiddle({ source }: NotebookMiddleProps) {
 
       setData(results);
     } catch (error) {
-      // 检查是否是被取消的错误
+      // Check if it's a cancellation error
       if (abortController.signal.aborted) {
         setData({
           header: ["Status"],
@@ -249,7 +249,7 @@ function NotebookMiddle({ source }: NotebookMiddleProps) {
     }
   }, [sql, isRunning]);
 
-  // 使用 useCallback 缓存取消查询函数
+  // Cache cancel query function with useCallback
   const cancelQuery = useCallback(() => {
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
@@ -258,7 +258,7 @@ function NotebookMiddle({ source }: NotebookMiddleProps) {
     }
   }, []);
 
-  // 使用 useCallback 缓存清除数据函数
+  // Cache clear data function with useCallback
   const clearData = useCallback(() => {
     setData({
       header: [],
@@ -267,10 +267,10 @@ function NotebookMiddle({ source }: NotebookMiddleProps) {
     });
   }, []);
 
-  // 监听Tauri的拖拽事件
+  // Listen to Tauri drag and drop events
   useEffect(() => {
     const setupDragDropListeners = async () => {
-      // 监听文件拖拽完成事件
+      // Listen to file drag and drop completion event
       const unlistenDrop = await listen(
         "tauri://drag-drop",
         (event: { payload: { paths: string[] } }) => {
@@ -289,7 +289,7 @@ function NotebookMiddle({ source }: NotebookMiddleProps) {
     setupDragDropListeners();
   }, [handleFileDrop]);
 
-  // 点击外部关闭菜单
+  // Close menu when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (
@@ -311,7 +311,7 @@ function NotebookMiddle({ source }: NotebookMiddleProps) {
     }
   }, [isDropModalOpen]);
 
-  // 使用 useMemo 缓存样式对象
+  // Cache style objects with useMemo
   const containerStyle = useMemo(
     () => ({
       flex: "1",
@@ -449,7 +449,7 @@ function NotebookMiddle({ source }: NotebookMiddleProps) {
             tabSize={2}
             tableColumns={data.header}
           />
-          {/* 文件拖拽选项弹出菜单 */}
+          {/* File drag and drop options popup menu */}
           {isDropModalOpen && (
             <div
               ref={popoverRef}

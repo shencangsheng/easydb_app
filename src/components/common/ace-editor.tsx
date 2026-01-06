@@ -51,13 +51,13 @@ function CustomAceEditor({
   const completerAdded = useRef(false);
   const tableColumnsRef = useRef<string[]>([]);
 
-  // 更新表字段引用
+  // Update table columns reference
   useEffect(() => {
     tableColumnsRef.current = tableColumns || [];
   }, [tableColumns]);
 
   useEffect(() => {
-    // 确保自动完成器只添加一次
+    // Ensure the completer is only added once
     if (!completerAdded.current) {
       const customCompleter = {
         getCompletions: (
@@ -155,7 +155,7 @@ function CustomAceEditor({
             },
           ];
 
-          // 添加表字段到补全列表
+          // Add table columns to completion list
           const columnCompletions = tableColumnsRef.current
             .filter((column) => column && column.trim())
             .map((column) => ({
