@@ -71,19 +71,19 @@ function NotebookMiddle({ source }: NotebookMiddleProps) {
   const fileExtensionToSql = useMemo(
     () => ({
       csv: (filePath: string) =>
-        `SELECT * FROM read_csv('${filePath}') LIMIT 100;`,
+        `SELECT * FROM read_csv('${filePath}') LIMIT 200;`,
       xlsx: (filePath: string) =>
-        `SELECT * FROM read_excel('${filePath}') LIMIT 100;`,
+        `SELECT * FROM read_excel('${filePath}') LIMIT 200;`,
       json: (filePath: string) =>
-        `SELECT * FROM read_ndjson('${filePath}') LIMIT 100;`,
+        `SELECT * FROM read_ndjson('${filePath}') LIMIT 200;`,
       // ndjson: (filePath: string) =>
       //   `SELECT * FROM read_ndjson('${filePath}') LIMIT 100;`,
       parquet: (filePath: string) =>
-        `SELECT * FROM read_parquet('${filePath}') LIMIT 100;`,
+        `SELECT * FROM read_parquet('${filePath}') LIMIT 200;`,
       tsv: (filePath: string) =>
-        `SELECT * FROM read_tsv('${filePath}') LIMIT 100;`,
+        `SELECT * FROM read_tsv('${filePath}') LIMIT 200;`,
       text: (filePath: string) =>
-        `SELECT * FROM read_text('${filePath}') LIMIT 100;`,
+        `SELECT * FROM read_text('${filePath}') LIMIT 200;`,
     }),
     []
   );
@@ -214,7 +214,7 @@ function NotebookMiddle({ source }: NotebookMiddleProps) {
         header: string[];
         rows: string[][];
         query_time: string;
-      } = await invoke("fetch", { sql: sqlToExecute, offset: 0, limit: 200 });
+      } = await invoke("fetch", { sql: sqlToExecute, offset: 0, limit: 1000 });
 
       // 检查是否被取消
       if (abortController.signal.aborted) {
