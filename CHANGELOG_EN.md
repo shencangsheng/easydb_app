@@ -1,5 +1,11 @@
 # Changelog
 
+v2.5.0 - 2026-01-06
+
+- Optimized automatic use of read_text() function when dragging non-csv, xlsx, json, parquet file suffixes
+- Optimized completion prompts, will use header names already in the list as completion prompts
+- The default number of query rows has been changed from 200 to 1000
+
 v2.4.1 - 2025-12-18
 
 - Fixed the problem that the delimiter parameter in read_csv() and read_tsv() functions supports escape sequences (e.g., \t, \n, \r, \\)
