@@ -2,7 +2,7 @@
 
 <div align="center">
 
-![EasyDB Logo](public/128x128.png)
+<img src="public/128x128.png" alt="EasyDB Logo" style="background-color: gray; padding: 10px; border-radius: 8px;">
 
 **一个轻量级的桌面数据查询工具，使用 SQL 直接查询本地文件，内置查询引擎**
 

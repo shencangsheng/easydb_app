@@ -2,7 +2,7 @@
 
 <div align="center">
 
-![EasyDB Logo](public/logo.png)
+<img src="public/128x128.png" alt="EasyDB Logo" style="background-color: gray; padding: 10px; border-radius: 8px;">
 
 **A lightweight desktop data query tool that uses SQL to query local files directly with built-in query engine**
 
