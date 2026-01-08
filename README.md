@@ -9,6 +9,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Version](https://img.shields.io/badge/version-2.5.0-blue.svg)](https://github.com/shencangsheng/easydb_app)
 [![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20Windows-lightgrey.svg)](https://github.com/shencangsheng/easydb_app)
+![Downloads](https://img.shields.io/github/downloads/shencangsheng/easydb_app/total?logo=github)
 
 [English](README_EN.md) | [中文](README.md)
 
