@@ -7,9 +7,9 @@
 **A lightweight desktop data query tool that uses SQL to query local files directly with built-in query engine**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Version](https://img.shields.io/badge/version-2.5.0-blue.svg)](https://github.com/shencangsheng/easydb_app)
-[![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20Windows-lightgrey.svg)](https://github.com/shencangsheng/easydb_app)
-![Downloads](https://img.shields.io/github/downloads/shencangsheng/easydb_app/total?logo=github)
+[![Release](https://img.shields.io/badge/release-2.5.0-blue.svg)](https://github.com/shencangsheng/easydb_app)
+[![Platform](https://img.shields.io/badge/Platform-macOS%20%7C%20Windows-brightgreen)](https://github.com/shencangsheng/easydb_app)
+![Stars](https://img.shields.io/github/stars/shencangsheng/easydb_app?logo=github)
 
 [English](README_EN.md) | [中文](README.md)
 
