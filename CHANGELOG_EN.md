@@ -1,5 +1,11 @@
 # Changelog
 
+v2.6.0 - 2026-02-27
+
+- Optimized query result paging loading, loading 200 rows per page
+- Optimized column name completion to automatically use double quotes to wrap, avoiding SQL syntax errors
+- Optimized the problem that the right side will appear blank when the data column is not filled
+
 v2.5.0 - 2026-01-06
 
 - Optimized automatic use of read_text() function when dragging non-csv, xlsx, json, parquet file suffixes
