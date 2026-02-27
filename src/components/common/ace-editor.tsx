@@ -155,14 +155,14 @@ function CustomAceEditor({
             },
           ];
 
-          // Add table columns to completion list
+          // Add table columns to completion list (with double quotes)
           const columnCompletions = tableColumnsRef.current
             .filter((column) => column && column.trim())
             .map((column) => ({
               caption: column,
-              snippet: column,
+              snippet: `"${column}"`,
               meta: "column",
-              value: column,
+              value: `"${column}"`,
             }));
 
           callback(null, [...completions, ...columnCompletions]);
