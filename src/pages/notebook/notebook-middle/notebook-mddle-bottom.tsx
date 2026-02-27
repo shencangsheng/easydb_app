@@ -19,6 +19,9 @@ interface NotebookMiddleBottomProps {
   setSql: (sql: string) => void;
   sql: string;
   onClearData?: () => void;
+  onLoadMore?: () => Promise<void>;
+  hasMore?: boolean;
+  isLoadingMore?: boolean;
 }
 
 function NotebookMiddleBottom({
@@ -27,6 +30,9 @@ function NotebookMiddleBottom({
   setSql,
   sql,
   onClearData,
+  onLoadMore,
+  hasMore = false,
+  isLoadingMore = false,
 }: NotebookMiddleBottomProps) {
   const [queryHistory, setQueryHistory] = useState<
     { sql: string; created_at: string; status: string }[]
@@ -117,6 +123,9 @@ function NotebookMiddleBottom({
             isLoading={isLoading}
             sql={sql}
             onClear={onClearData}
+            onLoadMore={onLoadMore}
+            hasMore={hasMore}
+            isLoadingMore={isLoadingMore}
           />
         </Tab>
         <Tab

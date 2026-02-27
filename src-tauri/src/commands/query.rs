@@ -114,6 +114,67 @@ pub async fn fetch(
     .await
 }
 
+/// Fetch paginated data: wrap original SQL as `SELECT * FROM ( $SQL ) LIMIT $limit OFFSET $offset`
+#[command]
+pub async fn fetch_page(
+    app: AppHandle,
+    sql: String,
+    offset: usize,
+    limit: usize,
+) -> AppResult<FetchResult> {
+    run_blocking_async(move || async move {
+        let start = Utc::now();
+        let mut context = get_sql_context();
+
+        let new_sql = format!(
+            "SELECT * FROM ({}) AS _sub LIMIT {} OFFSET {}",
+            sql.trim().trim_end_matches(';'),
+            limit,
+            offset
+        );
+
+        let new_sql = register(&mut context, &new_sql, None, None)
+            .await
+            .map_err(|err| {
+                let _ = insert_query_history(&app, &sql, "fail");
+                err
+            })?;
+
+        let (header, records) = collect(&mut context, &new_sql).await.map_err(|err| {
+            let _ = insert_query_history(&app, &sql, "fail");
+            err
+        })?;
+        let width = header.len();
+
+        let total_rows: usize = records.iter().map(|r| r.num_rows()).sum();
+        let mut rows: Vec<Vec<String>> = Vec::with_capacity(total_rows);
+        let options = FormatOptions::default().with_null("NULL");
+
+        for record in records {
+            let formatters = record
+                .columns()
+                .iter()
+                .map(|c| ArrayFormatter::try_new(c.as_ref(), &options))
+                .collect::<Result<Vec<_>, ArrowError>>()?;
+
+            for row in 0..record.num_rows() {
+                let mut cells = Vec::with_capacity(width);
+                for (_, formatter) in formatters.iter().enumerate() {
+                    cells.push(formatter.value(row).to_string());
+                }
+                rows.push(cells);
+            }
+        }
+
+        Ok(FetchResult {
+            header,
+            rows,
+            query_time: time_difference_from_now(start),
+        })
+    })
+    .await
+}
+
 #[command]
 pub async fn sql_history(app: AppHandle) -> AppResult<Vec<FetchHistory>> {
     run_blocking(move || {

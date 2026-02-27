@@ -23,6 +23,9 @@ interface DataResultProps {
     rows: string[][];
   };
   isLoading: boolean;
+  onLoadMore?: () => Promise<void>;
+  hasMore?: boolean;
+  isLoadingMore?: boolean;
 }
 
 const ROW_HEIGHT = 36;
@@ -33,7 +36,15 @@ const MODAL_MIN_HEIGHT = 300;
 const MODAL_DEFAULT_WIDTH = 512;
 const MODAL_DEFAULT_HEIGHT = 400;
 
-function DataResult({ data, isLoading }: DataResultProps) {
+const SCROLL_LOAD_THRESHOLD = 50;
+
+function DataResult({
+  data,
+  isLoading,
+  onLoadMore,
+  hasMore = false,
+  isLoadingMore = false,
+}: DataResultProps) {
   const { isOpen, onOpen, onOpenChange } = useDisclosure();
   const [selectedRowIndex, setSelectedRowIndex] = useState<number | null>(null);
   const [modalSize, setModalSize] = useState({
@@ -81,7 +92,7 @@ function DataResult({ data, isLoading }: DataResultProps) {
     getCoreRowModel: getCoreRowModel(),
   });
 
-  // 当列宽总和小于容器宽度时，将最后一列扩展以填满表格
+  // When total column width is less than container, expand last column to fill the table
   const tableRef = useRef(table);
   tableRef.current = table;
   useEffect(() => {
@@ -111,6 +122,32 @@ function DataResult({ data, isLoading }: DataResultProps) {
     estimateSize: () => ROW_HEIGHT,
     overscan: 5,
   });
+
+  const virtualItems = virtualizer.getVirtualItems();
+
+  // Load next page when scrolling to bottom
+  useEffect(() => {
+    if (
+      !onLoadMore ||
+      !hasMore ||
+      isLoadingMore ||
+      data.rows.length === 0 ||
+      virtualItems.length === 0
+    ) {
+      return;
+    }
+    const lastVisibleIndex =
+      virtualItems[virtualItems.length - 1]?.index ?? 0;
+    if (lastVisibleIndex >= data.rows.length - SCROLL_LOAD_THRESHOLD) {
+      onLoadMore();
+    }
+  }, [
+    virtualItems,
+    data.rows.length,
+    onLoadMore,
+    hasMore,
+    isLoadingMore,
+  ]);
 
   // Reset selected state when data changes to prevent showing old data
   useEffect(() => {
@@ -226,7 +263,6 @@ function DataResult({ data, isLoading }: DataResultProps) {
     );
   }
 
-  const virtualItems = virtualizer.getVirtualItems();
   const totalSize = virtualizer.getTotalSize();
   const { rows: tableRows } = table.getRowModel();
   const baseTableWidth = table.getTotalSize();
@@ -358,6 +394,11 @@ function DataResult({ data, isLoading }: DataResultProps) {
             })}
           </div>
         </div>
+        {isLoadingMore && (
+          <div className="flex items-center justify-center py-3 border-t border-default-200">
+            <Spinner size="sm" label="Loading more..." />
+          </div>
+        )}
       </div>
 
       {/* Row details Modal */}

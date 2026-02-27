@@ -38,6 +38,9 @@ interface TableProps {
   isLoading: boolean;
   sql: string;
   onClear?: () => void;
+  onLoadMore?: () => Promise<void>;
+  hasMore?: boolean;
+  isLoadingMore?: boolean;
 }
 
 interface ExportResult {
@@ -93,7 +96,15 @@ const CLOSE_BUTTON_STYLE = {
 
 const ICON_MARGIN_STYLE = { marginRight: "5px" };
 
-function DataTable({ data, isLoading, sql, onClear }: TableProps) {
+function DataTable({
+  data,
+  isLoading,
+  sql,
+  onClear,
+  onLoadMore,
+  hasMore = false,
+  isLoadingMore = false,
+}: TableProps) {
   const [isDownloading, setIsDownloading] = useState(false);
   const [exportResult, setExportResult] = useState<ExportResult | null>(null);
   const [isTableNameModalOpen, setIsTableNameModalOpen] = useState(false);
@@ -255,7 +266,13 @@ function DataTable({ data, isLoading, sql, onClear }: TableProps) {
 
       {/* 表格区域 */}
       <div className="flex-1 flex flex-col overflow-hidden relative">
-        <DataResult data={data} isLoading={isLoading} />
+        <DataResult
+          data={data}
+          isLoading={isLoading}
+          onLoadMore={onLoadMore}
+          hasMore={hasMore}
+          isLoadingMore={isLoadingMore}
+        />
         {/* Total 统计悬浮标签 */}
         {data.rows.length > 0 && (
           <div className="absolute bottom-2 left-2 px-2 py-0.5 text-[10px] text-default-500 bg-default-100/80 rounded backdrop-blur-sm z-40">

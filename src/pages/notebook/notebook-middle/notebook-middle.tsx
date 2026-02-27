@@ -22,6 +22,8 @@ import { invoke } from "@tauri-apps/api/core";
 import { useTranslation } from "@/i18n";
 import { listen } from "@tauri-apps/api/event";
 
+const QUERY_PAGE_SIZE = 200;
+
 interface NotebookMiddleProps {
   source: string;
 }
@@ -47,6 +49,9 @@ function NotebookMiddle({ source }: NotebookMiddleProps) {
     rows: [],
     query_time: "",
   });
+  const [lastExecutedSql, setLastExecutedSql] = useState("");
+  const [hasMore, setHasMore] = useState(true);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
   const dropAreaRef = useRef<HTMLDivElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
   const editorRef = useRef<{ getSelectedText: () => string } | null>(null);
@@ -70,22 +75,17 @@ function NotebookMiddle({ source }: NotebookMiddleProps) {
   // Cache file extension to SQL query mapping with useMemo
   const fileExtensionToSql = useMemo(
     () => ({
-      csv: (filePath: string) =>
-        `SELECT * FROM read_csv('${filePath}') LIMIT 200;`,
-      xlsx: (filePath: string) =>
-        `SELECT * FROM read_excel('${filePath}') LIMIT 200;`,
-      json: (filePath: string) =>
-        `SELECT * FROM read_ndjson('${filePath}') LIMIT 200;`,
+      csv: (filePath: string) => `SELECT * FROM read_csv('${filePath}');`,
+      xlsx: (filePath: string) => `SELECT * FROM read_excel('${filePath}');`,
+      json: (filePath: string) => `SELECT * FROM read_ndjson('${filePath}');`,
       // ndjson: (filePath: string) =>
       //   `SELECT * FROM read_ndjson('${filePath}') LIMIT 100;`,
       parquet: (filePath: string) =>
-        `SELECT * FROM read_parquet('${filePath}') LIMIT 200;`,
-      tsv: (filePath: string) =>
-        `SELECT * FROM read_tsv('${filePath}') LIMIT 200;`,
-      text: (filePath: string) =>
-        `SELECT * FROM read_text('${filePath}') LIMIT 200;`,
+        `SELECT * FROM read_parquet('${filePath}');`,
+      tsv: (filePath: string) => `SELECT * FROM read_tsv('${filePath}');`,
+      text: (filePath: string) => `SELECT * FROM read_text('${filePath}');`,
     }),
-    []
+    [],
   );
 
   // Cache file extension to read_xxx function name mapping with useMemo
@@ -99,7 +99,7 @@ function NotebookMiddle({ source }: NotebookMiddleProps) {
       tsv: "read_tsv",
       text: "read_text",
     }),
-    []
+    [],
   );
 
   // Handle file drop - show options menu
@@ -116,7 +116,7 @@ function NotebookMiddle({ source }: NotebookMiddleProps) {
         setIsDropModalOpen(true);
       }
     },
-    [fileExtensionToSql]
+    [fileExtensionToSql],
   );
 
   // Handle inserting full SQL
@@ -214,7 +214,11 @@ function NotebookMiddle({ source }: NotebookMiddleProps) {
         header: string[];
         rows: string[][];
         query_time: string;
-      } = await invoke("fetch", { sql: sqlToExecute, offset: 0, limit: 1000 });
+      } = await invoke("fetch", {
+        sql: sqlToExecute,
+        offset: 0,
+        limit: QUERY_PAGE_SIZE,
+      });
 
       // Check if cancelled
       if (abortController.signal.aborted) {
@@ -227,6 +231,8 @@ function NotebookMiddle({ source }: NotebookMiddleProps) {
       }
 
       setData(results);
+      setLastExecutedSql(sqlToExecute);
+      setHasMore(results.rows.length >= QUERY_PAGE_SIZE);
     } catch (error) {
       // Check if it's a cancellation error
       if (abortController.signal.aborted) {
@@ -265,7 +271,37 @@ function NotebookMiddle({ source }: NotebookMiddleProps) {
       rows: [],
       query_time: "",
     });
+    setHasMore(true);
   }, []);
+
+  // Load next page of data
+  const loadMore = useCallback(async () => {
+    if (!lastExecutedSql || isLoadingMore || !hasMore || data.rows.length === 0)
+      return;
+    const offset = data.rows.length;
+    setIsLoadingMore(true);
+    try {
+      const results: {
+        header: string[];
+        rows: string[][];
+        query_time: string;
+      } = await invoke("fetch_page", {
+        sql: lastExecutedSql,
+        offset,
+        limit: QUERY_PAGE_SIZE,
+      });
+      setData((prev) => ({
+        ...prev,
+        rows: [...prev.rows, ...results.rows],
+      }));
+      setHasMore(results.rows.length >= QUERY_PAGE_SIZE);
+    } catch (error) {
+      console.error("Failed to load more:", error);
+      setHasMore(false);
+    } finally {
+      setIsLoadingMore(false);
+    }
+  }, [lastExecutedSql, isLoadingMore, hasMore, data.rows.length]);
 
   // Listen to Tauri drag and drop events
   useEffect(() => {
@@ -278,7 +314,7 @@ function NotebookMiddle({ source }: NotebookMiddleProps) {
           if (filePaths && filePaths.length > 0) {
             handleFileDrop(filePaths[0]);
           }
-        }
+        },
       );
 
       return () => {
@@ -321,7 +357,7 @@ function NotebookMiddle({ source }: NotebookMiddleProps) {
       overflow: "hidden",
       position: "relative" as const,
     }),
-    []
+    [],
   );
 
   const headerStyle = useMemo(
@@ -330,7 +366,7 @@ function NotebookMiddle({ source }: NotebookMiddleProps) {
       borderBottom: "1px solid rgba(17, 17, 17, 0.15)",
       backgroundColor: "#F5F5F5",
     }),
-    []
+    [],
   );
 
   const editorContainerStyle = useMemo(
@@ -342,7 +378,7 @@ function NotebookMiddle({ source }: NotebookMiddleProps) {
       overflowY: "auto" as const,
       flex: 1,
     }),
-    []
+    [],
   );
 
   return (
@@ -434,7 +470,7 @@ function NotebookMiddle({ source }: NotebookMiddleProps) {
               editorRef.current = editor;
             }}
             placeholder={`${translate(
-              "notebook.editorPlaceholder"
+              "notebook.editorPlaceholder",
             )}\n\n${translate("notebook.dragDropHint")}`}
             fontSize={16}
             height="100%"
@@ -515,6 +551,9 @@ function NotebookMiddle({ source }: NotebookMiddleProps) {
           setSql={setSql}
           sql={sql}
           onClearData={clearData}
+          onLoadMore={loadMore}
+          hasMore={hasMore}
+          isLoadingMore={isLoadingMore}
         />
       </div>
     </div>
