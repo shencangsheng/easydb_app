@@ -28,9 +28,19 @@ interface DataResultProps {
 const ROW_HEIGHT = 36;
 const DEFAULT_COLUMN_WIDTH = 150;
 
+const MODAL_MIN_WIDTH = 400;
+const MODAL_MIN_HEIGHT = 300;
+const MODAL_DEFAULT_WIDTH = 512;
+const MODAL_DEFAULT_HEIGHT = 400;
+
 function DataResult({ data, isLoading }: DataResultProps) {
   const { isOpen, onOpen, onOpenChange } = useDisclosure();
   const [selectedRowIndex, setSelectedRowIndex] = useState<number | null>(null);
+  const [modalSize, setModalSize] = useState({
+    width: MODAL_DEFAULT_WIDTH,
+    height: MODAL_DEFAULT_HEIGHT,
+  });
+  const [lastColumnExtraWidth, setLastColumnExtraWidth] = useState(0);
   const parentRef = useRef<HTMLDivElement>(null);
 
   // Dynamically generate column definitions
@@ -71,6 +81,29 @@ function DataResult({ data, isLoading }: DataResultProps) {
     getCoreRowModel: getCoreRowModel(),
   });
 
+  // 当列宽总和小于容器宽度时，将最后一列扩展以填满表格
+  const tableRef = useRef(table);
+  tableRef.current = table;
+  useEffect(() => {
+    const el = parentRef.current;
+    if (!el || data.header.length === 0) return;
+
+    const updateLastColumnExtraWidth = () => {
+      const containerWidth = el.clientWidth;
+      const totalColumnWidth = tableRef.current.getTotalSize();
+      if (totalColumnWidth < containerWidth) {
+        setLastColumnExtraWidth(containerWidth - totalColumnWidth);
+      } else {
+        setLastColumnExtraWidth(0);
+      }
+    };
+
+    updateLastColumnExtraWidth();
+    const observer = new ResizeObserver(updateLastColumnExtraWidth);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [data.header.length, data.rows.length]);
+
   // Virtualization
   const virtualizer = useVirtualizer({
     count: data.rows.length,
@@ -104,6 +137,36 @@ function DataResult({ data, isLoading }: DataResultProps) {
       handler(e.nativeEvent);
     },
     []
+  );
+
+  // Modal resize: add listeners on mousedown, remove on mouseup
+  const handleModalResizeStart = useCallback(
+    (e: React.MouseEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const startX = e.clientX;
+      const startY = e.clientY;
+      const startW = modalSize.width;
+      const startH = modalSize.height;
+
+      const onMouseMove = (ev: MouseEvent) => {
+        const dx = ev.clientX - startX;
+        const dy = ev.clientY - startY;
+        setModalSize({
+          width: Math.max(MODAL_MIN_WIDTH, startW + dx),
+          height: Math.max(MODAL_MIN_HEIGHT, startH + dy),
+        });
+      };
+
+      const onMouseUp = () => {
+        window.removeEventListener("mousemove", onMouseMove);
+        window.removeEventListener("mouseup", onMouseUp);
+      };
+
+      window.addEventListener("mousemove", onMouseMove);
+      window.addEventListener("mouseup", onMouseUp);
+    },
+    [modalSize]
   );
 
   // Safely get selected row data to prevent index out of bounds
@@ -166,7 +229,8 @@ function DataResult({ data, isLoading }: DataResultProps) {
   const virtualItems = virtualizer.getVirtualItems();
   const totalSize = virtualizer.getTotalSize();
   const { rows: tableRows } = table.getRowModel();
-  const tableWidth = table.getTotalSize();
+  const baseTableWidth = table.getTotalSize();
+  const tableWidth = baseTableWidth + lastColumnExtraWidth;
   const isSingleColumn = data.header.length === 1;
 
   return (
@@ -187,7 +251,16 @@ function DataResult({ data, isLoading }: DataResultProps) {
                 key={headerGroup.id}
                 className="flex border-b border-default-200"
               >
-                {headerGroup.headers.map((header) => (
+                {headerGroup.headers.map((header) => {
+                  const isLastColumn =
+                    header.id ===
+                    headerGroup.headers[headerGroup.headers.length - 1].id;
+                  const baseWidth = header.getSize();
+                  const width =
+                    isLastColumn && header.id !== "_index"
+                      ? baseWidth + lastColumnExtraWidth
+                      : baseWidth;
+                  return (
                   <div
                     key={header.id}
                     className={`relative px-3 py-2 font-semibold text-sm text-default-600 border-r border-default-200 last:border-r-0 whitespace-nowrap overflow-hidden text-ellipsis ${
@@ -198,7 +271,7 @@ function DataResult({ data, isLoading }: DataResultProps) {
                     style={
                       isSingleColumn && header.id !== "_index"
                         ? { flex: 1 }
-                        : { width: header.getSize() }
+                        : { width }
                     }
                   >
                     {flexRender(
@@ -221,7 +294,8 @@ function DataResult({ data, isLoading }: DataResultProps) {
                       />
                     )}
                   </div>
-                ))}
+                  );
+                })}
               </div>
             ))}
           </div>
@@ -246,7 +320,17 @@ function DataResult({ data, isLoading }: DataResultProps) {
                   }}
                   onDoubleClick={() => handleRowDoubleClick(virtualRow.index)}
                 >
-                  {row.getVisibleCells().map((cell) => (
+                  {row.getVisibleCells().map((cell) => {
+                    const isLastCell =
+                      cell.column.id ===
+                      row.getVisibleCells()[row.getVisibleCells().length - 1]
+                        .column.id;
+                    const baseSize = cell.column.getSize();
+                    const cellWidth =
+                      isLastCell && cell.column.id !== "_index"
+                        ? baseSize + lastColumnExtraWidth
+                        : baseSize;
+                    return (
                     <div
                       key={cell.id}
                       className={`px-3 py-2 border-r border-default-100 last:border-r-0 whitespace-nowrap overflow-hidden text-ellipsis ${
@@ -259,7 +343,7 @@ function DataResult({ data, isLoading }: DataResultProps) {
                       style={
                         isSingleColumn && cell.column.id !== "_index"
                           ? { flex: 1 }
-                          : { width: cell.column.getSize() }
+                          : { width: cellWidth }
                       }
                     >
                       {flexRender(
@@ -267,7 +351,8 @@ function DataResult({ data, isLoading }: DataResultProps) {
                         cell.getContext()
                       )}
                     </div>
-                  ))}
+                  );
+                  })}
                 </div>
               );
             })}
@@ -276,12 +361,28 @@ function DataResult({ data, isLoading }: DataResultProps) {
       </div>
 
       {/* Row details Modal */}
-      <Modal isOpen={isOpen} onOpenChange={onOpenChange} size="lg">
-        <ModalContent>
+      <Modal
+        isOpen={isOpen}
+        onOpenChange={onOpenChange}
+        size="lg"
+        classNames={{ base: "max-w-[95vw]" }}
+      >
+        <ModalContent
+          className="relative overflow-visible"
+          style={{
+            width: modalSize.width,
+            height: modalSize.height,
+            minWidth: MODAL_MIN_WIDTH,
+            minHeight: MODAL_MIN_HEIGHT,
+          }}
+        >
           <ModalHeader>Row Details</ModalHeader>
-          <ModalBody className="pb-6">
+          <ModalBody className="pb-6 flex-1 overflow-hidden">
             {selectedRowData && (
-              <div className="max-h-[60vh] overflow-y-auto">
+              <div
+                className="overflow-y-auto"
+                style={{ maxHeight: modalSize.height - 120 }}
+              >
                 <table className="w-full border-collapse">
                   <tbody>
                     {data.header.map((header, index) => (
@@ -299,6 +400,16 @@ function DataResult({ data, isLoading }: DataResultProps) {
               </div>
             )}
           </ModalBody>
+          {/* Resize handle */}
+          <div
+            onMouseDown={handleModalResizeStart}
+            className="absolute bottom-0 right-0 w-5 h-5 cursor-se-resize select-none touch-none z-[100] pointer-events-auto hover:opacity-80"
+            style={{
+              background:
+                "linear-gradient(135deg, transparent 50%, rgba(0,0,0,0.2) 50%)",
+            }}
+            aria-label="Resize modal"
+          />
         </ModalContent>
       </Modal>
     </div>
