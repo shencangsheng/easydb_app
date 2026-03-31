@@ -136,12 +136,10 @@ LIMIT 10;
 ### Installation
 
 1. **Download Installer**
-
    - Visit [Releases](https://github.com/shencangsheng/easydb_app/releases) page
    - Download the installer for your system
 
 2. **Install Application**
-
    - **macOS**: Download `.dmg` file, drag to Applications folder
    - **Windows**: Download `.exe` file, run the installer
 
@@ -270,5 +268,3 @@ Thanks to the following open source projects:
 Made with ❤️ by [Cangsheng Shen](https://github.com/shencangsheng)
 
 </div>
-
-[![Star History Chart](https://api.star-history.com/svg?repos=shencangsheng/easydb_app&type=date&legend=top-left)](https://www.star-history.com/#shencangsheng/easydb_app&type=date&legend=top-left)

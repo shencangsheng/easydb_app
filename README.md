@@ -137,12 +137,10 @@ LIMIT 10;
 ### 安装方式
 
 1. **下载安装包**
-
    - 访问 [Releases](https://github.com/shencangsheng/easydb_app/releases) 页面
    - 下载适合您系统的安装包
 
 2. **安装应用**
-
    - **macOS**: 下载 `.dmg` 文件，拖拽到应用程序文件夹
    - **Windows**: 下载 `.exe` 文件，运行安装程序
 
@@ -271,13 +269,3 @@ MIT © Cangsheng Shen
 Made with ❤️ by [Cangsheng Shen](https://github.com/shencangsheng)
 
 </div>
-
-## Star History
-
-<a href="https://www.star-history.com/?repos=shencangsheng%2Feasydb_app&type=date&logscale=&legend=top-left">
- <picture>
-   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/image?repos=shencangsheng/easydb_app&type=date&theme=dark&logscale&legend=top-left" />
-   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/image?repos=shencangsheng/easydb_app&type=date&logscale&legend=top-left" />
-   <img alt="Star History Chart" src="https://api.star-history.com/image?repos=shencangsheng/easydb_app&type=date&logscale&legend=top-left" />
- </picture>
-</a>
