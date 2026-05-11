@@ -1,8 +1,7 @@
-# EasyDB
-
 <div align="center">
+<h1>EasyDB</h1>
 
-<img src="public/128x128.png" alt="EasyDB Logo" width="80" height="80" style="background-color: gray; padding: 6px; border-radius: 8px;">
+<img src="public/128x128.png" alt="EasyDB Logo" width="80" height="80" style="background: linear-gradient(135deg, #86efac, #22c55e, #15803d); padding: 6px; border-radius: 8px;">
 
 **轻量级桌面数据查询工具，用 SQL 直接查询本地文件，内置查询引擎**
 
@@ -91,18 +90,18 @@ EasyDB 是一个轻量级桌面数据查询工具，基于 Rust 与 Tauri 构建
 
 ### 核心技术栈
 
-| 层级 | 技术 |
-| --- | --- |
-| 前端 | React 18 + TypeScript + Vite |
-| 后端 | Rust + Tauri v2 |
-| 查询引擎 | [Apache DataFusion](https://github.com/apache/datafusion) 50.3 |
+| 层级       | 技术                                                                                           |
+| ---------- | ---------------------------------------------------------------------------------------------- |
+| 前端       | React 18 + TypeScript + Vite                                                                   |
+| 后端       | Rust + Tauri v2                                                                                |
+| 查询引擎   | [Apache DataFusion](https://github.com/apache/datafusion) 50.3                                 |
 | 数据库连接 | [datafusion-table-providers](https://github.com/apache/arrow-datafusion-table-providers) MySQL |
-| UI 框架 | HeroUI + Tailwind CSS |
-| 虚拟滚动 | @tanstack/react-virtual + @tanstack/react-table |
-| SQL 编辑器 | Ace Editor (react-ace) |
-| SQL 解析 | sqlparser-rs (Rust) + node-sql-parser (JS) |
-| 国际化 | 自建轻量 i18n，支持 zh-CN / en-US |
-| 历史存储 | SQLite (rusqlite) |
+| UI 框架    | HeroUI + Tailwind CSS                                                                          |
+| 虚拟滚动   | @tanstack/react-virtual + @tanstack/react-table                                                |
+| SQL 编辑器 | Ace Editor (react-ace)                                                                         |
+| SQL 解析   | sqlparser-rs (Rust) + node-sql-parser (JS)                                                     |
+| 国际化     | 自建轻量 i18n，支持 zh-CN / en-US                                                              |
+| 历史存储   | SQLite (rusqlite)                                                                              |
 
 ### 查询引擎选择
 
@@ -166,45 +165,45 @@ WHERE REGEXP_LIKE("Distance", '^([0-9]+)\.([0-9]+)?$');
 
 ### 支持的数据源
 
-| 格式 | 函数 | 说明 |
-| --- | --- | --- |
-| CSV | `read_csv()` | 支持自定义分隔符、表头、Schema 推断 |
-| TSV | `read_tsv()` | Tab 分隔文件 |
-| Text | `read_text()` | 通用文本文件，支持自定义分隔符 |
-| Excel | `read_excel()` / `read_xlsx()` | 支持 `.xlsx`，可选工作表 |
-| NdJson | `read_ndjson()` | 每行一个 JSON 对象 |
-| Parquet | `read_parquet()` | 列式存储格式 |
-| MySQL | `read_mysql()` | 直连 MySQL 数据库表 |
+| 格式    | 函数                           | 说明                                |
+| ------- | ------------------------------ | ----------------------------------- |
+| CSV     | `read_csv()`                   | 支持自定义分隔符、表头、Schema 推断 |
+| TSV     | `read_tsv()`                   | Tab 分隔文件                        |
+| Text    | `read_text()`                  | 通用文本文件，支持自定义分隔符      |
+| Excel   | `read_excel()` / `read_xlsx()` | 支持 `.xlsx`，可选工作表            |
+| NdJson  | `read_ndjson()`                | 每行一个 JSON 对象                  |
+| Parquet | `read_parquet()`               | 列式存储格式                        |
+| MySQL   | `read_mysql()`                 | 直连 MySQL 数据库表                 |
 
 ### 函数参数说明
 
 <details>
 <summary><code>read_csv()</code> 参数</summary>
 
-| 参数 | 类型 | 默认值 | 说明 |
-| --- | --- | --- | --- |
-| `infer_schema` | boolean | true | 是否自动推断数据类型（基于前 100 行） |
-| `has_header` | boolean | true | 文件是否包含表头行 |
-| `delimiter` | string | `,` | 字段分隔符，支持转义序列如 `\t`、`\n` |
-| `file_extension` | string | `.csv` | 文件扩展名 |
+| 参数             | 类型    | 默认值 | 说明                                  |
+| ---------------- | ------- | ------ | ------------------------------------- |
+| `infer_schema`   | boolean | true   | 是否自动推断数据类型（基于前 100 行） |
+| `has_header`     | boolean | true   | 文件是否包含表头行                    |
+| `delimiter`      | string  | `,`    | 字段分隔符，支持转义序列如 `\t`、`\n` |
+| `file_extension` | string  | `.csv` | 文件扩展名                            |
 
 </details>
 
 <details>
 <summary><code>read_excel()</code> 参数</summary>
 
-| 参数 | 类型 | 默认值 | 说明 |
-| --- | --- | --- | --- |
-| `sheet_name` | string | 第一个 Sheet | 要读取的工作表名称 |
-| `infer_schema` | boolean | true | 是否自动推断数据类型 |
+| 参数           | 类型    | 默认值       | 说明                 |
+| -------------- | ------- | ------------ | -------------------- |
+| `sheet_name`   | string  | 第一个 Sheet | 要读取的工作表名称   |
+| `infer_schema` | boolean | true         | 是否自动推断数据类型 |
 
 </details>
 
 <details>
 <summary><code>read_mysql()</code> 参数</summary>
 
-| 参数 | 类型 | 默认值 | 说明 |
-| --- | --- | --- | --- |
+| 参数   | 类型   | 默认值   | 说明                                                            |
+| ------ | ------ | -------- | --------------------------------------------------------------- |
 | `conn` | string | **必需** | MySQL 连接字符串，如 `mysql://user:password@host:port/database` |
 
 </details>
@@ -212,12 +211,12 @@ WHERE REGEXP_LIKE("Distance", '^([0-9]+)\.([0-9]+)?$');
 <details>
 <summary><code>read_text()</code> 参数</summary>
 
-| 参数 | 类型 | 默认值 | 说明 |
-| --- | --- | --- | --- |
-| `infer_schema` | boolean | true | 是否自动推断数据类型 |
-| `has_header` | boolean | true | 文件是否包含表头行 |
-| `delimiter` | string | `\t` | 字段分隔符 |
-| `file_extension` | string | `.txt` | 文件扩展名 |
+| 参数             | 类型    | 默认值 | 说明                 |
+| ---------------- | ------- | ------ | -------------------- |
+| `infer_schema`   | boolean | true   | 是否自动推断数据类型 |
+| `has_header`     | boolean | true   | 文件是否包含表头行   |
+| `delimiter`      | string  | `\t`   | 字段分隔符           |
+| `file_extension` | string  | `.txt` | 文件扩展名           |
 
 </details>
 
