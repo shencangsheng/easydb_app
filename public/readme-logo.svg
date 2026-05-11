@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="92" height="92" viewBox="0 0 92 92" fill="none">
+  <defs>
+    <linearGradient id="readmeLogoBg" x1="0" y1="0" x2="92" y2="92" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#86efac" />
+      <stop offset="0.5" stop-color="#22c55e" />
+      <stop offset="1" stop-color="#15803d" />
+    </linearGradient>
+  </defs>
+  <rect width="92" height="92" rx="10" fill="url(#readmeLogoBg)" />
+  <g transform="translate(46 46) scale(2.5) translate(-16 -16)">
+    <path
+      fill="#ffffff"
+      fill-rule="evenodd"
+      clip-rule="evenodd"
+      d="M17.6482 10.1305L15.8785 7.02583L7.02979 22.5499H10.5278L17.6482 10.1305ZM19.8798 14.0457L18.11 17.1983L19.394 19.4511H16.8453L15.1056 22.5499H24.7272L19.8798 14.0457Z"
+    />
+  </g>
+</svg>
