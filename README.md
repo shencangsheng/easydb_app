@@ -10,6 +10,7 @@
 [![Release](https://img.shields.io/badge/release-2.5.0-blue.svg)](https://github.com/shencangsheng/easydb_app)
 [![Platform](https://img.shields.io/badge/Platform-macOS%20%7C%20Windows-brightgreen)](https://github.com/shencangsheng/easydb_app)
 ![Stars](https://img.shields.io/github/stars/shencangsheng/easydb_app?logo=github)
+![Total Downloads](https://img.shields.io/github/downloads/shencangsheng/easydb_app/total)
 
 [English](README_EN.md) | [中文](README.md)
 
