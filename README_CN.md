@@ -1,7 +1,7 @@
 <div align="center">
 <h1>EasyDB</h1>
 
-<img src="public/128x128.png" alt="EasyDB Logo" width="80" height="80" style="background: linear-gradient(135deg, #86efac, #22c55e, #15803d); padding: 6px; border-radius: 8px;">
+<span style="display: inline-block; padding: 6px; border-radius: 8px; line-height: 0; background-color: #22c55e; background-image: linear-gradient(135deg, #86efac, #22c55e, #15803d);"><img src="public/128x128.png" alt="EasyDB Logo" width="80" height="80"></span>
 
 **轻量级桌面数据查询工具，用 SQL 直接查询本地文件，内置查询引擎**
 
