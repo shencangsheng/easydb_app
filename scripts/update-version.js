@@ -128,19 +128,19 @@ try {
   console.error("✗ 更新 README.md 失败:", error.message);
 }
 
-// 更新 README_EN.md
-const readmeEnPath = join(__dirname, "..", "README_EN.md");
+// 更新 README_CN.md
+const readmeCnPath = join(__dirname, "..", "README_CN.md");
 try {
-  let readmeEnContent = readFileSync(readmeEnPath, "utf8");
-  readmeEnContent = readmeEnContent.replace(
+  let readmeCnContent = readFileSync(readmeCnPath, "utf8");
+  readmeCnContent = readmeCnContent.replace(
     /\[!\[Version\]\(https:\/\/img\.shields\.io\/badge\/version-.*?-blue\.svg\)\]/g,
     `[![Version](https://img.shields.io/badge/version-${newVersion}-blue.svg)]`
   );
 
-  writeFileSync(readmeEnPath, readmeEnContent);
-  console.log("✓ 已更新 README_EN.md");
+  writeFileSync(readmeCnPath, readmeCnContent);
+  console.log("✓ 已更新 README_CN.md");
 } catch (error) {
-  console.error("✗ 更新 README_EN.md 失败:", error.message);
+  console.error("✗ 更新 README_CN.md 失败:", error.message);
 }
 
 console.log(`\n🎉 版本更新完成！所有文件已更新到版本 ${newVersion}`);
