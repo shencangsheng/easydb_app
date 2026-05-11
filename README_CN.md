@@ -1,7 +1,7 @@
 <div align="center">
 <h1>EasyDB</h1>
 
-<img src="public/readme-logo.svg" alt="EasyDB Logo" width="80" height="80">
+<img src="public/readme-logo.svg?v=2" alt="EasyDB Logo" width="80" height="80">
 
 **轻量级桌面数据查询工具，用 SQL 直接查询本地文件，内置查询引擎**
 

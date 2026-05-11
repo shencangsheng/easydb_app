@@ -2,7 +2,7 @@
 
 <h1>EasyDB</h1>
 
-<img src="public/readme-logo.svg" alt="EasyDB Logo" width="80" height="80">
+<img src="public/readme-logo.svg?v=2" alt="EasyDB Logo" width="80" height="80">
 
 **A lightweight desktop data query tool that uses SQL to query local files directly, with a built-in query engine**
 
