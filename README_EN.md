@@ -2,12 +2,12 @@
 
 <div align="center">
 
-<img src="public/128x128.png" alt="EasyDB Logo" style="background-color: gray; padding: 10px; border-radius: 8px;">
+<img src="public/128x128.png" alt="EasyDB Logo" width="80" height="80" style="background-color: gray; padding: 6px; border-radius: 8px;">
 
-**A lightweight desktop data query tool that uses SQL to query local files directly with built-in query engine**
+**A lightweight desktop data query tool that uses SQL to query local files directly, with a built-in query engine**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Release](https://img.shields.io/badge/release-2.5.0-blue.svg)](https://github.com/shencangsheng/easydb_app)
+[![Release](https://img.shields.io/badge/release-2.6.0-blue.svg)](https://github.com/shencangsheng/easydb_app)
 [![Platform](https://img.shields.io/badge/Platform-macOS%20%7C%20Windows-brightgreen)](https://github.com/shencangsheng/easydb_app)
 ![Stars](https://img.shields.io/github/stars/shencangsheng/easydb_app?logo=github)
 ![Total Downloads](https://img.shields.io/github/downloads/shencangsheng/easydb_app/total)
@@ -16,64 +16,103 @@
 
 </div>
 
-## 📖 Introduction
+---
 
-EasyDB is a lightweight desktop data query tool built with Rust that queries local files directly using SQL. With a built-in DataFusion query engine, there is no need to install additional databases or other tools. It treats files as database tables, enabling querying of CSV, Excel, JSON, and other formats using standard SQL, supporting complex multi-table JOINs, subqueries, window functions, and other advanced SQL features. It effortlessly handles large text files from hundreds of MB to multiple GB and requires relatively minimal hardware resources.
+## Introduction
+
+EasyDB is a lightweight desktop data query tool built with Rust and Tauri, featuring a built-in Apache DataFusion query engine. No need to install a database or any other dependencies — just use SQL to query local files directly.
+
+It treats files as database tables, supporting CSV, TSV, Text, NdJson, Excel, Parquet, and MySQL as data sources. It supports complex multi-table JOINs, subqueries, window functions, and other advanced SQL features. It effortlessly handles data files from hundreds of MB to multiple GB with minimal hardware resources.
 
 ![demo.gif](assets/demo.gif)
 
-## ✨ Core Features
+## Core Features
 
-- 🚀 **High Performance**: Built on Rust and DataFusion engine, effortlessly handles large files
-- 💾 **Low Memory Usage**: Requires minimal hardware resources
-- 📁 **Multi-format Support**: CSV, NdJson, JSON, Excel, Parquet file formats
-- 🔧 **Ready to Use**: No file conversion required, query directly
-- 🖥️ **Cross-platform**: Supports macOS and Windows platforms
-- 🎨 **Modern Interface**: Modern desktop application built with Tauri
-- 🔍 **Complete SQL Support**: Supports complex SQL queries, including JOINs, subqueries, window functions, and other advanced features
+- **High Performance** — Built on Rust and DataFusion, effortlessly handles large files
+- **Low Memory Usage** — Runs with minimal hardware resources
+- **Multi-format Support** — CSV, TSV, Text, NdJson, Excel, Parquet, MySQL
+- **Ready to Use** — No file conversion needed, query directly
+- **Cross-platform** — Supports macOS and Windows
+- **Full SQL Support** — Multi-table JOINs, subqueries, window functions, regex matching, and more
+- **Smart Editor** — SQL syntax highlighting, autocomplete (function names + column names), formatting
+- **Drag & Drop SQL Generation** — Drag files into the editor to auto-generate query statements
+- **Internationalization** — Supports Simplified Chinese and English, auto-detects browser language
+- **Virtual Scrolling & Pagination** — Smooth rendering for large datasets with scroll-to-load
+- **Result Export** — Export to CSV, TSV, or SQL (INSERT/UPDATE), with MySQL or PostgreSQL dialect options
+- **Query History** — Automatically records the last 50 queries with execution status
+- **Modern Interface** — Native desktop app built with Tauri v2 + HeroUI
 
-## 📖 Changelog
+## Changelog
 
-[Changelog](CHANGELOG_EN.md)
+See [CHANGELOG_EN.md](CHANGELOG_EN.md)
 
-## 🗺️ Features & Roadmap
+## Features & Roadmap
 
-- [x] read_csv()
-- [x] read_tsv()
-- [x] read_ndjson()
-- [ ] read_json()
-- [x] read_excel()
-- [x] read_parquet()
+### File Reader Functions
+
+- [x] `read_csv()` — Read CSV files with custom delimiter, header, and schema inference options
+- [x] `read_tsv()` — Read TSV files
+- [x] `read_text()` — Read text files with custom delimiter
+- [ ] `read_json()` — Read JSON files (temporarily removed in v2.0, planned for reimplementation)
+- [x] `read_excel()` / `read_xlsx()` — Read Excel files with worksheet selection
+- [x] `read_parquet()` — Read Parquet columnar storage files
+- [x] `read_ndjson()` — Read NDJSON files
+- [x] `read_mysql()` — Read MySQL database tables
+
+### Scalar Functions
+
+- [x] `REGEXP_LIKE()` — Regular expression matching
+
+### Editor & Interaction
+
+- [x] Drag & drop file auto-generate SQL (option to insert full SQL or just `read_xxx()` function)
+- [x] SQL smart autocomplete (function names, parameter names, result column names)
+- [x] Execute selected SQL fragment
+- [x] SQL formatting and clearing
+
+### Data Export
+
+- [x] Export query results to CSV / TSV / SQL
+- [x] SQL export supports INSERT and UPDATE statements
+- [x] SQL export supports MySQL and PostgreSQL dialects
+- [x] Query history recording
+
+### Planned
+
 - [ ] Excel lazy loading performance optimization
 - [ ] Excel enhanced data type compatibility
 - [ ] Multi-session window support
-- [x] Drag & drop file automatically generate SQL statement
-- [ ] Directory browsing support
+- [ ] Directory browsing
 - [ ] S3 remote file support
-- [ ] Support for direct querying of server files
-- [ ] Data visualization support
-- [x] Query result export functionality
-- [x] Export SQL statements (Insert, Update)
-- [x] read_mysql()
+- [ ] Direct querying of server files
+- [ ] Data visualization
 
-## 🛠️ Technical Architecture
+## Technical Architecture
 
-### Core Technology Stack
+### Core Tech Stack
 
-- **Frontend**: React + TypeScript + Vite
-- **Backend**: Rust + Tauri
-- **Query Engine**: [apache/datafusion](https://github.com/apache/datafusion)
-- **UI Framework**: HeroUI + Tailwind CSS
+| Layer | Technology |
+| --- | --- |
+| Frontend | React 18 + TypeScript + Vite |
+| Backend | Rust + Tauri v2 |
+| Query Engine | [Apache DataFusion](https://github.com/apache/datafusion) 50.3 |
+| DB Connector | [datafusion-table-providers](https://github.com/apache/arrow-datafusion-table-providers) MySQL |
+| UI Framework | HeroUI + Tailwind CSS |
+| Virtual Scroll | @tanstack/react-virtual + @tanstack/react-table |
+| SQL Editor | Ace Editor (react-ace) |
+| SQL Parsing | sqlparser-rs (Rust) + node-sql-parser (JS) |
+| i18n | Lightweight custom i18n, zh-CN / en-US |
+| History Storage | SQLite (rusqlite) |
 
 ### Query Engine Selection
 
-**Currently Using**: DataFusion
+**Currently Using**: Apache DataFusion
 
-DataFusion is part of the Apache Arrow project, providing complete SQL query capabilities and supporting complex SQL syntax, including multi-table JOINs, subqueries, window functions, and other advanced features. Compared to Polars, DataFusion offers more comprehensive SQL compatibility, meeting more complex query requirements.
+DataFusion is part of the Apache Arrow project, providing complete SQL query capabilities and supporting complex SQL syntax including multi-table JOINs, subqueries, window functions, and other advanced features. Compared to Polars, DataFusion offers more comprehensive SQL compatibility.
 
-**Version Evolution**: Version v1.0 previously used the Polars engine. While Polars excelled in stream processing and memory usage, it had limitations in supporting complex SQL queries. Version v2.0 switched back to DataFusion to gain more complete SQL support while maintaining good performance and resource utilization efficiency.
+**Version Evolution**: v1.0 previously used the Polars engine, which excelled in stream processing and memory usage but had limitations in complex SQL support. v2.0 switched back to DataFusion for more complete SQL support while maintaining good performance and resource efficiency.
 
-## 📚 User Guide
+## User Guide
 
 ### Basic Syntax
 
@@ -81,133 +120,177 @@ DataFusion is part of the Apache Arrow project, providing complete SQL query cap
 -- Query CSV files
 SELECT *
 FROM read_csv('/path/to/file.csv', infer_schema => false)
-WHERE `age` > 30
+WHERE "age" > 30
 LIMIT 10;
 
--- Query Excel files
+-- Query TSV files
+SELECT *
+FROM read_tsv('/path/to/file.tsv');
+
+-- Query text files (custom delimiter)
+SELECT *
+FROM read_text('/path/to/file.txt', delimiter => '\t');
+
+-- Query Excel files (specific worksheet)
 SELECT *
 FROM read_excel('/path/to/file.xlsx', sheet_name => 'Sheet2')
-WHERE `age` > 30
-LIMIT 10;
+WHERE "age" > 30;
 
--- Query JSON files
+-- Query NDJSON files
 SELECT *
-FROM read_json('/path/to/file.json')
-WHERE `status` = 'active';
+FROM read_ndjson('/path/to/file.json')
+WHERE "status" = 'active';
+
+-- Query Parquet files
+SELECT *
+FROM read_parquet('/path/to/file.parquet');
 
 -- Query MySQL database
 SELECT *
 FROM read_mysql('users', conn => 'mysql://user:password@localhost:3306/mydb')
-WHERE `age` > 30;
+WHERE "age" > 30;
 
--- Joint query
+-- Cross-source join (Excel + MySQL)
 SELECT *
-FROM read_excel('/path/to/file.xlsx', sheet_name => 'Sheet1') as t1
-inner join
-read_mysql('users', conn => 'mysql://user:password@localhost:3306/mydb') as t2
-on (t1.`user_id` = t2.`id`)
-WHERE t1.`age` > 30;
+FROM read_excel('/path/to/file.xlsx', sheet_name => 'Sheet1') AS t1
+INNER JOIN
+read_mysql('users', conn => 'mysql://user:password@localhost:3306/mydb') AS t2
+ON t1."user_id" = t2."id"
+WHERE t1."age" > 30;
 
--- Query text file
+-- Regex matching
 SELECT *
-FROM read_text('/path/to/file.txt')
-WHERE `age` > 30
-LIMIT 10;
+FROM read_csv('/path/to/file.csv')
+WHERE REGEXP_LIKE("Distance", '^([0-9]+)\.([0-9]+)?$');
 ```
 
-### Supported File Formats
+### Supported Data Sources
 
-| Format  | Function         | Description                             |
-| ------- | ---------------- | --------------------------------------- |
-| CSV     | `read_csv()`     | Supports custom delimiters and encoding |
-| Excel   | `read_excel()`   | Supports multiple worksheets            |
-| JSON    | `read_json()`    | Supports nested structures              |
-| NdJson  | `read_ndjson()`  | One JSON object per line                |
-| Parquet | `read_parquet()` | Columnar storage format                 |
+| Format | Function | Description |
+| --- | --- | --- |
+| CSV | `read_csv()` | Custom delimiter, header, schema inference |
+| TSV | `read_tsv()` | Tab-separated files |
+| Text | `read_text()` | General text files with custom delimiter |
+| Excel | `read_excel()` / `read_xlsx()` | `.xlsx` support, optional worksheet |
+| NdJson | `read_ndjson()` | One JSON object per line |
+| Parquet | `read_parquet()` | Columnar storage format |
+| MySQL | `read_mysql()` | Direct MySQL database table connection |
 
-## 🚀 Quick Start
+### Function Parameters
+
+<details>
+<summary><code>read_csv()</code> parameters</summary>
+
+| Parameter | Type | Default | Description |
+| --- | --- | --- | --- |
+| `infer_schema` | boolean | true | Auto-infer data types (based on first 100 rows) |
+| `has_header` | boolean | true | Whether the file contains a header row |
+| `delimiter` | string | `,` | Field delimiter, supports escape sequences like `\t`, `\n` |
+| `file_extension` | string | `.csv` | File extension |
+
+</details>
+
+<details>
+<summary><code>read_excel()</code> parameters</summary>
+
+| Parameter | Type | Default | Description |
+| --- | --- | --- | --- |
+| `sheet_name` | string | First sheet | Name of the worksheet to read |
+| `infer_schema` | boolean | true | Auto-infer data types |
+
+</details>
+
+<details>
+<summary><code>read_mysql()</code> parameters</summary>
+
+| Parameter | Type | Default | Description |
+| --- | --- | --- | --- |
+| `conn` | string | **Required** | MySQL connection string, e.g. `mysql://user:password@host:port/database` |
+
+</details>
+
+<details>
+<summary><code>read_text()</code> parameters</summary>
+
+| Parameter | Type | Default | Description |
+| --- | --- | --- | --- |
+| `infer_schema` | boolean | true | Auto-infer data types |
+| `has_header` | boolean | true | Whether the file contains a header row |
+| `delimiter` | string | `\t` | Field delimiter |
+| `file_extension` | string | `.txt` | File extension |
+
+</details>
+
+## Quick Start
 
 ### System Requirements
 
 - **macOS**: 10.15+ (Catalina or higher)
 - **Windows**: Windows 10 or higher
-- **Memory**: Recommended 4GB or more
-- **Storage**: At least 100MB available space
+- **Memory**: 4 GB or more recommended
+- **Storage**: At least 100 MB available space
 
 ### Installation
 
-1. **Download Installer**
-   - Visit [Releases](https://github.com/shencangsheng/easydb_app/releases) page
-   - Download the installer for your system
+1. Visit the [Releases](https://github.com/shencangsheng/easydb_app/releases) page and download the installer for your system
+2. **macOS**: Download the `.dmg` file, drag to Applications folder
+3. **Windows**: Download the `.exe` file, run the installer
 
-2. **Install Application**
-   - **macOS**: Download `.dmg` file, drag to Applications folder
-   - **Windows**: Download `.exe` file, run the installer
+## FAQ
 
-## ❓ Frequently Asked Questions
+### macOS "Application is damaged and cannot be opened"
 
-### macOS Application Corruption Issue
+This is caused by macOS Gatekeeper blocking unsigned applications. Run the following command in Terminal:
 
-**Issue**: Getting "Application is damaged and cannot be opened" error when trying to open EasyDB on macOS
+```bash
+xattr -r -d com.apple.quarantine /Applications/EasyDB.app
+```
 
-**Solution**: This is caused by macOS's security mechanism (Gatekeeper) blocking unsigned applications. Please follow these steps to resolve:
+If this doesn't work, go to **System Preferences > Security & Privacy > General** and click "Open Anyway".
 
-1. Open Terminal
-2. Execute the following command to remove quarantine attributes:
-   ```bash
-   xattr -r -d com.apple.quarantine /Applications/EasyDB.app
-   ```
-3. Try opening the application again
+### SQL Syntax Notes
 
-**Alternative Solution**: If the above method doesn't work, you can try allowing the application in System Preferences:
-
-1. Open "System Preferences" > "Security & Privacy"
-2. In the "General" tab, find the blocked application
-3. Click the "Open Anyway" button
-
-### Syntax Problem
-
-Field names can be wrapped in double quotes, for example:
+Field names should be wrapped in double quotes:
 
 ```sql
 SELECT "id", "name" FROM table WHERE "id" = 1;
 ```
 
-Can also be wrapped in backticks, for example:
+Backticks also work:
 
 ```sql
 SELECT `id`, `name` FROM table WHERE `id` = 1;
 ```
 
-String values in WHERE clauses should be wrapped in single quotes, for example:
+String values in WHERE clauses use single quotes:
 
 ```sql
 SELECT * FROM table WHERE "id" = '1';
 ```
 
-## 📖 Project Background
+### Non-standard File Extensions
+
+For files without CSV, XLSX, JSON, or Parquet extensions, EasyDB automatically uses the `read_text()` function.
+
+## Project Background
 
 ### From Server to App
 
-[EasyDB Server](https://github.com/shencangsheng/easy_db) is mainly deployed on Linux servers as a web service supporting efficient querying of large-scale text files. Although Docker deployment solutions are provided, usage on macOS is still not convenient enough.
+[EasyDB Server](https://github.com/shencangsheng/easy_db) is primarily deployed on Linux servers as a web service for efficient querying of large-scale text files. Although Docker deployment is available, the local experience on macOS and Windows is not as convenient.
 
-For this reason, I developed the EasyDB App client, specifically optimized for macOS and Windows platforms to improve the local user experience.
+EasyDB App is specifically optimized for macOS and Windows to improve the local user experience.
 
 ### Project Naming
 
-To better distinguish between the two projects:
+- **EasyDB Server** — Server-side version, based on DataFusion
+- **EasyDB App** — Desktop client version, based on DataFusion (v2.0+)
 
-- **EasyDB Server**: Server-side version, based on DataFusion
-- **EasyDB App**: Desktop client version, based on DataFusion (v2.0+)
+## Contributing
 
-## 🤝 Contributing
-
-We welcome contributions in all forms!
-
-### How to Contribute
+Contributions are welcome in all forms!
 
 1. **Fork** this repository
-2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
+2. Create a feature branch (`git checkout -b feature/AmazingFeature`)
 3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
 4. Push to the branch (`git push origin feature/AmazingFeature`)
 5. Open a **Pull Request**
@@ -219,6 +302,9 @@ We welcome contributions in all forms!
 git clone https://github.com/shencangsheng/easydb_app.git
 cd easydb_app
 
+# Install frontend dependencies
+yarn
+
 # Start development server
 cargo tauri dev
 
@@ -226,45 +312,52 @@ cargo tauri dev
 cargo tauri build
 ```
 
-## 📄 License
+### Prerequisites
 
-A short snippet describing the license (MIT)
+- Rust 1.89+
+- Node.js 18+
+- Yarn
 
-MIT © Cangsheng Shen
+## License
 
-## 👨‍💻 Author
+[MIT License](LICENSE) © Cangsheng Shen
+
+## Author
 
 **Cangsheng Shen**
 
 - GitHub: [@shencangsheng](https://github.com/shencangsheng)
 - Email: shencangsheng@126.com
 
-## 🙏 Acknowledgments
+## Acknowledgments
 
 Thanks to the following open source projects:
 
-- [apache/datafusion](https://github.com/apache/datafusion) - High-performance SQL query engine
-- [Tauri](https://tauri.app/) - Modern desktop application framework
-- [React](https://reactjs.org/) - User interface library
-- [HeroUI](https://heroui.com/) - Modern UI component library
-- [datafusion-table-providers](https://github.com/apache/arrow-datafusion-table-providers) - DataFusion extension
+- [Apache DataFusion](https://github.com/apache/datafusion) — High-performance SQL query engine
+- [datafusion-table-providers](https://github.com/apache/arrow-datafusion-table-providers) — DataFusion extension (MySQL support)
+- [Tauri](https://tauri.app/) — Modern desktop application framework
+- [React](https://reactjs.org/) — User interface library
+- [HeroUI](https://heroui.com/) — UI component library
+- [calamine](https://github.com/calamine/calamine) — Excel file parsing
+- [Ace Editor](https://ace.c9.io/) — Code editor
 
 ### Contributors
 
 <a href="https://github.com/shencangsheng/easydb_app/contributors">
-  <img src="https://contrib.rocks/image?repo=shencangsheng/easydb_app" /></a>
+  <img src="https://contrib.rocks/image?repo=shencangsheng/easydb_app" />
+</a>
 
-## 📞 Contact Us
+## Contact
 
-- 🐛 **Bug Reports**: [GitHub Issues](https://github.com/shencangsheng/easydb_app/issues)
-- 💬 **Discussions**: [GitHub Discussions](https://github.com/shencangsheng/easydb_app/discussions)
-- 📧 **Email**: shencangsheng@126.com
+- Bug Reports: [GitHub Issues](https://github.com/shencangsheng/easydb_app/issues)
+- Discussions: [GitHub Discussions](https://github.com/shencangsheng/easydb_app/discussions)
+- Email: shencangsheng@126.com
 
 ---
 
 <div align="center">
 
-**⭐ If this project helps you, please give us a Star!**
+**If this project helps you, please give us a Star**
 
 Made with ❤️ by [Cangsheng Shen](https://github.com/shencangsheng)
 
