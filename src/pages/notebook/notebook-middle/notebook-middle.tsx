@@ -462,7 +462,7 @@ function NotebookMiddle({ source }: NotebookMiddleProps) {
               isDisabled={sql === ""}
               style={{ backgroundColor: "transparent" }}
               aria-label={isRunning ? translate("notebook.stop") : `${translate("notebook.run")} (⌘Enter / F5)`}
-              onPress={isRunning ? cancelQuery : executeQuery}
+              onPress={isRunning ? cancelQuery : () => executeQuery()}
             >
               <FontAwesomeIcon
                 icon={isRunning ? faStop : faPlay}
