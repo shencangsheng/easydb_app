@@ -1,5 +1,12 @@
 # Changelog
 
+v2.7.0 - 2026-05-18
+
+- Added column type configuration for SQL export, supporting INT/DOUBLE/TEXT target types per column; numeric types are not wrapped in quotes, text types are always wrapped in quotes
+- Added editor keyboard shortcuts: ⌘Enter/F5 to execute query, ⌘K to format SQL
+- Optimized Excel numeric type inference, integer values are no longer misidentified as Float64 type
+- Refactored SQL export dialog into a left-right dual-panel layout, with basic settings on the left and column type configuration panel on the right
+
 v2.6.0 - 2026-02-27
 
 - Optimized query result paging loading, loading 200 rows per page

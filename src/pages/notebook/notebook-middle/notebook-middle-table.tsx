@@ -48,6 +48,18 @@ interface ExportResult {
   file_name: string;
 }
 
+interface ColumnTypeInfo {
+  column_name: string;
+  arrow_type: string;
+  default_sql_type: string;
+}
+
+const SQL_TYPE_OPTIONS = [
+  "INT",
+  "DOUBLE",
+  "TEXT",
+];
+
 // 预定义静态样式对象，避免每次渲染创建新对象
 const CONTAINER_STYLE = {
   display: "flex",
@@ -113,6 +125,9 @@ function DataTable({
   const [sqlStatementType, setSqlStatementType] = useState("INSERT");
   const [whereColumn, setWhereColumn] = useState("");
   const [databaseDialect, setDatabaseDialect] = useState("MySQL");
+  const [columnTypes, setColumnTypes] = useState<ColumnTypeInfo[]>([]);
+  const [selectedColumnTypes, setSelectedColumnTypes] = useState<string[]>([]);
+  const [isLoadingColumnTypes, setIsLoadingColumnTypes] = useState(false);
   const { translate } = useTranslation();
 
   // 自动隐藏提示
@@ -131,7 +146,8 @@ function DataTable({
     maxValuesPerInsert?: number,
     sqlStatementType?: string,
     whereColumn?: string,
-    dialect?: string
+    dialect?: string,
+    columnTypes?: string[]
   ) {
     try {
       setIsDownloading(true);
@@ -145,6 +161,7 @@ function DataTable({
         sqlStatementType: fileType === "SQL" ? sqlStatementType : undefined,
         whereColumn: fileType === "SQL" ? whereColumn : undefined,
         dialect: fileType === "SQL" ? dialect : undefined,
+        columnTypes: fileType === "SQL" ? columnTypes : undefined,
       });
       setExportResult(result);
     } catch (error) {
@@ -154,13 +171,37 @@ function DataTable({
     }
   }
 
-  function handleSqlExport() {
+  async function handleSqlExport() {
     setSqlStatementType("INSERT");
     setTableName("table_name");
     setMaxValuesPerInsert(1000);
     setWhereColumn("");
     setDatabaseDialect("MySQL");
+    setColumnTypes([]);
+    setSelectedColumnTypes([]);
     setIsTableNameModalOpen(true);
+
+    // Fetch column types from backend
+    setIsLoadingColumnTypes(true);
+    try {
+      const result = await invoke<{ columns: ColumnTypeInfo[] }>("fetch_column_types", {
+        sql,
+      });
+      setColumnTypes(result.columns);
+      setSelectedColumnTypes(result.columns.map((c) => c.default_sql_type));
+    } catch (error) {
+      console.error("Failed to fetch column types:", error);
+      // Fallback: use header names with TEXT type
+      const fallback = data.header.map((h) => ({
+        column_name: h,
+        arrow_type: "Unknown",
+        default_sql_type: "TEXT",
+      }));
+      setColumnTypes(fallback);
+      setSelectedColumnTypes(fallback.map((c) => c.default_sql_type));
+    } finally {
+      setIsLoadingColumnTypes(false);
+    }
   }
 
   async function confirmSqlExport() {
@@ -171,7 +212,8 @@ function DataTable({
       maxValuesPerInsert,
       sqlStatementType,
       whereColumn,
-      databaseDialect
+      databaseDialect,
+      selectedColumnTypes
     );
   }
 
@@ -286,9 +328,9 @@ function DataTable({
         isOpen={isTableNameModalOpen}
         onOpenChange={setIsTableNameModalOpen}
         placement="center"
-        size="lg"
+        size="3xl"
         classNames={{
-          base: "bg-background",
+          base: "bg-background !max-h-[80vh] flex flex-col",
           backdrop: "bg-black/50",
         }}
       >
@@ -306,162 +348,231 @@ function DataTable({
                 </p>
               </ModalHeader>
 
-              <ModalBody className="gap-6 py-6">
-                {/* SQL 语句类型选择 */}
-                <div className="space-y-3">
-                  <div className="flex items-center gap-2">
-                    <label className="text-sm font-medium text-foreground">
-                      {translate("notebook.export.sqlStatementType")}
-                    </label>
-                    <span className="text-danger text-sm">*</span>
+              <ModalBody className="gap-0 py-0 overflow-hidden flex-1">
+                <div className="flex h-full gap-4">
+                  {/* 左侧：基本设置表单 */}
+                  <div className="flex-1 flex flex-col gap-6 overflow-y-auto py-6 pr-2 min-w-0">
+                    {/* SQL 语句类型选择 */}
+                    <div className="space-y-3">
+                      <div className="flex items-center gap-2">
+                        <label className="text-sm font-medium text-foreground">
+                          {translate("notebook.export.sqlStatementType")}
+                        </label>
+                        <span className="text-danger text-sm">*</span>
+                      </div>
+                      <Tabs
+                        selectedKey={sqlStatementType}
+                        onSelectionChange={(key) =>
+                          setSqlStatementType(key as string)
+                        }
+                        variant="solid"
+                        color="primary"
+                        size="lg"
+                        classNames={{
+                          base: "w-full",
+                          tabList:
+                            "gap-0 w-full relative rounded-xl p-1 bg-default-100",
+                          cursor: "w-full bg-background shadow-md rounded-lg",
+                          tab: "flex-1 px-6 h-12 min-w-0 w-1/2 font-medium",
+                          tabContent:
+                            "group-data-[selected=true]:text-primary text-center font-semibold",
+                        }}
+                      >
+                        <Tab key="INSERT" title="INSERT" />
+                        <Tab key="UPDATE" title="UPDATE" />
+                      </Tabs>
+                    </div>
+
+                    {/* 表名输入 */}
+                    <div className="space-y-2">
+                      <Input
+                        label={translate("notebook.export.tableName")}
+                        placeholder={translate(
+                          "notebook.export.tableNamePlaceholder"
+                        )}
+                        value={tableName}
+                        onChange={(e) => setTableName(e.target.value)}
+                        autoFocus
+                        size="lg"
+                        isRequired
+                        variant="bordered"
+                        autoComplete="off"
+                        autoCapitalize="off"
+                        autoCorrect="off"
+                        spellCheck="false"
+                        classNames={{
+                          input: "text-base",
+                          label: "text-sm font-medium",
+                          inputWrapper:
+                            "border-default-200 hover:border-primary-300 focus-within:border-primary-500",
+                        }}
+                      />
+                    </div>
+
+                    {/* WHERE 字段选择 */}
+                    <div className="space-y-2">
+                      <Select
+                        label={translate("notebook.export.whereColumn")}
+                        placeholder={translate(
+                          "notebook.export.whereColumnPlaceholder"
+                        )}
+                        selectedKeys={whereColumn ? [whereColumn] : []}
+                        onSelectionChange={(keys) => {
+                          const selectedKey = Array.from(keys)[0] as string;
+                          setWhereColumn(selectedKey || "");
+                        }}
+                        size="lg"
+                        variant="bordered"
+                        isDisabled={sqlStatementType === "INSERT"}
+                        isRequired={sqlStatementType === "UPDATE"}
+                        classNames={{
+                          trigger:
+                            "text-base border-default-200 hover:border-primary-300 focus-within:border-primary-500",
+                          label: "text-sm font-medium",
+                          value: "text-base",
+                          listbox: "text-base",
+                        }}
+                      >
+                        {data.header.map((column) => (
+                          <SelectItem key={column} className="text-base">
+                            {column}
+                          </SelectItem>
+                        ))}
+                      </Select>
+                      {sqlStatementType === "INSERT" && (
+                        <p className="text-xs text-default-400">
+                          {translate("notebook.export.whereColumnDisabledHint")}
+                        </p>
+                      )}
+                    </div>
+
+                    {/* 批次大小设置 */}
+                    <div className="space-y-2">
+                      <Input
+                        label={translate("notebook.export.maxValuesPerInsert")}
+                        placeholder={translate(
+                          "notebook.export.maxValuesPerInsertPlaceholder"
+                        )}
+                        value={maxValuesPerInsert.toString()}
+                        onChange={(e) => {
+                          setMaxValuesPerInsert(parseInt(e.target.value) || 1000);
+                        }}
+                        size="lg"
+                        type="number"
+                        min="1"
+                        variant="bordered"
+                        isDisabled={sqlStatementType === "UPDATE"}
+                        isRequired={sqlStatementType === "INSERT"}
+                        classNames={{
+                          input: "text-base",
+                          label: "text-sm font-medium",
+                          inputWrapper:
+                            "border-default-200 hover:border-primary-300 focus-within:border-primary-500",
+                        }}
+                      />
+                      {sqlStatementType === "UPDATE" && (
+                        <p className="text-xs text-default-400">
+                          {translate("notebook.export.batchSizeDisabledHint")}
+                        </p>
+                      )}
+                    </div>
+
+                    {/* 数据库方言选择 */}
+                    <div className="space-y-2">
+                      <Select
+                        label={translate("notebook.export.databaseDialect")}
+                        placeholder={translate(
+                          "notebook.export.databaseDialectPlaceholder"
+                        )}
+                        selectedKeys={databaseDialect ? [databaseDialect] : []}
+                        onSelectionChange={(keys) => {
+                          const selectedKey = Array.from(keys)[0] as string;
+                          setDatabaseDialect(selectedKey || "MySQL");
+                        }}
+                        size="lg"
+                        variant="bordered"
+                        defaultSelectedKeys={["MySQL"]}
+                        classNames={{
+                          trigger:
+                            "text-base border-default-200 hover:border-primary-300 focus-within:border-primary-500",
+                          label: "text-sm font-medium",
+                          value: "text-base",
+                          listbox: "text-base",
+                        }}
+                      >
+                        <SelectItem key="MySQL" className="text-base">
+                          {translate("notebook.export.mysql")}
+                        </SelectItem>
+                        <SelectItem key="PostgreSQL" className="text-base">
+                          {translate("notebook.export.postgresql")}
+                        </SelectItem>
+                      </Select>
+                    </div>
                   </div>
-                  <Tabs
-                    selectedKey={sqlStatementType}
-                    onSelectionChange={(key) =>
-                      setSqlStatementType(key as string)
-                    }
-                    variant="solid"
-                    color="primary"
-                    size="lg"
-                    classNames={{
-                      base: "w-full",
-                      tabList:
-                        "gap-0 w-full relative rounded-xl p-1 bg-default-100",
-                      cursor: "w-full bg-background shadow-md rounded-lg",
-                      tab: "flex-1 px-6 h-12 min-w-0 w-1/2 font-medium",
-                      tabContent:
-                        "group-data-[selected=true]:text-primary text-center font-semibold",
-                    }}
-                  >
-                    <Tab key="INSERT" title="INSERT" />
-                    <Tab key="UPDATE" title="UPDATE" />
-                  </Tabs>
-                </div>
 
-                {/* 表名输入 */}
-                <div className="space-y-2">
-                  <Input
-                    label={translate("notebook.export.tableName")}
-                    placeholder={translate(
-                      "notebook.export.tableNamePlaceholder"
-                    )}
-                    value={tableName}
-                    onChange={(e) => setTableName(e.target.value)}
-                    autoFocus
-                    size="lg"
-                    isRequired
-                    variant="bordered"
-                    autoComplete="off"
-                    autoCapitalize="off"
-                    autoCorrect="off"
-                    spellCheck="false"
-                    classNames={{
-                      input: "text-base",
-                      label: "text-sm font-medium",
-                      inputWrapper:
-                        "border-default-200 hover:border-primary-300 focus-within:border-primary-500",
-                    }}
-                  />
-                </div>
-
-                {/* WHERE 字段选择 */}
-                <div className="space-y-2">
-                  <Select
-                    label={translate("notebook.export.whereColumn")}
-                    placeholder={translate(
-                      "notebook.export.whereColumnPlaceholder"
-                    )}
-                    selectedKeys={whereColumn ? [whereColumn] : []}
-                    onSelectionChange={(keys) => {
-                      const selectedKey = Array.from(keys)[0] as string;
-                      setWhereColumn(selectedKey || "");
-                    }}
-                    size="lg"
-                    variant="bordered"
-                    isDisabled={sqlStatementType === "INSERT"}
-                    isRequired={sqlStatementType === "UPDATE"}
-                    classNames={{
-                      trigger:
-                        "text-base border-default-200 hover:border-primary-300 focus-within:border-primary-500",
-                      label: "text-sm font-medium",
-                      value: "text-base",
-                      listbox: "text-base",
-                    }}
-                  >
-                    {data.header.map((column) => (
-                      <SelectItem key={column} className="text-base">
-                        {column}
-                      </SelectItem>
-                    ))}
-                  </Select>
-                  {sqlStatementType === "INSERT" && (
-                    <p className="text-xs text-default-400">
-                      {translate("notebook.export.whereColumnDisabledHint")}
+                  {/* 右侧：导出列类型配置 */}
+                  <div className="w-[360px] border-l border-default-200 flex flex-col py-6 overflow-hidden">
+                    <div className="flex items-center gap-2 px-4">
+                      <label className="text-sm font-medium text-foreground">
+                        {translate("notebook.export.columnTypes")}
+                      </label>
+                      {isLoadingColumnTypes && (
+                        <FontAwesomeIcon icon={faSpinner} spin className="text-default-400 text-sm" />
+                      )}
+                    </div>
+                    <p className="text-xs text-default-400 px-4 mt-1">
+                      {translate("notebook.export.columnTypesDescription")}
                     </p>
-                  )}
-                </div>
-
-                {/* 批次大小设置 */}
-                <div className="space-y-2">
-                  <Input
-                    label={translate("notebook.export.maxValuesPerInsert")}
-                    placeholder={translate(
-                      "notebook.export.maxValuesPerInsertPlaceholder"
-                    )}
-                    value={maxValuesPerInsert.toString()}
-                    onChange={(e) => {
-                      setMaxValuesPerInsert(parseInt(e.target.value) || 1000);
-                    }}
-                    size="lg"
-                    type="number"
-                    min="1"
-                    variant="bordered"
-                    isDisabled={sqlStatementType === "UPDATE"}
-                    isRequired={sqlStatementType === "INSERT"}
-                    classNames={{
-                      input: "text-base",
-                      label: "text-sm font-medium",
-                      inputWrapper:
-                        "border-default-200 hover:border-primary-300 focus-within:border-primary-500",
-                    }}
-                  />
-                  {sqlStatementType === "UPDATE" && (
-                    <p className="text-xs text-default-400">
-                      {translate("notebook.export.batchSizeDisabledHint")}
-                    </p>
-                  )}
-                </div>
-
-                {/* 数据库方言选择 */}
-                <div className="space-y-2">
-                  <Select
-                    label={translate("notebook.export.databaseDialect")}
-                    placeholder={translate(
-                      "notebook.export.databaseDialectPlaceholder"
-                    )}
-                    selectedKeys={databaseDialect ? [databaseDialect] : []}
-                    onSelectionChange={(keys) => {
-                      const selectedKey = Array.from(keys)[0] as string;
-                      setDatabaseDialect(selectedKey || "MySQL");
-                    }}
-                    size="lg"
-                    variant="bordered"
-                    defaultSelectedKeys={["MySQL"]}
-                    classNames={{
-                      trigger:
-                        "text-base border-default-200 hover:border-primary-300 focus-within:border-primary-500",
-                      label: "text-sm font-medium",
-                      value: "text-base",
-                      listbox: "text-base",
-                    }}
-                  >
-                    <SelectItem key="MySQL" className="text-base">
-                      {translate("notebook.export.mysql")}
-                    </SelectItem>
-                    <SelectItem key="PostgreSQL" className="text-base">
-                      {translate("notebook.export.postgresql")}
-                    </SelectItem>
-                  </Select>
+                    <div className="flex-1 overflow-y-auto mt-3 px-4">
+                      {columnTypes.length > 0 && (
+                        <div className="space-y-2">
+                          {columnTypes.map((col, index) => (
+                            <div
+                              key={col.column_name}
+                              className={`p-3 rounded-lg border border-default-200 ${index % 2 === 1 ? "bg-default-50" : "bg-background"}`}
+                            >
+                              <div className="flex items-center justify-between gap-2">
+                                <div className="min-w-0 flex-1">
+                                  <div className="text-sm font-medium text-foreground truncate">
+                                    {col.column_name}
+                                  </div>
+                                  <div className="text-xs text-default-400 mt-0.5 truncate">
+                                    {col.arrow_type}
+                                  </div>
+                                </div>
+                                <Select
+                                  selectedKeys={selectedColumnTypes[index] ? [selectedColumnTypes[index]] : []}
+                                  onSelectionChange={(keys) => {
+                                    const selectedKey = Array.from(keys)[0] as string;
+                                    setSelectedColumnTypes((prev) => {
+                                      const newTypes = [...prev];
+                                      newTypes[index] = selectedKey;
+                                      return newTypes;
+                                    });
+                                  }}
+                                  size="sm"
+                                  variant="bordered"
+                                  classNames={{
+                                    base: "w-[120px] shrink-0",
+                                    trigger: "text-sm min-h-[32px] border-default-200",
+                                    value: "text-sm",
+                                    listbox: "text-sm",
+                                    popoverContent: "max-h-[200px]",
+                                  }}
+                                >
+                                  {SQL_TYPE_OPTIONS.map((type) => (
+                                    <SelectItem key={type} className="text-sm">
+                                      {type}
+                                    </SelectItem>
+                                  ))}
+                                </Select>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
                 </div>
               </ModalBody>
 

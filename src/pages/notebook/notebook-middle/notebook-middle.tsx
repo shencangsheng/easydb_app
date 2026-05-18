@@ -1,4 +1,4 @@
-import CustomAceEditor from "@/components/common/ace-editor";
+import CustomAceEditor, { AceEditorInstance } from "@/components/common/ace-editor";
 import {
   faServer,
   faStop,
@@ -22,6 +22,8 @@ import { invoke } from "@tauri-apps/api/core";
 import { useTranslation } from "@/i18n";
 import { listen } from "@tauri-apps/api/event";
 
+const SQL_STORAGE_KEY = "notebook-sql";
+
 const QUERY_PAGE_SIZE = 200;
 
 interface NotebookMiddleProps {
@@ -37,7 +39,10 @@ function getFormatSql(sql: string) {
 
 function NotebookMiddle({ source }: NotebookMiddleProps) {
   const { translate } = useTranslation();
-  const [sql, setSql] = useState("");
+  const [sql, setSql] = useState(() => {
+    const saved = localStorage.getItem(SQL_STORAGE_KEY);
+    return saved ?? "";
+  });
   const [isRunning, setIsRunning] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [data, setData] = useState<{
@@ -54,7 +59,7 @@ function NotebookMiddle({ source }: NotebookMiddleProps) {
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const dropAreaRef = useRef<HTMLDivElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
-  const editorRef = useRef<{ getSelectedText: () => string } | null>(null);
+  const editorRef = useRef<AceEditorInstance | null>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
   const [isDropModalOpen, setIsDropModalOpen] = useState(false);
   const [droppedFilePath, setDroppedFilePath] = useState<string | null>(null);
@@ -62,10 +67,20 @@ function NotebookMiddle({ source }: NotebookMiddleProps) {
     string | null
   >(null);
 
-  // Cache format function with useCallback
+  // Format selected text only, or the entire SQL if nothing is selected
   const formatSql = useCallback(() => {
-    setSql(getFormatSql(sql));
-  }, [sql]);
+    if (!editorRef.current) return;
+
+    const selectedText = editorRef.current.getSelectedText();
+    if (selectedText && selectedText.trim()) {
+      const formatted = getFormatSql(selectedText);
+      editorRef.current.insert(formatted);
+      return;
+    }
+
+    const fullValue = editorRef.current.getSession().getValue();
+    setSql(getFormatSql(fullValue));
+  }, []);
 
   // Cache clear function with useCallback
   const clearSql = useCallback(() => {
@@ -189,13 +204,15 @@ function NotebookMiddle({ source }: NotebookMiddleProps) {
   ]);
 
   // Cache query execution function with useCallback
-  const executeQuery = useCallback(async () => {
-    // Get selected text, use selected text if available, otherwise use entire SQL
-    let sqlToExecute = sql;
-    if (editorRef.current) {
-      const selectedText = editorRef.current.getSelectedText();
-      if (selectedText && selectedText.trim()) {
-        sqlToExecute = selectedText;
+  const executeQuery = useCallback(async (sqlToExecute?: string) => {
+    if (!sqlToExecute) {
+      if (editorRef.current) {
+        const selectedText = editorRef.current.getSelectedText();
+        sqlToExecute = (selectedText && selectedText.trim())
+          ? selectedText
+          : editorRef.current.getSession().getValue();
+      } else {
+        sqlToExecute = sql;
       }
     }
 
@@ -253,7 +270,7 @@ function NotebookMiddle({ source }: NotebookMiddleProps) {
       setIsLoading(false);
       abortControllerRef.current = null;
     }
-  }, [sql, isRunning]);
+  }, [isRunning, sql]);
 
   // Cache cancel query function with useCallback
   const cancelQuery = useCallback(() => {
@@ -263,6 +280,29 @@ function NotebookMiddle({ source }: NotebookMiddleProps) {
       setIsLoading(false);
     }
   }, []);
+
+  // Ace editor commands for keyboard shortcuts
+  const editorCommands = useMemo(
+    () => [
+      {
+        name: "executeQuery",
+        bindKey: { win: "Ctrl-Enter|F5", mac: "Cmd-Enter|F5" },
+        exec: () => {
+          if (!isRunning) {
+            executeQuery();
+          }
+        },
+      },
+      {
+        name: "formatSql",
+        bindKey: { win: "Ctrl-K", mac: "Cmd-K" },
+        exec: () => {
+          formatSql();
+        },
+      },
+    ],
+    [executeQuery, formatSql, isRunning],
+  );
 
   // Cache clear data function with useCallback
   const clearData = useCallback(() => {
@@ -347,6 +387,14 @@ function NotebookMiddle({ source }: NotebookMiddleProps) {
     }
   }, [isDropModalOpen]);
 
+  // Debounced auto-save SQL content to localStorage
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      localStorage.setItem(SQL_STORAGE_KEY, sql);
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [sql]);
+
   // Cache style objects with useMemo
   const containerStyle = useMemo(
     () => ({
@@ -413,7 +461,7 @@ function NotebookMiddle({ source }: NotebookMiddleProps) {
               isIconOnly
               isDisabled={sql === ""}
               style={{ backgroundColor: "transparent" }}
-              aria-label={isRunning ? "Stop query" : "Run query"}
+              aria-label={isRunning ? translate("notebook.stop") : `${translate("notebook.run")} (⌘Enter / F5)`}
               onPress={isRunning ? cancelQuery : executeQuery}
             >
               <FontAwesomeIcon
@@ -440,14 +488,14 @@ function NotebookMiddle({ source }: NotebookMiddleProps) {
                     icon={faAlignLeft}
                     style={{ marginRight: "5px" }}
                   />
-                  Format
+                  {translate("notebook.format")} (⌘K / Ctrl+K)
                 </DropdownItem>
                 <DropdownItem key="clear" onPress={clearSql}>
                   <FontAwesomeIcon
                     icon={faEraser}
                     style={{ marginRight: "5px" }}
                   />
-                  Clear
+                  {translate("notebook.clear")}
                 </DropdownItem>
               </DropdownMenu>
             </Dropdown>
@@ -469,6 +517,7 @@ function NotebookMiddle({ source }: NotebookMiddleProps) {
             onLoad={(editor) => {
               editorRef.current = editor;
             }}
+            commands={editorCommands}
             placeholder={`${translate(
               "notebook.editorPlaceholder",
             )}\n\n${translate("notebook.dragDropHint")}`}
