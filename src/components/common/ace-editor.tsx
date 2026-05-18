@@ -6,9 +6,10 @@ import { useEffect, useRef, useCallback } from "react";
 import langTools from "ace-builds/src-noconflict/ext-language_tools";
 import { useTranslation } from "@/i18n";
 
-interface AceEditorInstance {
+export interface AceEditorInstance {
   getSelectedText: () => string;
   getCursorPosition: () => { row: number; column: number };
+  insert: (text: string) => void;
   getSession: () => {
     getValue: () => string;
   };

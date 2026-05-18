@@ -1,4 +1,4 @@
-import CustomAceEditor from "@/components/common/ace-editor";
+import CustomAceEditor, { AceEditorInstance } from "@/components/common/ace-editor";
 import {
   faServer,
   faStop,
@@ -59,23 +59,7 @@ function NotebookMiddle({ source }: NotebookMiddleProps) {
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const dropAreaRef = useRef<HTMLDivElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
-  const editorRef = useRef<{
-    getSelectedText: () => string;
-    getCursorPosition: () => { row: number; column: number };
-    getSession: () => {
-      getValue: () => string;
-    };
-    commands: {
-      addCommand: (command: {
-        name: string;
-        bindKey: { win?: string; mac?: string };
-        exec: (editor: unknown) => void;
-      }) => void;
-      removeCommand: (
-        command: { name: string } | string,
-      ) => void;
-    };
-  } | null>(null);
+  const editorRef = useRef<AceEditorInstance | null>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
   const [isDropModalOpen, setIsDropModalOpen] = useState(false);
   const [droppedFilePath, setDroppedFilePath] = useState<string | null>(null);
@@ -90,8 +74,7 @@ function NotebookMiddle({ source }: NotebookMiddleProps) {
     const selectedText = editorRef.current.getSelectedText();
     if (selectedText && selectedText.trim()) {
       const formatted = getFormatSql(selectedText);
-      const fullValue = editorRef.current.getSession().getValue();
-      setSql(fullValue.replace(selectedText, formatted));
+      editorRef.current.insert(formatted);
       return;
     }
 
@@ -225,11 +208,11 @@ function NotebookMiddle({ source }: NotebookMiddleProps) {
     if (!sqlToExecute) {
       if (editorRef.current) {
         const selectedText = editorRef.current.getSelectedText();
-        if (selectedText && selectedText.trim()) {
-          sqlToExecute = selectedText;
-        } else {
-          sqlToExecute = editorRef.current.getSession().getValue();
-        }
+        sqlToExecute = (selectedText && selectedText.trim())
+          ? selectedText
+          : editorRef.current.getSession().getValue();
+      } else {
+        sqlToExecute = sql;
       }
     }
 
@@ -287,7 +270,7 @@ function NotebookMiddle({ source }: NotebookMiddleProps) {
       setIsLoading(false);
       abortControllerRef.current = null;
     }
-  }, [isRunning]);
+  }, [isRunning, sql]);
 
   // Cache cancel query function with useCallback
   const cancelQuery = useCallback(() => {
@@ -404,9 +387,12 @@ function NotebookMiddle({ source }: NotebookMiddleProps) {
     }
   }, [isDropModalOpen]);
 
-  // Auto-save SQL content to localStorage
+  // Debounced auto-save SQL content to localStorage
   useEffect(() => {
-    localStorage.setItem(SQL_STORAGE_KEY, sql);
+    const timer = setTimeout(() => {
+      localStorage.setItem(SQL_STORAGE_KEY, sql);
+    }, 500);
+    return () => clearTimeout(timer);
   }, [sql]);
 
   // Cache style objects with useMemo
