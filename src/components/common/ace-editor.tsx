@@ -2,12 +2,26 @@ import AceEditor from "react-ace";
 import "ace-builds/src-noconflict/theme-sqlserver";
 import "ace-builds/src-noconflict/mode-sql";
 import "ace-builds/src-noconflict/snippets/sql";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useCallback } from "react";
 import langTools from "ace-builds/src-noconflict/ext-language_tools";
 import { useTranslation } from "@/i18n";
 
 interface AceEditorInstance {
   getSelectedText: () => string;
+  getCursorPosition: () => { row: number; column: number };
+  getSession: () => {
+    getValue: () => string;
+  };
+  commands: {
+    addCommand: (command: AceEditorCommand) => void;
+    removeCommand: (command: AceEditorCommand | string) => void;
+  };
+}
+
+interface AceEditorCommand {
+  name: string;
+  bindKey: { win?: string; mac?: string };
+  exec: (editor: AceEditorInstance) => void;
 }
 
 interface AceEditorProps {
@@ -27,6 +41,7 @@ interface AceEditorProps {
   tabSize?: number;
   onLoad?: (editor: AceEditorInstance) => void;
   tableColumns?: string[];
+  commands?: AceEditorCommand[];
 }
 
 function CustomAceEditor({
@@ -46,6 +61,7 @@ function CustomAceEditor({
   tabSize = 2,
   onLoad,
   tableColumns = [],
+  commands = [],
 }: AceEditorProps) {
   const { translate } = useTranslation();
   const completerAdded = useRef(false);
@@ -55,6 +71,38 @@ function CustomAceEditor({
   useEffect(() => {
     tableColumnsRef.current = tableColumns || [];
   }, [tableColumns]);
+
+  // Track editor instance and previous command names for updates
+  const editorRef = useRef<AceEditorInstance | null>(null);
+  const prevCommandNamesRef = useRef<string[]>([]);
+
+  // Register custom Ace editor commands on load
+  const handleLoad = useCallback(
+    (editor: AceEditorInstance) => {
+      editorRef.current = editor;
+      commands.forEach((cmd) => {
+        editor.commands.addCommand(cmd);
+      });
+      prevCommandNamesRef.current = commands.map((cmd) => cmd.name);
+      onLoad?.(editor);
+    },
+    [commands, onLoad],
+  );
+
+  // Update commands when they change (remove old, add new)
+  useEffect(() => {
+    const editor = editorRef.current;
+    if (!editor) return;
+    // Remove previously registered commands by name
+    prevCommandNamesRef.current.forEach((name) => {
+      editor.commands.removeCommand(name);
+    });
+    // Add new commands
+    commands.forEach((cmd) => {
+      editor.commands.addCommand(cmd);
+    });
+    prevCommandNamesRef.current = commands.map((cmd) => cmd.name);
+  }, [commands]);
 
   useEffect(() => {
     // Ensure the completer is only added once
@@ -188,7 +236,7 @@ function CustomAceEditor({
       placeholder={placeholder}
       value={value}
       onChange={onChange}
-      onLoad={onLoad}
+      onLoad={handleLoad}
       setOptions={{
         enableBasicAutocompletion,
         enableLiveAutocompletion,

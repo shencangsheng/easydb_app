@@ -1,4 +1,4 @@
-import { faTable } from "@fortawesome/free-solid-svg-icons";
+import { faTable, faPlay, faAlignLeft } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   Modal,
@@ -10,6 +10,7 @@ import {
 } from "@heroui/react";
 import { memo, useState, useRef, useMemo, useCallback, useEffect } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
+import { useTranslation } from "../../../i18n";
 import {
   useReactTable,
   getCoreRowModel,
@@ -47,6 +48,14 @@ function DataResult({
 }: DataResultProps) {
   const { isOpen, onOpen, onOpenChange } = useDisclosure();
   const [selectedRowIndex, setSelectedRowIndex] = useState<number | null>(null);
+  const { translate } = useTranslation();
+
+  const isMac = useMemo(() => {
+    if (typeof navigator !== "undefined") {
+      return /Mac|iPod|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
+    }
+    return false;
+  }, []);
   const [modalSize, setModalSize] = useState({
     width: MODAL_DEFAULT_WIDTH,
     height: MODAL_DEFAULT_HEIGHT,
@@ -252,9 +261,51 @@ function DataResult({
             ) : (
               <>
                 <p className="font-medium text-default-500">
-                  No data available
+                  {translate("notebook.resultsEmptyTitle")}
                 </p>
-                <p className="text-sm">Run a query to see results here</p>
+                <p className="text-sm">{translate("notebook.resultsEmptyDescription")}</p>
+                <div className="mt-6 flex flex-col gap-3">
+                  <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-1">
+                      {isMac ? (
+                        <>
+                          <kbd className="inline-flex items-center justify-center min-w-[28px] h-[24px] px-1.5 rounded-md border border-default-300 bg-default-50 text-default-600 font-mono text-[11px] leading-none shadow-sm">⌘</kbd>
+                          <kbd className="inline-flex items-center justify-center min-w-[28px] h-[24px] px-1.5 rounded-md border border-default-300 bg-default-50 text-default-600 font-mono text-[11px] leading-none shadow-sm">Enter</kbd>
+                        </>
+                      ) : (
+                        <>
+                          <kbd className="inline-flex items-center justify-center min-w-[28px] h-[24px] px-1.5 rounded-md border border-default-300 bg-default-50 text-default-600 font-mono text-[11px] leading-none shadow-sm">Ctrl</kbd>
+                          <kbd className="inline-flex items-center justify-center min-w-[28px] h-[24px] px-1.5 rounded-md border border-default-300 bg-default-50 text-default-600 font-mono text-[11px] leading-none shadow-sm">Enter</kbd>
+                        </>
+                      )}
+                      <span className="text-default-400 text-xs mx-1">/</span>
+                      <kbd className="inline-flex items-center justify-center min-w-[28px] h-[24px] px-1.5 rounded-md border border-default-300 bg-default-50 text-default-600 font-mono text-[11px] leading-none shadow-sm">F5</kbd>
+                    </div>
+                    <div className="flex items-center gap-2 text-default-500">
+                      <FontAwesomeIcon icon={faPlay} style={{ fontSize: "0.85em", color: "#87CEEB" }} />
+                      <span className="text-sm">{translate("notebook.resultsEmptyShortcutRun")}</span>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-1">
+                      {isMac ? (
+                        <>
+                          <kbd className="inline-flex items-center justify-center min-w-[28px] h-[24px] px-1.5 rounded-md border border-default-300 bg-default-50 text-default-600 font-mono text-[11px] leading-none shadow-sm">⌘</kbd>
+                          <kbd className="inline-flex items-center justify-center min-w-[28px] h-[24px] px-1.5 rounded-md border border-default-300 bg-default-50 text-default-600 font-mono text-[11px] leading-none shadow-sm">K</kbd>
+                        </>
+                      ) : (
+                        <>
+                          <kbd className="inline-flex items-center justify-center min-w-[28px] h-[24px] px-1.5 rounded-md border border-default-300 bg-default-50 text-default-600 font-mono text-[11px] leading-none shadow-sm">Ctrl</kbd>
+                          <kbd className="inline-flex items-center justify-center min-w-[28px] h-[24px] px-1.5 rounded-md border border-default-300 bg-default-50 text-default-600 font-mono text-[11px] leading-none shadow-sm">K</kbd>
+                        </>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2 text-default-500">
+                      <FontAwesomeIcon icon={faAlignLeft} style={{ fontSize: "0.85em" }} />
+                      <span className="text-sm">{translate("notebook.resultsEmptyShortcutFormat")}</span>
+                    </div>
+                  </div>
+                </div>
               </>
             )}
           </div>

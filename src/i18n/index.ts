@@ -24,6 +24,11 @@ export interface Translations {
     stop: string;
     format: string;
     clear: string;
+    shortcutHint: string;
+    resultsEmptyTitle: string;
+    resultsEmptyDescription: string;
+    resultsEmptyShortcutRun: string;
+    resultsEmptyShortcutFormat: string;
     history: {
       title: string;
       emptyState: {
@@ -36,36 +41,36 @@ export interface Translations {
       noResults: string;
       noResultsDescription: string;
     };
-export: {
-        export: string;
-        completed: string;
-        queryTime: string;
-        fileName: string;
-        sqlExportSettings: string;
-        sqlStatementType: string;
-        sqlStatementTypePlaceholder: string;
-        insertDescription: string;
-        updateDescription: string;
-        whereColumn: string;
-        whereColumnPlaceholder: string;
-        whereColumnDisabledHint: string;
-        tableName: string;
-        tableNamePlaceholder: string;
-        maxValuesPerInsert: string;
-        maxValuesPerInsertPlaceholder: string;
-        batchSizeDisabledHint: string;
-        databaseDialect: string;
-        databaseDialectPlaceholder: string;
-        mysql: string;
-        postgresql: string;
-        cancel: string;
-        confirmExport: string;
-        columnTypes: string;
-        columnTypesDescription: string;
-        columnName: string;
-        arrowType: string;
-        sqlType: string;
-      };
+    export: {
+      export: string;
+      completed: string;
+      queryTime: string;
+      fileName: string;
+      sqlExportSettings: string;
+      sqlStatementType: string;
+      sqlStatementTypePlaceholder: string;
+      insertDescription: string;
+      updateDescription: string;
+      whereColumn: string;
+      whereColumnPlaceholder: string;
+      whereColumnDisabledHint: string;
+      tableName: string;
+      tableNamePlaceholder: string;
+      maxValuesPerInsert: string;
+      maxValuesPerInsertPlaceholder: string;
+      batchSizeDisabledHint: string;
+      databaseDialect: string;
+      databaseDialectPlaceholder: string;
+      mysql: string;
+      postgresql: string;
+      cancel: string;
+      confirmExport: string;
+      columnTypes: string;
+      columnTypesDescription: string;
+      columnName: string;
+      arrowType: string;
+      sqlType: string;
+    };
   };
   functions: {
     title: string;
@@ -208,6 +213,11 @@ const translations: Record<Language, Translations> = {
       stop: "停止",
       format: "格式化",
       clear: "清空",
+      shortcutHint: "快捷键: ⌘Enter/F5 执行查询, ⌘K 格式化SQL",
+      resultsEmptyTitle: "暂无查询结果",
+      resultsEmptyDescription: "执行 SQL 查询以查看结果",
+      resultsEmptyShortcutRun: "执行查询",
+      resultsEmptyShortcutFormat: "格式化 SQL",
       history: {
         title: "查询历史",
         emptyState: {
@@ -245,7 +255,8 @@ const translations: Record<Language, Translations> = {
         cancel: "取消",
         confirmExport: "确认导出",
         columnTypes: "导出列类型",
-        columnTypesDescription: "为每列选择目标 SQL 类型，INT/DOUBLE 类型的值将不被引号包裹，TEXT 类型的值将始终被引号包裹",
+        columnTypesDescription:
+          "为每列选择目标 SQL 类型，INT/DOUBLE 类型的值将不被引号包裹，TEXT 类型的值将始终被引号包裹",
         columnName: "列名",
         arrowType: "原始类型",
         sqlType: "SQL 类型",
@@ -401,6 +412,11 @@ const translations: Record<Language, Translations> = {
       stop: "Stop",
       format: "Format",
       clear: "Clear",
+      shortcutHint: "Shortcuts: ⌘Enter/F5 Run Query, ⌘K Format SQL",
+      resultsEmptyTitle: "No Query Results",
+      resultsEmptyDescription: "Run a SQL query to see results",
+      resultsEmptyShortcutRun: "Run Query",
+      resultsEmptyShortcutFormat: "Format SQL",
       history: {
         title: "Query History",
         emptyState: {
@@ -440,7 +456,8 @@ const translations: Record<Language, Translations> = {
         cancel: "Cancel",
         confirmExport: "Confirm Export",
         columnTypes: "Export Column Types",
-        columnTypesDescription: "Select the target SQL type for each column. INT/DOUBLE types won't be quoted, TEXT type will always be quoted",
+        columnTypesDescription:
+          "Select the target SQL type for each column. INT/DOUBLE types won't be quoted, TEXT type will always be quoted",
         columnName: "Column",
         arrowType: "Source Type",
         sqlType: "SQL Type",
@@ -658,7 +675,7 @@ class I18n {
 
       if (!value) {
         console.warn(
-          `No translations found for language: ${this.currentLanguage}`
+          `No translations found for language: ${this.currentLanguage}`,
         );
         return key;
       }

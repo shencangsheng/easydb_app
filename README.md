@@ -91,18 +91,18 @@ See [CHANGELOG_EN.md](CHANGELOG_EN.md)
 
 ### Core Tech Stack
 
-| Layer | Technology |
-| --- | --- |
-| Frontend | React 18 + TypeScript + Vite |
-| Backend | Rust + Tauri v2 |
-| Query Engine | [Apache DataFusion](https://github.com/apache/datafusion) 50.3 |
-| DB Connector | [datafusion-table-providers](https://github.com/apache/arrow-datafusion-table-providers) MySQL |
-| UI Framework | HeroUI + Tailwind CSS |
-| Virtual Scroll | @tanstack/react-virtual + @tanstack/react-table |
-| SQL Editor | Ace Editor (react-ace) |
-| SQL Parsing | sqlparser-rs (Rust) + node-sql-parser (JS) |
-| i18n | Lightweight custom i18n, zh-CN / en-US |
-| History Storage | SQLite (rusqlite) |
+| Layer           | Technology                                                                                     |
+| --------------- | ---------------------------------------------------------------------------------------------- |
+| Frontend        | React 18 + TypeScript + Vite                                                                   |
+| Backend         | Rust + Tauri v2                                                                                |
+| Query Engine    | [Apache DataFusion](https://github.com/apache/datafusion) 50.3                                 |
+| DB Connector    | [datafusion-table-providers](https://github.com/apache/arrow-datafusion-table-providers) MySQL |
+| UI Framework    | HeroUI + Tailwind CSS                                                                          |
+| Virtual Scroll  | @tanstack/react-virtual + @tanstack/react-table                                                |
+| SQL Editor      | Ace Editor (react-ace)                                                                         |
+| SQL Parsing     | sqlparser-rs (Rust) + node-sql-parser (JS)                                                     |
+| i18n            | Lightweight custom i18n, zh-CN / en-US                                                         |
+| History Storage | SQLite (rusqlite)                                                                              |
 
 ### Query Engine Selection
 
@@ -166,58 +166,58 @@ WHERE REGEXP_LIKE("Distance", '^([0-9]+)\.([0-9]+)?$');
 
 ### Supported Data Sources
 
-| Format | Function | Description |
-| --- | --- | --- |
-| CSV | `read_csv()` | Custom delimiter, header, schema inference |
-| TSV | `read_tsv()` | Tab-separated files |
-| Text | `read_text()` | General text files with custom delimiter |
-| Excel | `read_excel()` / `read_xlsx()` | `.xlsx` support, optional worksheet |
-| NdJson | `read_ndjson()` | One JSON object per line |
-| Parquet | `read_parquet()` | Columnar storage format |
-| MySQL | `read_mysql()` | Direct MySQL database table connection |
+| Format  | Function                       | Description                                |
+| ------- | ------------------------------ | ------------------------------------------ |
+| CSV     | `read_csv()`                   | Custom delimiter, header, schema inference |
+| TSV     | `read_tsv()`                   | Tab-separated files                        |
+| Text    | `read_text()`                  | General text files with custom delimiter   |
+| Excel   | `read_excel()` / `read_xlsx()` | `.xlsx` support, optional worksheet        |
+| NdJson  | `read_ndjson()`                | One JSON object per line                   |
+| Parquet | `read_parquet()`               | Columnar storage format                    |
+| MySQL   | `read_mysql()`                 | Direct MySQL database table connection     |
 
 ### Function Parameters
 
 <details>
 <summary><code>read_csv()</code> parameters</summary>
 
-| Parameter | Type | Default | Description |
-| --- | --- | --- | --- |
-| `infer_schema` | boolean | true | Auto-infer data types (based on first 100 rows) |
-| `has_header` | boolean | true | Whether the file contains a header row |
-| `delimiter` | string | `,` | Field delimiter, supports escape sequences like `\t`, `\n` |
-| `file_extension` | string | `.csv` | File extension |
+| Parameter        | Type    | Default | Description                                                |
+| ---------------- | ------- | ------- | ---------------------------------------------------------- |
+| `infer_schema`   | boolean | true    | Auto-infer data types (based on first 100 rows)            |
+| `has_header`     | boolean | true    | Whether the file contains a header row                     |
+| `delimiter`      | string  | `,`     | Field delimiter, supports escape sequences like `\t`, `\n` |
+| `file_extension` | string  | `.csv`  | File extension                                             |
 
 </details>
 
 <details>
 <summary><code>read_excel()</code> parameters</summary>
 
-| Parameter | Type | Default | Description |
-| --- | --- | --- | --- |
-| `sheet_name` | string | First sheet | Name of the worksheet to read |
-| `infer_schema` | boolean | true | Auto-infer data types |
+| Parameter      | Type    | Default     | Description                   |
+| -------------- | ------- | ----------- | ----------------------------- |
+| `sheet_name`   | string  | First sheet | Name of the worksheet to read |
+| `infer_schema` | boolean | true        | Auto-infer data types         |
 
 </details>
 
 <details>
 <summary><code>read_mysql()</code> parameters</summary>
 
-| Parameter | Type | Default | Description |
-| --- | --- | --- | --- |
-| `conn` | string | **Required** | MySQL connection string, e.g. `mysql://user:password@host:port/database` |
+| Parameter | Type   | Default      | Description                                                              |
+| --------- | ------ | ------------ | ------------------------------------------------------------------------ |
+| `conn`    | string | **Required** | MySQL connection string, e.g. `mysql://user:password@host:port/database` |
 
 </details>
 
 <details>
 <summary><code>read_text()</code> parameters</summary>
 
-| Parameter | Type | Default | Description |
-| --- | --- | --- | --- |
-| `infer_schema` | boolean | true | Auto-infer data types |
-| `has_header` | boolean | true | Whether the file contains a header row |
-| `delimiter` | string | `\t` | Field delimiter |
-| `file_extension` | string | `.txt` | File extension |
+| Parameter        | Type    | Default | Description                            |
+| ---------------- | ------- | ------- | -------------------------------------- |
+| `infer_schema`   | boolean | true    | Auto-infer data types                  |
+| `has_header`     | boolean | true    | Whether the file contains a header row |
+| `delimiter`      | string  | `\t`    | Field delimiter                        |
+| `file_extension` | string  | `.txt`  | File extension                         |
 
 </details>
 
@@ -346,6 +346,10 @@ Thanks to the following open source projects:
 <a href="https://github.com/shencangsheng/easydb_app/contributors">
   <img src="https://contrib.rocks/image?repo=shencangsheng/easydb_app" />
 </a>
+
+### AI Development
+
+Starting from v2.7.0, this project will be fully developed using AI. Earlier, the generation rate of AI for Rust code was very low, almost abusing `unwrap()` to handle errors, so the project only used AI for the front-end part, and the Rust part was almost written by hand. With the continuous improvement of AI capabilities and the addition of `skills`, AI has gradually taken over the development work of Rust code, expecting to use AI to overcome more technical challenges.
 
 ## Contact
 

@@ -1,10 +1,9 @@
-use crate::commands::query::{Dialect, is_sql_numeric_type};
+use crate::commands::query::{is_sql_numeric_type, Dialect};
 use crate::context::schema::AppResult;
 use datafusion::arrow::error::ArrowError;
 use datafusion::arrow::record_batch::RecordBatch;
 use datafusion::arrow::util::display::{ArrayFormatter, FormatOptions};
 use datafusion::dataframe::DataFrame;
-use datafusion_table_providers::mysql::MySQL;
 
 /// Strip trailing ".0" from float-formatted values that are actually integers
 fn strip_float_zero_suffix(value: &str) -> String {
@@ -171,7 +170,7 @@ pub async fn generate_sql_inserts(
         .join(", ");
     let insert_header_template = match db_dialect {
         Dialect::MySQL => format!("INSERT INTO `{}` ({}) VALUES\n", table_name, columns),
-        Dialect::PostgreSQL => format!("INSERT INTO \"{}\" ({}) VALUES\n", table_name, columns)
+        Dialect::PostgreSQL => format!("INSERT INTO \"{}\" ({}) VALUES\n", table_name, columns),
     };
     let chunk_limit = max_values_per_insert.max(1);
     let mut pending_rows: Vec<Vec<String>> = Vec::with_capacity(chunk_limit);
@@ -261,20 +260,18 @@ pub async fn generate_sql_update(
             if col_index != where_column_index {
                 set_clauses.push(match db_dialect {
                     Dialect::MySQL => format!("`{}` = {}", header, value),
-                    Dialect::PostgreSQL => format!("\"{}\" = {}", header, value)
+                    Dialect::PostgreSQL => format!("\"{}\" = {}", header, value),
                 });
             }
         }
 
         if !set_clauses.is_empty() {
             let where_value = &row[where_column_index];
-            let where_clause = 
-            match db_dialect {
+            let where_clause = match db_dialect {
                 Dialect::MySQL => format!("`{}` = {}", where_column, where_value),
-                Dialect::PostgreSQL => format!("\"{}\" = {}", where_column, where_value)
+                Dialect::PostgreSQL => format!("\"{}\" = {}", where_column, where_value),
             };
-            let update_statement = 
-            match db_dialect {
+            let update_statement = match db_dialect {
                 Dialect::MySQL => format!(
                     "UPDATE `{}` SET {} WHERE {};\n",
                     table_name,
@@ -286,7 +283,7 @@ pub async fn generate_sql_update(
                     table_name,
                     set_clauses.join(", "),
                     where_clause
-                )
+                ),
             };
             sql_statements.push_str(&update_statement);
         }
