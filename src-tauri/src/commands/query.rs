@@ -38,6 +38,18 @@ pub struct WriterResult {
     pub file_name: String,
 }
 
+#[derive(Serialize, Clone)]
+pub struct ColumnTypeInfo {
+    pub column_name: String,
+    pub arrow_type: String,
+    pub default_sql_type: String,
+}
+
+#[derive(Serialize)]
+pub struct ColumnTypesResult {
+    pub columns: Vec<ColumnTypeInfo>,
+}
+
 pub enum Dialect {
     MySQL,
     PostgreSQL,
@@ -56,6 +68,62 @@ impl Dialect {
             }),
         }
     }
+}
+
+/// Map Arrow DataType to a simplified default SQL type string
+fn arrow_type_to_sql_type(arrow_type: &datafusion::arrow::datatypes::DataType) -> String {
+    use datafusion::arrow::datatypes::DataType;
+
+    match arrow_type {
+        DataType::Boolean
+        | DataType::Int8 | DataType::Int16 | DataType::Int32
+        | DataType::Int64
+        | DataType::UInt8 | DataType::UInt16 | DataType::UInt32
+        | DataType::UInt64 => "INT".to_string(),
+        DataType::Float16 | DataType::Float32 | DataType::Float64 => "DOUBLE".to_string(),
+        DataType::Timestamp(_, _) | DataType::Date32 | DataType::Date64 => "TEXT".to_string(),
+        DataType::Utf8 | DataType::LargeUtf8 => "TEXT".to_string(),
+        DataType::Binary | DataType::LargeBinary => "TEXT".to_string(),
+        DataType::Decimal128(_, _) | DataType::Decimal256(_, _) => "DOUBLE".to_string(),
+        _ => "TEXT".to_string(),
+    }
+}
+
+/// Check if a SQL type is a numeric type (values should not be quoted in SQL)
+pub fn is_sql_numeric_type(sql_type: &str) -> bool {
+    let numeric_types = ["INT", "DOUBLE"];
+
+    let sql_type_upper = sql_type.to_uppercase();
+
+    for t in &numeric_types {
+        if sql_type_upper.starts_with(t) {
+            return true;
+        }
+    }
+    false
+}
+
+#[command]
+pub async fn fetch_column_types(sql: String) -> AppResult<ColumnTypesResult> {
+    run_blocking_async(move || async move {
+        let mut context = get_sql_context();
+        let new_sql = register(&mut context, &sql, None, None).await?;
+        let df = get_data_frame(&mut context, &new_sql).await?;
+
+        let columns = df
+            .schema()
+            .fields()
+            .iter()
+            .map(|f| ColumnTypeInfo {
+                column_name: f.name().to_string(),
+                arrow_type: f.data_type().to_string(),
+                default_sql_type: arrow_type_to_sql_type(f.data_type()),
+            })
+            .collect();
+
+        Ok(ColumnTypesResult { columns })
+    })
+    .await
 }
 
 #[command]
@@ -210,6 +278,7 @@ pub async fn writer(
     sql_statement_type: Option<String>,
     where_column: Option<String>,
     dialect: Option<String>,
+    column_types: Option<Vec<String>>,
 ) -> AppResult<WriterResult> {
     run_blocking_async(move || async move {
         let mut downloads_dir = dirs::download_dir().ok_or_else(|| AppError::BadRequest {
@@ -305,11 +374,11 @@ pub async fn writer(
                 let sql_content = match statement_type.as_str() {
                     "INSERT" => {
                         let max_values = max_values_per_insert.unwrap();
-                        generate_sql_inserts(df, &table_name_value, max_values, &db_dialect).await?
+                        generate_sql_inserts(df, &table_name_value, max_values, &db_dialect, column_types.as_deref()).await?
                     }
                     "UPDATE" => {
                         let where_column_value = where_column.unwrap();
-                        generate_sql_update(df, &table_name_value, &where_column_value, &db_dialect)
+                        generate_sql_update(df, &table_name_value, &where_column_value, &db_dialect, column_types.as_deref())
                             .await?
                     }
                     _ => {

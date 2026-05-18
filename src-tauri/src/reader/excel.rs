@@ -234,7 +234,16 @@ pub fn infer_field_schema(range: &Range<Data>, infer_schema_length: usize) -> Ap
 fn infer_cell_data_type(cell: &Data) -> DataType {
     match cell {
         Data::Int(_) => DataType::Int64,
-        Data::Float(_) => DataType::Float64,
+        Data::Float(v) => {
+            // Excel stores all numbers as Float64 internally.
+            // If the float value has no fractional part, treat it as Int64
+            // so columns of integer values get inferred as Int64, not Float64.
+            if v.fract() == 0.0 {
+                DataType::Int64
+            } else {
+                DataType::Float64
+            }
+        }
         Data::DateTime(_) => DataType::Timestamp(TimeUnit::Nanosecond, None),
         _ => DataType::Utf8,
     }

@@ -36,31 +36,36 @@ export interface Translations {
       noResults: string;
       noResultsDescription: string;
     };
-    export: {
-      export: string;
-      completed: string;
-      queryTime: string;
-      fileName: string;
-      sqlExportSettings: string;
-      sqlStatementType: string;
-      sqlStatementTypePlaceholder: string;
-      insertDescription: string;
-      updateDescription: string;
-      whereColumn: string;
-      whereColumnPlaceholder: string;
-      whereColumnDisabledHint: string;
-      tableName: string;
-      tableNamePlaceholder: string;
-      maxValuesPerInsert: string;
-      maxValuesPerInsertPlaceholder: string;
-      batchSizeDisabledHint: string;
-      databaseDialect: string;
-      databaseDialectPlaceholder: string;
-      mysql: string;
-      postgresql: string;
-      cancel: string;
-      confirmExport: string;
-    };
+export: {
+        export: string;
+        completed: string;
+        queryTime: string;
+        fileName: string;
+        sqlExportSettings: string;
+        sqlStatementType: string;
+        sqlStatementTypePlaceholder: string;
+        insertDescription: string;
+        updateDescription: string;
+        whereColumn: string;
+        whereColumnPlaceholder: string;
+        whereColumnDisabledHint: string;
+        tableName: string;
+        tableNamePlaceholder: string;
+        maxValuesPerInsert: string;
+        maxValuesPerInsertPlaceholder: string;
+        batchSizeDisabledHint: string;
+        databaseDialect: string;
+        databaseDialectPlaceholder: string;
+        mysql: string;
+        postgresql: string;
+        cancel: string;
+        confirmExport: string;
+        columnTypes: string;
+        columnTypesDescription: string;
+        columnName: string;
+        arrowType: string;
+        sqlType: string;
+      };
   };
   functions: {
     title: string;
@@ -239,6 +244,11 @@ const translations: Record<Language, Translations> = {
         postgresql: "PostgreSQL",
         cancel: "取消",
         confirmExport: "确认导出",
+        columnTypes: "导出列类型",
+        columnTypesDescription: "为每列选择目标 SQL 类型，INT/DOUBLE 类型的值将不被引号包裹，TEXT 类型的值将始终被引号包裹",
+        columnName: "列名",
+        arrowType: "原始类型",
+        sqlType: "SQL 类型",
       },
     },
     functions: {
@@ -429,6 +439,11 @@ const translations: Record<Language, Translations> = {
         postgresql: "PostgreSQL",
         cancel: "Cancel",
         confirmExport: "Confirm Export",
+        columnTypes: "Export Column Types",
+        columnTypesDescription: "Select the target SQL type for each column. INT/DOUBLE types won't be quoted, TEXT type will always be quoted",
+        columnName: "Column",
+        arrowType: "Source Type",
+        sqlType: "SQL Type",
       },
     },
     functions: {

@@ -1,4 +1,4 @@
-use crate::commands::query::Dialect;
+use crate::commands::query::{Dialect, is_sql_numeric_type};
 use crate::context::schema::AppResult;
 use datafusion::arrow::error::ArrowError;
 use datafusion::arrow::record_batch::RecordBatch;
@@ -6,18 +6,41 @@ use datafusion::arrow::util::display::{ArrayFormatter, FormatOptions};
 use datafusion::dataframe::DataFrame;
 use datafusion_table_providers::mysql::MySQL;
 
+/// Strip trailing ".0" from float-formatted values that are actually integers
+fn strip_float_zero_suffix(value: &str) -> String {
+    if value.ends_with(".0") {
+        // Check that the part before ".0" is a valid integer
+        let integer_part = &value[..value.len() - 2];
+        if integer_part.parse::<i64>().is_ok() || integer_part.parse::<u64>().is_ok() {
+            return integer_part.to_string();
+        }
+    }
+    value.to_string()
+}
+
 /// Helper function to format a value from Arrow Array for SQL
-fn format_value_for_sql(value: &str) -> String {
+/// When strip_float_suffix is true, removes trailing ".0" from float values
+fn format_value_for_sql(value: &str, strip_float_suffix: bool) -> String {
     if value == "NULL" {
         "NULL".to_string()
     } else {
+        let display_value = if strip_float_suffix {
+            strip_float_zero_suffix(value)
+        } else {
+            value.to_string()
+        };
         // Escape single quotes and wrap in quotes for string values
-        format!("'{}'", value.replace("'", "''"))
+        format!("'{}'", display_value.replace("'", "''"))
     }
 }
 
 /// Helper function to extract rows from RecordBatch in a streaming fashion
-fn extract_rows_from_batches<F>(batches: Vec<RecordBatch>, mut on_row: F) -> AppResult<()>
+/// When column_types is provided, use type-aware formatting (numeric types don't get quoted)
+fn extract_rows_from_batches<F>(
+    batches: Vec<RecordBatch>,
+    column_types: Option<&[String]>,
+    mut on_row: F,
+) -> AppResult<()>
 where
     F: FnMut(Vec<String>) -> AppResult<()>,
 {
@@ -40,19 +63,56 @@ where
 
         for row_idx in 0..batch.num_rows() {
             let mut cells = Vec::with_capacity(width);
-            for formatter in &formatters {
+            for (col_idx, formatter) in formatters.iter().enumerate() {
                 let formatted_value = formatter.value(row_idx).to_string();
-                // Check if the value is numeric or boolean (not wrapped in quotes)
-                let sql_value = if formatted_value == "NULL" {
-                    "NULL".to_string()
-                } else if formatted_value.parse::<i64>().is_ok()
-                    || formatted_value.parse::<f64>().is_ok()
-                    || formatted_value == "true"
-                    || formatted_value == "false"
-                {
-                    formatted_value
+
+                let sql_value = if column_types.is_some() {
+                    // Use type-aware formatting based on provided column types
+                    let col_type = &column_types.as_ref().unwrap()[col_idx];
+                    if formatted_value == "NULL" {
+                        "NULL".to_string()
+                    } else if is_sql_numeric_type(col_type) {
+                        // Numeric/boolean types: format based on the target SQL type
+                        if formatted_value == "true" || formatted_value == "false" {
+                            formatted_value
+                        } else if col_type.to_uppercase().starts_with("INT") {
+                            // INT type: truncate decimal part (e.g., "1.0" → "1")
+                            if let Ok(f) = formatted_value.parse::<f64>() {
+                                format!("{}", f as i64)
+                            } else if formatted_value.parse::<i64>().is_ok() {
+                                formatted_value
+                            } else {
+                                format_value_for_sql(&formatted_value, false)
+                            }
+                        } else {
+                            // DOUBLE and other numeric types: keep raw value
+                            if formatted_value.parse::<i64>().is_ok()
+                                || formatted_value.parse::<f64>().is_ok()
+                            {
+                                formatted_value
+                            } else {
+                                format_value_for_sql(&formatted_value, false)
+                            }
+                        }
+                    } else {
+                        // Non-numeric types (text, date, timestamp, etc.): always quote
+                        // Strip .0 suffix from float values exported as text
+                        format_value_for_sql(&formatted_value, true)
+                    }
                 } else {
-                    format_value_for_sql(&formatted_value)
+                    // Legacy heuristic: try to detect numeric values
+                    if formatted_value == "NULL" {
+                        "NULL".to_string()
+                    } else if formatted_value.parse::<i64>().is_ok()
+                        || formatted_value.parse::<f64>().is_ok()
+                        || formatted_value == "true"
+                        || formatted_value == "false"
+                    {
+                        // For float values that are actually integers, strip .0
+                        strip_float_zero_suffix(&formatted_value)
+                    } else {
+                        format_value_for_sql(&formatted_value, true)
+                    }
                 };
                 cells.push(sql_value);
             }
@@ -85,6 +145,7 @@ pub async fn generate_sql_inserts(
     table_name: &str,
     max_values_per_insert: usize,
     db_dialect: &Dialect,
+    column_types: Option<&[String]>,
 ) -> AppResult<String> {
     // Collect RecordBatches from DataFrame
     let batches = df
@@ -141,7 +202,7 @@ pub async fn generate_sql_inserts(
         Ok(())
     };
 
-    extract_rows_from_batches(batches, |row| {
+    extract_rows_from_batches(batches, column_types, |row| {
         pending_rows.push(row);
         if pending_rows.len() == chunk_limit {
             flush_chunk(&mut pending_rows)?;
@@ -160,6 +221,7 @@ pub async fn generate_sql_update(
     table_name: &str,
     where_column: &str,
     db_dialect: &Dialect,
+    column_types: Option<&[String]>,
 ) -> AppResult<String> {
     // Collect RecordBatches from DataFrame
     let batches = df
@@ -192,7 +254,7 @@ pub async fn generate_sql_update(
 
     let mut sql_statements = String::new();
 
-    extract_rows_from_batches(batches, |row| {
+    extract_rows_from_batches(batches, column_types, |row| {
         let mut set_clauses = Vec::new();
 
         for (col_index, (header, value)) in headers.iter().zip(row.iter()).enumerate() {
