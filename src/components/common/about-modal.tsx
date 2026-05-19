@@ -136,6 +136,12 @@ function AboutModal({ isOpen, onClose }: AboutModalProps) {
     await invoke("open_url", { url });
   };
 
+  const handleFeedbackClick = async () => {
+    await invoke("open_url", {
+      url: "https://github.com/shencangsheng/easydb_app/issues",
+    });
+  };
+
   return (
     <Modal
       isOpen={isOpen}
@@ -284,6 +290,18 @@ function AboutModal({ isOpen, onClose }: AboutModalProps) {
                     <span className="text-xl mr-3">📝</span>
                     <span className="text-sm font-medium">
                       {translate("about.changelog")}
+                    </span>
+                    <span className="ml-auto text-sm">→</span>
+                  </div>
+
+                  {/* Feedback */}
+                  <div
+                    onClick={handleFeedbackClick}
+                    className="flex items-center p-3 bg-gray-50 rounded-lg cursor-pointer transition-colors hover:bg-gray-100"
+                  >
+                    <span className="text-xl mr-3">💬</span>
+                    <span className="text-sm font-medium">
+                      {translate("about.feedback")}
                     </span>
                     <span className="ml-auto text-sm">→</span>
                   </div>
