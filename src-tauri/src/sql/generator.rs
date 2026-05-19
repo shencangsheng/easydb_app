@@ -96,10 +96,12 @@ fn format_cell_for_sql(formatted_value: &str, col_type: &str) -> String {
         if formatted_value == "true" || formatted_value == "false" {
             formatted_value.to_string()
         } else if col_type.to_uppercase().starts_with("INT") {
-            if let Ok(f) = formatted_value.parse::<f64>() {
-                format!("{}", f as i64)
-            } else if formatted_value.parse::<i64>().is_ok() {
+            if formatted_value.parse::<i64>().is_ok()
+                || formatted_value.parse::<u64>().is_ok()
+            {
                 formatted_value.to_string()
+            } else if let Ok(f) = formatted_value.parse::<f64>() {
+                format!("{}", f as i64)
             } else {
                 format_value_for_sql(formatted_value, false)
             }
@@ -365,11 +367,7 @@ pub async fn generate_sql_update(
             if spec.source_index == where_column_index {
                 where_value = Some(value.clone());
             } else if exported_source_indices.contains(&spec.source_index) {
-                let export_name = export_specs
-                    .iter()
-                    .find(|s| s.source_index == spec.source_index)
-                    .map(|s| s.export_name.as_str())
-                    .expect("export spec must exist for exported column");
+                let export_name = &spec.export_name;
                 set_clauses.push(match db_dialect {
                     Dialect::MySQL => format!("`{}` = {}", export_name, value),
                     Dialect::PostgreSQL => format!("\"{}\" = {}", export_name, value),
