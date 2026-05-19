@@ -70,6 +70,10 @@ export interface Translations {
       columnName: string;
       arrowType: string;
       sqlType: string;
+      exportColumnName: string;
+      sourceColumn: string;
+      removeColumn: string;
+      noExportColumns: string;
     };
   };
   functions: {
@@ -256,10 +260,14 @@ const translations: Record<Language, Translations> = {
         confirmExport: "确认导出",
         columnTypes: "导出列类型",
         columnTypesDescription:
-          "为每列选择目标 SQL 类型，INT/DOUBLE 类型的值将不被引号包裹，TEXT 类型的值将始终被引号包裹",
+          "可修改导出字段名、删除不需要的列，并为每列选择目标 SQL 类型。INT/DOUBLE/BOOL 类型的值将不被引号包裹（BOOL 导出为 true/false），TEXT 类型的值将始终被引号包裹",
         columnName: "列名",
         arrowType: "原始类型",
         sqlType: "SQL 类型",
+        exportColumnName: "导出字段名",
+        sourceColumn: "源列",
+        removeColumn: "移除此列",
+        noExportColumns: "请至少保留一列用于导出",
       },
     },
     functions: {
@@ -457,10 +465,14 @@ const translations: Record<Language, Translations> = {
         confirmExport: "Confirm Export",
         columnTypes: "Export Column Types",
         columnTypesDescription:
-          "Select the target SQL type for each column. INT/DOUBLE types won't be quoted, TEXT type will always be quoted",
+          "Rename export column names, remove columns you don't need, and select SQL types. INT/DOUBLE/BOOL types won't be quoted (BOOL exports as true/false), TEXT type will always be quoted",
         columnName: "Column",
         arrowType: "Source Type",
         sqlType: "SQL Type",
+        exportColumnName: "Export Name",
+        sourceColumn: "Source",
+        removeColumn: "Remove column",
+        noExportColumns: "Keep at least one column to export",
       },
     },
     functions: {

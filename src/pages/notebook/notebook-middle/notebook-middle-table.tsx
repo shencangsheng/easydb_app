@@ -54,9 +54,16 @@ interface ColumnTypeInfo {
   default_sql_type: string;
 }
 
+interface ExportColumnConfig {
+  source_column_name: string;
+  export_column_name: string;
+  sql_type: string;
+}
+
 const SQL_TYPE_OPTIONS = [
   "INT",
   "DOUBLE",
+  "BOOL",
   "TEXT",
 ];
 
@@ -126,7 +133,7 @@ function DataTable({
   const [whereColumn, setWhereColumn] = useState("");
   const [databaseDialect, setDatabaseDialect] = useState("MySQL");
   const [columnTypes, setColumnTypes] = useState<ColumnTypeInfo[]>([]);
-  const [selectedColumnTypes, setSelectedColumnTypes] = useState<string[]>([]);
+  const [exportColumns, setExportColumns] = useState<ExportColumnConfig[]>([]);
   const [isLoadingColumnTypes, setIsLoadingColumnTypes] = useState(false);
   const { translate } = useTranslation();
 
@@ -147,7 +154,7 @@ function DataTable({
     sqlStatementType?: string,
     whereColumn?: string,
     dialect?: string,
-    columnTypes?: string[]
+    exportColumns?: ExportColumnConfig[]
   ) {
     try {
       setIsDownloading(true);
@@ -161,7 +168,7 @@ function DataTable({
         sqlStatementType: fileType === "SQL" ? sqlStatementType : undefined,
         whereColumn: fileType === "SQL" ? whereColumn : undefined,
         dialect: fileType === "SQL" ? dialect : undefined,
-        columnTypes: fileType === "SQL" ? columnTypes : undefined,
+        exportColumns: fileType === "SQL" ? exportColumns : undefined,
       });
       setExportResult(result);
     } catch (error) {
@@ -178,7 +185,7 @@ function DataTable({
     setWhereColumn("");
     setDatabaseDialect("MySQL");
     setColumnTypes([]);
-    setSelectedColumnTypes([]);
+    setExportColumns([]);
     setIsTableNameModalOpen(true);
 
     // Fetch column types from backend
@@ -188,7 +195,13 @@ function DataTable({
         sql,
       });
       setColumnTypes(result.columns);
-      setSelectedColumnTypes(result.columns.map((c) => c.default_sql_type));
+      setExportColumns(
+        result.columns.map((c) => ({
+          source_column_name: c.column_name,
+          export_column_name: c.column_name,
+          sql_type: c.default_sql_type,
+        }))
+      );
     } catch (error) {
       console.error("Failed to fetch column types:", error);
       // Fallback: use header names with TEXT type
@@ -198,7 +211,13 @@ function DataTable({
         default_sql_type: "TEXT",
       }));
       setColumnTypes(fallback);
-      setSelectedColumnTypes(fallback.map((c) => c.default_sql_type));
+      setExportColumns(
+        fallback.map((c) => ({
+          source_column_name: c.column_name,
+          export_column_name: c.column_name,
+          sql_type: c.default_sql_type,
+        }))
+      );
     } finally {
       setIsLoadingColumnTypes(false);
     }
@@ -213,15 +232,36 @@ function DataTable({
       sqlStatementType,
       whereColumn,
       databaseDialect,
-      selectedColumnTypes
+      exportColumns
+    );
+  }
+
+  function updateExportColumn(
+    sourceColumnName: string,
+    patch: Partial<Pick<ExportColumnConfig, "export_column_name" | "sql_type">>
+  ) {
+    setExportColumns((prev) =>
+      prev.map((col) =>
+        col.source_column_name === sourceColumnName ? { ...col, ...patch } : col
+      )
+    );
+  }
+
+  function removeExportColumn(sourceColumnName: string) {
+    setExportColumns((prev) =>
+      prev.filter((col) => col.source_column_name !== sourceColumnName)
     );
   }
 
   // 按钮禁用状态
   const isExportDisabled = data.rows.length === 0 || isDownloading;
   const isClearDisabled = data.rows.length === 0 || isLoading;
+  const hasValidExportColumns =
+    exportColumns.length > 0 &&
+    exportColumns.every((col) => col.export_column_name.trim().length > 0);
   const isConfirmDisabled =
     !tableName.trim() ||
+    !hasValidExportColumns ||
     (sqlStatementType === "INSERT" && maxValuesPerInsert < 1) ||
     (sqlStatementType === "UPDATE" && !whereColumn.trim());
 
@@ -328,9 +368,9 @@ function DataTable({
         isOpen={isTableNameModalOpen}
         onOpenChange={setIsTableNameModalOpen}
         placement="center"
-        size="3xl"
+        size="5xl"
         classNames={{
-          base: "bg-background !max-h-[80vh] flex flex-col",
+          base: "bg-background !max-w-[1024px] !max-h-[85vh] flex flex-col",
           backdrop: "bg-black/50",
         }}
       >
@@ -348,10 +388,10 @@ function DataTable({
                 </p>
               </ModalHeader>
 
-              <ModalBody className="gap-0 py-0 overflow-hidden flex-1">
-                <div className="flex h-full gap-4">
+              <ModalBody className="gap-0 py-0 overflow-hidden flex-1 min-h-0">
+                <div className="grid h-full min-h-[400px] grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)] gap-6">
                   {/* 左侧：基本设置表单 */}
-                  <div className="flex-1 flex flex-col gap-6 overflow-y-auto py-6 pr-2 min-w-0">
+                  <div className="flex flex-col gap-6 overflow-y-auto py-6 pl-1 pr-3 min-w-0">
                     {/* SQL 语句类型选择 */}
                     <div className="space-y-3">
                       <div className="flex items-center gap-2">
@@ -396,6 +436,7 @@ function DataTable({
                         size="lg"
                         isRequired
                         variant="bordered"
+                        labelPlacement="outside"
                         autoComplete="off"
                         autoCapitalize="off"
                         autoCorrect="off"
@@ -423,6 +464,7 @@ function DataTable({
                         }}
                         size="lg"
                         variant="bordered"
+                        labelPlacement="outside"
                         isDisabled={sqlStatementType === "INSERT"}
                         isRequired={sqlStatementType === "UPDATE"}
                         classNames={{
@@ -461,6 +503,7 @@ function DataTable({
                         type="number"
                         min="1"
                         variant="bordered"
+                        labelPlacement="outside"
                         isDisabled={sqlStatementType === "UPDATE"}
                         isRequired={sqlStatementType === "INSERT"}
                         classNames={{
@@ -491,6 +534,7 @@ function DataTable({
                         }}
                         size="lg"
                         variant="bordered"
+                        labelPlacement="outside"
                         defaultSelectedKeys={["MySQL"]}
                         classNames={{
                           trigger:
@@ -511,64 +555,160 @@ function DataTable({
                   </div>
 
                   {/* 右侧：导出列类型配置 */}
-                  <div className="w-[360px] border-l border-default-200 flex flex-col py-6 overflow-hidden">
-                    <div className="flex items-center gap-2 px-4">
-                      <label className="text-sm font-medium text-foreground">
-                        {translate("notebook.export.columnTypes")}
-                      </label>
-                      {isLoadingColumnTypes && (
-                        <FontAwesomeIcon icon={faSpinner} spin className="text-default-400 text-sm" />
-                      )}
+                  <div className="min-w-0 border-l border-default-200 flex flex-col overflow-hidden bg-default-50/40">
+                    <div className="shrink-0 px-5 pt-6 pb-4 border-b border-default-200/80 bg-background/60">
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <label className="text-sm font-semibold text-foreground">
+                            {translate("notebook.export.columnTypes")}
+                          </label>
+                          {isLoadingColumnTypes && (
+                            <FontAwesomeIcon
+                              icon={faSpinner}
+                              spin
+                              className="text-default-400 text-sm"
+                            />
+                          )}
+                        </div>
+                        {exportColumns.length > 0 && (
+                          <span className="shrink-0 text-xs font-medium text-default-500 tabular-nums px-2 py-0.5 rounded-full bg-default-100">
+                            {exportColumns.length}
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-xs text-default-500 mt-2 leading-relaxed">
+                        {translate("notebook.export.columnTypesDescription")}
+                      </p>
                     </div>
-                    <p className="text-xs text-default-400 px-4 mt-1">
-                      {translate("notebook.export.columnTypesDescription")}
-                    </p>
-                    <div className="flex-1 overflow-y-auto mt-3 px-4">
-                      {columnTypes.length > 0 && (
-                        <div className="space-y-2">
-                          {columnTypes.map((col, index) => (
+                    <div className="flex-1 overflow-y-auto px-5 py-4 min-h-0">
+                      {exportColumns.length > 0 ? (
+                        <div className="space-y-4 pb-4">
+                          {exportColumns.map((col) => {
+                            const meta = columnTypes.find(
+                              (c) => c.column_name === col.source_column_name
+                            );
+                            return (
                             <div
-                              key={col.column_name}
-                              className={`p-3 rounded-lg border border-default-200 ${index % 2 === 1 ? "bg-default-50" : "bg-background"}`}
+                              key={col.source_column_name}
+                              className="rounded-xl border border-default-200 bg-background p-4 shadow-sm"
                             >
-                              <div className="flex items-center justify-between gap-2">
+                              <div className="flex items-start justify-between gap-3 mb-4">
                                 <div className="min-w-0 flex-1">
-                                  <div className="text-sm font-medium text-foreground truncate">
-                                    {col.column_name}
-                                  </div>
-                                  <div className="text-xs text-default-400 mt-0.5 truncate">
-                                    {col.arrow_type}
-                                  </div>
+                                  <p className="text-[11px] font-medium uppercase tracking-wide text-default-400 mb-1">
+                                    {translate("notebook.export.sourceColumn")}
+                                  </p>
+                                  <p
+                                    className="text-sm font-medium text-foreground truncate"
+                                    title={col.source_column_name}
+                                  >
+                                    {col.source_column_name}
+                                  </p>
+                                  {meta && (
+                                    <p className="text-xs text-default-400 mt-1 truncate">
+                                      {meta.arrow_type}
+                                    </p>
+                                  )}
                                 </div>
-                                <Select
-                                  selectedKeys={selectedColumnTypes[index] ? [selectedColumnTypes[index]] : []}
-                                  onSelectionChange={(keys) => {
-                                    const selectedKey = Array.from(keys)[0] as string;
-                                    setSelectedColumnTypes((prev) => {
-                                      const newTypes = [...prev];
-                                      newTypes[index] = selectedKey;
-                                      return newTypes;
-                                    });
-                                  }}
+                                <Button
+                                  isIconOnly
                                   size="sm"
-                                  variant="bordered"
-                                  classNames={{
-                                    base: "w-[120px] shrink-0",
-                                    trigger: "text-sm min-h-[32px] border-default-200",
-                                    value: "text-sm",
-                                    listbox: "text-sm",
-                                    popoverContent: "max-h-[200px]",
-                                  }}
+                                  variant="light"
+                                  color="danger"
+                                  aria-label={translate(
+                                    "notebook.export.removeColumn"
+                                  )}
+                                  onPress={() =>
+                                    removeExportColumn(col.source_column_name)
+                                  }
+                                  className="shrink-0"
                                 >
+                                  <FontAwesomeIcon
+                                    icon={faTrash}
+                                    className="text-sm"
+                                  />
+                                </Button>
+                              </div>
+                              <div className="space-y-4">
+                                <div className="space-y-2">
+                                  <label
+                                    htmlFor={`export-col-${col.source_column_name}`}
+                                    className="text-sm font-medium text-foreground"
+                                  >
+                                    {translate("notebook.export.exportColumnName")}
+                                  </label>
+                                  <Input
+                                    id={`export-col-${col.source_column_name}`}
+                                    aria-label={translate(
+                                      "notebook.export.exportColumnName"
+                                    )}
+                                    value={col.export_column_name}
+                                    onChange={(e) =>
+                                      updateExportColumn(col.source_column_name, {
+                                        export_column_name: e.target.value,
+                                      })
+                                    }
+                                    size="md"
+                                    variant="bordered"
+                                    labelPlacement="outside"
+                                    autoComplete="off"
+                                    autoCapitalize="off"
+                                    autoCorrect="off"
+                                    spellCheck="false"
+                                    classNames={{
+                                      base: "gap-0",
+                                      input: "text-sm",
+                                      inputWrapper:
+                                        "border-default-200 hover:border-primary-300 focus-within:border-primary-500 min-h-10",
+                                    }}
+                                  />
+                                </div>
+                                <div className="space-y-2">
+                                  <label
+                                    htmlFor={`sql-type-${col.source_column_name}`}
+                                    className="text-sm font-medium text-foreground"
+                                  >
+                                    {translate("notebook.export.sqlType")}
+                                  </label>
+                                  <Select
+                                    id={`sql-type-${col.source_column_name}`}
+                                    aria-label={translate("notebook.export.sqlType")}
+                                    selectedKeys={col.sql_type ? [col.sql_type] : []}
+                                    onSelectionChange={(keys) => {
+                                      const selectedKey = Array.from(keys)[0] as string;
+                                      if (selectedKey) {
+                                        updateExportColumn(col.source_column_name, {
+                                          sql_type: selectedKey,
+                                        });
+                                      }
+                                    }}
+                                    size="md"
+                                    variant="bordered"
+                                    labelPlacement="outside"
+                                    classNames={{
+                                      base: "gap-0",
+                                      trigger:
+                                        "text-sm min-h-10 border-default-200 hover:border-primary-300 focus-within:border-primary-500",
+                                      value: "text-sm",
+                                      listbox: "text-sm",
+                                    }}
+                                  >
                                   {SQL_TYPE_OPTIONS.map((type) => (
                                     <SelectItem key={type} className="text-sm">
                                       {type}
                                     </SelectItem>
                                   ))}
                                 </Select>
+                                </div>
                               </div>
                             </div>
-                          ))}
+                            );
+                          })}
+                        </div>
+                      ) : (
+                        <div className="flex flex-col items-center justify-center py-12 px-4 text-center">
+                          <p className="text-sm text-default-500">
+                            {translate("notebook.export.noExportColumns")}
+                          </p>
                         </div>
                       )}
                     </div>
@@ -576,7 +716,7 @@ function DataTable({
                 </div>
               </ModalBody>
 
-              <ModalFooter className="gap-3 pt-4">
+              <ModalFooter className="gap-3 pt-5 pb-2 border-t border-default-200/60 shrink-0">
                 <Button
                   color="default"
                   variant="light"
