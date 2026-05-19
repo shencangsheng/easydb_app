@@ -39,8 +39,8 @@ jobs:
       - name: Run unit tests with output capture
         working-directory: src-tauri
         run: |
-          cargo +nightly test --lib -- -Z unstable-options --format json > test-results.json 2>&1 || true
-          cargo test --lib > test-results.txt 2>&1 || true
+          rustup run nightly cargo test --lib -- -Z unstable-options --format json > test-results.json 2>&1 || true
+          cargo test --lib -- --nocapture > test-results.txt 2>&1 || true
 
       - name: Generate test report
         working-directory: src-tauri

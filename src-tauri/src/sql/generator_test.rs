@@ -341,8 +341,6 @@ fn test_perf_parse_sql_type_enum_approach() {
     ];
     let iterations = 100_000;
 
-    // The enum approach pre-parses once per column; the hot loop only does enum comparisons.
-    // This test verifies the enum approach completes within reasonable time bounds.
     let start = Instant::now();
     for _ in 0..iterations {
         for ts in &type_strings {
@@ -352,7 +350,14 @@ fn test_perf_parse_sql_type_enum_approach() {
     }
     let duration = start.elapsed();
 
-    // 100K iterations of 17 types should complete in < 500ms
+    eprintln!(
+        "[PERF] test_perf_parse_sql_type_enum_approach | duration={}ms | iterations={} | types={} | per_call={:.3}µs",
+        duration.as_millis(),
+        iterations,
+        type_strings.len(),
+        duration.as_secs_f64() * 1_000_000.0 / (iterations as f64 * type_strings.len() as f64),
+    );
+
     assert!(
         duration.as_millis() < 500,
         "parse_sql_type too slow: {:?} for {} iterations",
@@ -386,8 +391,16 @@ fn test_perf_format_cell_for_sql_enum_dispatch() {
         }
     }
     let duration = start.elapsed();
+    let total_calls = iterations * values.len() * types.len();
 
-    // Sanity check: 50K iterations of 50 cells should complete in < 2s
+    eprintln!(
+        "[PERF] test_perf_format_cell_for_sql_enum_dispatch | duration={}ms | iterations={} | total_calls={} | per_call={:.3}µs",
+        duration.as_millis(),
+        iterations,
+        total_calls,
+        duration.as_secs_f64() * 1_000_000.0 / total_calls as f64,
+    );
+
     assert!(
         duration.as_secs() < 2,
         "format_cell_for_sql hot loop too slow: {:?} for {} iterations",
@@ -421,7 +434,14 @@ fn test_perf_resolve_export_specs_large_columns() {
     let duration = start.elapsed();
 
     assert_eq!(result.len(), column_count);
-    // Should resolve 500 columns in < 100ms
+
+    eprintln!(
+        "[PERF] test_perf_resolve_export_specs_large_columns | duration={}ms | columns={} | per_column={:.3}µs",
+        duration.as_millis(),
+        column_count,
+        duration.as_secs_f64() * 1_000_000.0 / column_count as f64,
+    );
+
     assert!(
         duration.as_millis() < 100,
         "resolve_export_specs too slow for {} columns: {:?}",
