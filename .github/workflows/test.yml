@@ -18,6 +18,9 @@ jobs:
       - name: Setup Rust toolchain
         uses: dtolnay/rust-toolchain@stable
 
+      - name: Install nightly toolchain for JSON test output
+        run: rustup toolchain install nightly
+
       - name: Cache Cargo build
         uses: actions/cache@v4
         with:
@@ -33,10 +36,10 @@ jobs:
         working-directory: src-tauri
         run: cargo check
 
-      - name: Run unit tests with JSON output
+      - name: Run unit tests with output capture
         working-directory: src-tauri
         run: |
-          cargo test --lib -- --format json > test-results.json 2>&1 || true
+          cargo +nightly test --lib -- -Z unstable-options --format json > test-results.json 2>&1 || true
           cargo test --lib > test-results.txt 2>&1 || true
 
       - name: Generate test report

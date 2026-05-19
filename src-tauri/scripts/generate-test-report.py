@@ -44,15 +44,31 @@ def parse_json_results(filepath):
 
 
 def parse_text_results(filepath):
-    """Parse cargo test's human-readable output for summary and timing."""
+    """Parse cargo test's human-readable output for summary, individual tests, and timing."""
     summary = {"passed": 0, "failed": 0, "ignored": 0, "measured": 0}
     performance = []
+    text_passed = []
+    text_failed = []
+    text_ignored = []
 
     if not os.path.exists(filepath):
-        return summary, performance
+        return summary, performance, text_passed, text_failed, text_ignored
 
     with open(filepath, "r") as f:
         text_content = f.read()
+
+    # Parse individual test result lines
+    # Format: "test test_name ... ok" or "test test_name ... FAILED" or "test test_name ... ignored"
+    test_line_pattern = re.compile(r"^test\s+(\S+)\s+\.\.\.\s+(ok|FAILED|ignored)", re.MULTILINE)
+    for match in test_line_pattern.finditer(text_content):
+        name = match.group(1)
+        status = match.group(2)
+        if status == "ok":
+            text_passed.append({"name": name})
+        elif status == "FAILED":
+            text_failed.append({"name": name, "stdout": ""})
+        elif status == "ignored":
+            text_ignored.append({"name": name})
 
     # Parse test summary line
     # e.g., "test result: ok. 28 passed; 0 failed; 0 ignored; 0 measured; 28 filtered out"
@@ -67,8 +83,6 @@ def parse_text_results(filepath):
         summary["measured"] = int(summary_match.group(5))
 
     # Extract test execution times from the text output
-    # Format: "test test_perf_xxx ... ok" followed by "test result: ok"
-    # Individual test lines may include timing info from libtest
     time_pattern = re.compile(r"test\s+(\S+)\s+.*?(\d+[\.\d]*)\s*ms")
     for match in time_pattern.finditer(text_content):
         name = match.group(1)
@@ -76,7 +90,7 @@ def parse_text_results(filepath):
         if "perf" in name.lower() or "performance" in name.lower():
             performance.append({"name": name, "duration_ms": duration_ms})
 
-    return summary, performance
+    return summary, performance, text_passed, text_failed, text_ignored
 
 
 def categorize_tests(passed, failed):
@@ -217,7 +231,14 @@ def main():
     text_file = "test-results.txt"
 
     passed, failed, ignored = parse_json_results(json_file)
-    summary, performance = parse_text_results(text_file)
+    summary, performance, text_passed, text_failed, text_ignored = parse_text_results(text_file)
+
+    # Fallback: if JSON parsing yielded no results, use text-parsed individual tests
+    if not passed and not failed:
+        passed = text_passed
+        failed = text_failed
+        ignored = text_ignored
+
     categories = categorize_tests(passed, failed)
 
     report = generate_report(passed, failed, ignored, summary, performance, categories)
