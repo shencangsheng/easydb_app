@@ -1,4 +1,4 @@
-use crate::commands::query::{is_sql_bool_type, is_sql_numeric_type, Dialect};
+use crate::commands::query::Dialect;
 use crate::context::schema::AppResult;
 use datafusion::arrow::error::ArrowError;
 use datafusion::arrow::record_batch::RecordBatch;
@@ -6,21 +6,50 @@ use datafusion::arrow::util::display::{ArrayFormatter, FormatOptions};
 use datafusion::dataframe::DataFrame;
 use serde::Deserialize;
 
-#[derive(Clone, Deserialize)]
+#[derive(Clone, Debug, Deserialize)]
 pub struct ExportColumnConfig {
     pub source_column_name: String,
     pub export_column_name: String,
     pub sql_type: String,
 }
 
-#[derive(Clone)]
-struct ColumnExportSpec {
-    source_index: usize,
-    export_name: String,
-    sql_type: String,
+/// Pre-parsed SQL type category to avoid repeated string allocations in the hot formatting loop.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub(crate) enum SqlType {
+    Bool,
+    Int,
+    Float,
+    Text,
+    Unknown,
 }
 
-fn resolve_export_specs(
+pub(crate) fn parse_sql_type(sql_type: &str) -> SqlType {
+    let upper = sql_type.to_uppercase();
+    if upper.starts_with("BOOL") {
+        SqlType::Bool
+    } else if upper.starts_with("INT")
+        || upper.starts_with("BIGINT")
+        || upper.starts_with("SMALLINT")
+        || upper.starts_with("TINYINT")
+    {
+        SqlType::Int
+    } else if upper.starts_with("DOUBLE") || upper.starts_with("FLOAT") || upper.starts_with("DECIMAL") || upper.starts_with("NUMERIC") || upper.starts_with("REAL") {
+        SqlType::Float
+    } else if upper.starts_with("TEXT") || upper.starts_with("CHAR") || upper.starts_with("VARCHAR") || upper.starts_with("STR") {
+        SqlType::Text
+    } else {
+        SqlType::Unknown
+    }
+}
+
+#[derive(Clone, Debug)]
+pub(crate) struct ColumnExportSpec {
+    pub(crate) source_index: usize,
+    pub(crate) export_name: String,
+    pub(crate) sql_type: SqlType,
+}
+
+pub(crate) fn resolve_export_specs(
     headers: &[String],
     export_columns: Option<&[ExportColumnConfig]>,
 ) -> AppResult<Vec<ColumnExportSpec>> {
@@ -31,7 +60,7 @@ fn resolve_export_specs(
             .map(|(idx, name)| ColumnExportSpec {
                 source_index: idx,
                 export_name: name.clone(),
-                sql_type: String::new(),
+                sql_type: SqlType::Unknown,
             })
             .collect());
     };
@@ -42,6 +71,7 @@ fn resolve_export_specs(
         });
     }
 
+    let mut seen_names = std::collections::HashSet::new();
     let mut specs = Vec::with_capacity(export_columns.len());
     for col in export_columns {
         let export_name = col.export_column_name.trim();
@@ -53,6 +83,16 @@ fn resolve_export_specs(
                 ),
             });
         }
+
+        if seen_names.contains(export_name) {
+            return Err(crate::context::error::AppError::BadRequest {
+                message: format!(
+                    "Duplicate export column name '{}'. Each export column must have a unique name.",
+                    export_name
+                ),
+            });
+        }
+        seen_names.insert(export_name.to_string());
 
         let source_index = headers
             .iter()
@@ -67,19 +107,19 @@ fn resolve_export_specs(
         specs.push(ColumnExportSpec {
             source_index,
             export_name: export_name.to_string(),
-            sql_type: col.sql_type.clone(),
+            sql_type: parse_sql_type(&col.sql_type),
         });
     }
 
     Ok(specs)
 }
 
-fn format_cell_for_sql(formatted_value: &str, col_type: &str) -> String {
+pub(crate) fn format_cell_for_sql(formatted_value: &str, col_type: SqlType) -> String {
     if formatted_value == "NULL" {
         return "NULL".to_string();
     }
 
-    if col_type.is_empty() {
+    if col_type == SqlType::Unknown {
         if formatted_value.parse::<i64>().is_ok()
             || formatted_value.parse::<f64>().is_ok()
             || formatted_value == "true"
@@ -90,12 +130,14 @@ fn format_cell_for_sql(formatted_value: &str, col_type: &str) -> String {
         return format_value_for_sql(formatted_value, true);
     }
 
-    if is_sql_bool_type(col_type) {
+    if col_type == SqlType::Bool {
         format_bool_for_sql(formatted_value)
-    } else if is_sql_numeric_type(col_type) {
-        if formatted_value == "true" || formatted_value == "false" {
-            formatted_value.to_string()
-        } else if col_type.to_uppercase().starts_with("INT") {
+    } else if col_type == SqlType::Int || col_type == SqlType::Float {
+        if formatted_value == "true" {
+            "1".to_string()
+        } else if formatted_value == "false" {
+            "0".to_string()
+        } else if col_type == SqlType::Int {
             if formatted_value.parse::<i64>().is_ok()
                 || formatted_value.parse::<u64>().is_ok()
             {
@@ -116,7 +158,7 @@ fn format_cell_for_sql(formatted_value: &str, col_type: &str) -> String {
 }
 
 /// Strip trailing ".0" from float-formatted values that are actually integers
-fn strip_float_zero_suffix(value: &str) -> String {
+pub(crate) fn strip_float_zero_suffix(value: &str) -> String {
     if value.ends_with(".0") {
         // Check that the part before ".0" is a valid integer
         let integer_part = &value[..value.len() - 2];
@@ -128,21 +170,21 @@ fn strip_float_zero_suffix(value: &str) -> String {
 }
 
 /// Format a value as a SQL boolean literal (true/false, unquoted)
-fn format_bool_for_sql(value: &str) -> String {
+pub(crate) fn format_bool_for_sql(value: &str) -> String {
     if value == "NULL" {
         "NULL".to_string()
     } else {
         match value.to_ascii_lowercase().as_str() {
             "true" | "1" => "true".to_string(),
             "false" | "0" => "false".to_string(),
-            _ => format_value_for_sql(value, false),
+            _ => "NULL".to_string(),
         }
     }
 }
 
 /// Helper function to format a value from Arrow Array for SQL
 /// When strip_float_suffix is true, removes trailing ".0" from float values
-fn format_value_for_sql(value: &str, strip_float_suffix: bool) -> String {
+pub(crate) fn format_value_for_sql(value: &str, strip_float_suffix: bool) -> String {
     if value == "NULL" {
         "NULL".to_string()
     } else {
@@ -187,7 +229,7 @@ where
                 let formatted_value = formatters[spec.source_index]
                     .value(row_idx)
                     .to_string();
-                cells.push(format_cell_for_sql(&formatted_value, &spec.sql_type));
+                cells.push(format_cell_for_sql(&formatted_value, spec.sql_type));
             }
             on_row(cells)?;
         }
@@ -332,9 +374,9 @@ pub async fn generate_sql_update(
         .and_then(|cols| {
             cols.iter()
                 .find(|c| c.source_column_name == where_column)
-                .map(|c| c.sql_type.clone())
+                .map(|c| parse_sql_type(&c.sql_type))
         })
-        .unwrap_or_else(|| "TEXT".to_string());
+        .unwrap_or(SqlType::Text);
 
     let where_export_name = export_specs
         .iter()
