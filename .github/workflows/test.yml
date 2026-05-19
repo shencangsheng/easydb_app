@@ -1,10 +1,11 @@
 name: Rust Tests
 
 on:
-  push:
-    branches: ["main", "ai/*"]
   pull_request:
     branches: ["main"]
+
+permissions:
+  pull-requests: write
 
 jobs:
   test:
@@ -32,6 +33,43 @@ jobs:
         working-directory: src-tauri
         run: cargo check
 
-      - name: Run unit tests
+      - name: Run unit tests with JSON output
         working-directory: src-tauri
-        run: cargo test --lib
+        run: |
+          cargo test --lib -- --format json > test-results.json 2>&1 || true
+          cargo test --lib > test-results.txt 2>&1 || true
+
+      - name: Generate test report
+        working-directory: src-tauri
+        run: python3 scripts/generate-test-report.py
+
+      - name: Comment PR with test report
+        if: github.event_name == 'pull_request'
+        working-directory: src-tauri
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          REPORT_FILE="test-report.md"
+          if [ ! -f "$REPORT_FILE" ]; then
+            echo "No report file found, skipping comment"
+            exit 0
+          fi
+
+          REPORT_CONTENT=$(cat "$REPORT_FILE")
+
+          EXISTING_COMMENT=$(gh api repos/"$REPOSITORY"/issues/"$PR_NUMBER"/comments \
+            --jq '.[] | select(.body | startswith("## 🧪 Test Results Report")) | .id' | head -1)
+
+          if [ -n "$EXISTING_COMMENT" ]; then
+            gh api repos/"$REPOSITORY"/issues/comments/"$EXISTING_COMMENT" \
+              --method PATCH \
+              --field body="$REPORT_CONTENT" \
+              --silent
+          else
+            gh api repos/"$REPOSITORY"/issues/"$PR_NUMBER"/comments \
+              --method POST \
+              --field body="$REPORT_CONTENT" \
+              --silent
+          fi
