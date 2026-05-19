@@ -389,11 +389,11 @@ function DataTable({
               </ModalHeader>
 
               <ModalBody className="gap-0 py-0 overflow-hidden flex-1 min-h-0">
-                <div className="grid h-full min-h-[400px] grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)] gap-6">
+                <div className="grid h-full min-h-[480px] grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-8">
                   {/* 左侧：基本设置表单 */}
-                  <div className="flex flex-col gap-6 overflow-y-auto py-6 pl-1 pr-3 min-w-0">
+                  <div className="flex flex-col gap-7 overflow-y-auto py-7 pl-2 pr-4 min-w-0">
                     {/* SQL 语句类型选择 */}
-                    <div className="space-y-3">
+                    <div className="space-y-4">
                       <div className="flex items-center gap-2">
                         <label className="text-sm font-medium text-foreground">
                           {translate("notebook.export.sqlStatementType")}
@@ -424,7 +424,7 @@ function DataTable({
                     </div>
 
                     {/* 表名输入 */}
-                    <div className="space-y-2">
+                    <div className="space-y-3">
                       <Input
                         label={translate("notebook.export.tableName")}
                         placeholder={translate(
@@ -451,7 +451,7 @@ function DataTable({
                     </div>
 
                     {/* WHERE 字段选择 */}
-                    <div className="space-y-2">
+                    <div className="space-y-3">
                       <Select
                         label={translate("notebook.export.whereColumn")}
                         placeholder={translate(
@@ -489,7 +489,7 @@ function DataTable({
                     </div>
 
                     {/* 批次大小设置 */}
-                    <div className="space-y-2">
+                    <div className="space-y-3">
                       <Input
                         label={translate("notebook.export.maxValuesPerInsert")}
                         placeholder={translate(
@@ -521,7 +521,7 @@ function DataTable({
                     </div>
 
                     {/* 数据库方言选择 */}
-                    <div className="space-y-2">
+                    <div className="space-y-3">
                       <Select
                         label={translate("notebook.export.databaseDialect")}
                         placeholder={translate(
@@ -556,33 +556,33 @@ function DataTable({
 
                   {/* 右侧：导出列类型配置 */}
                   <div className="min-w-0 border-l border-default-200 flex flex-col overflow-hidden bg-default-50/40">
-                    <div className="shrink-0 px-5 pt-6 pb-4 border-b border-default-200/80 bg-background/60">
-                      <div className="flex items-center justify-between gap-2">
-                        <div className="flex items-center gap-2 min-w-0">
-                          <label className="text-sm font-semibold text-foreground">
+                    <div className="shrink-0 px-6 pt-7 pb-5 border-b border-default-200/80 bg-background/60">
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <label className="text-base font-semibold text-foreground">
                             {translate("notebook.export.columnTypes")}
                           </label>
                           {isLoadingColumnTypes && (
                             <FontAwesomeIcon
                               icon={faSpinner}
                               spin
-                              className="text-default-400 text-sm"
+                              className="text-default-400 text-base"
                             />
                           )}
                         </div>
                         {exportColumns.length > 0 && (
-                          <span className="shrink-0 text-xs font-medium text-default-500 tabular-nums px-2 py-0.5 rounded-full bg-default-100">
+                          <span className="shrink-0 text-xs font-medium text-default-500 tabular-nums px-2.5 py-1 rounded-full bg-default-100">
                             {exportColumns.length}
                           </span>
                         )}
                       </div>
-                      <p className="text-xs text-default-500 mt-2 leading-relaxed">
+                      <p className="text-sm text-default-500 mt-3 leading-relaxed">
                         {translate("notebook.export.columnTypesDescription")}
                       </p>
                     </div>
-                    <div className="flex-1 overflow-y-auto px-5 py-4 min-h-0">
+                    <div className="flex-1 overflow-y-auto px-6 py-5 min-h-0">
                       {exportColumns.length > 0 ? (
-                        <div className="space-y-4 pb-4">
+                        <div className="space-y-5 pb-5">
                           {exportColumns.map((col) => {
                             const meta = columnTypes.find(
                               (c) => c.column_name === col.source_column_name
@@ -590,21 +590,21 @@ function DataTable({
                             return (
                             <div
                               key={col.source_column_name}
-                              className="rounded-xl border border-default-200 bg-background p-4 shadow-sm"
+                              className="rounded-xl border border-default-200 bg-background p-5 shadow-sm"
                             >
-                              <div className="flex items-start justify-between gap-3 mb-4">
+                              <div className="flex items-start justify-between gap-4 mb-5">
                                 <div className="min-w-0 flex-1">
-                                  <p className="text-[11px] font-medium uppercase tracking-wide text-default-400 mb-1">
+                                  <p className="text-xs font-medium uppercase tracking-wide text-default-400 mb-1.5">
                                     {translate("notebook.export.sourceColumn")}
                                   </p>
                                   <p
-                                    className="text-sm font-medium text-foreground truncate"
+                                    className="text-base font-semibold text-foreground truncate"
                                     title={col.source_column_name}
                                   >
                                     {col.source_column_name}
                                   </p>
                                   {meta && (
-                                    <p className="text-xs text-default-400 mt-1 truncate">
+                                    <p className="text-sm text-default-400 mt-1.5 truncate">
                                       {meta.arrow_type}
                                     </p>
                                   )}
@@ -628,8 +628,8 @@ function DataTable({
                                   />
                                 </Button>
                               </div>
-                              <div className="space-y-4">
-                                <div className="space-y-2">
+                              <div className="space-y-5">
+                                <div className="space-y-2.5">
                                   <label
                                     htmlFor={`export-col-${col.source_column_name}`}
                                     className="text-sm font-medium text-foreground"
@@ -647,7 +647,7 @@ function DataTable({
                                         export_column_name: e.target.value,
                                       })
                                     }
-                                    size="md"
+                                    size="lg"
                                     variant="bordered"
                                     labelPlacement="outside"
                                     autoComplete="off"
@@ -655,14 +655,14 @@ function DataTable({
                                     autoCorrect="off"
                                     spellCheck="false"
                                     classNames={{
-                                      base: "gap-0",
-                                      input: "text-sm",
+                                      base: "gap-1",
+                                      input: "text-base",
                                       inputWrapper:
-                                        "border-default-200 hover:border-primary-300 focus-within:border-primary-500 min-h-10",
+                                        "border-default-200 hover:border-primary-300 focus-within:border-primary-500 min-h-11",
                                     }}
                                   />
                                 </div>
-                                <div className="space-y-2">
+                                <div className="space-y-2.5">
                                   <label
                                     htmlFor={`sql-type-${col.source_column_name}`}
                                     className="text-sm font-medium text-foreground"
@@ -681,19 +681,19 @@ function DataTable({
                                         });
                                       }
                                     }}
-                                    size="md"
+                                    size="lg"
                                     variant="bordered"
                                     labelPlacement="outside"
                                     classNames={{
-                                      base: "gap-0",
+                                      base: "gap-1",
                                       trigger:
-                                        "text-sm min-h-10 border-default-200 hover:border-primary-300 focus-within:border-primary-500",
-                                      value: "text-sm",
-                                      listbox: "text-sm",
+                                        "text-base min-h-11 border-default-200 hover:border-primary-300 focus-within:border-primary-500",
+                                      value: "text-base",
+                                      listbox: "text-base",
                                     }}
                                   >
                                   {SQL_TYPE_OPTIONS.map((type) => (
-                                    <SelectItem key={type} className="text-sm">
+                                    <SelectItem key={type} className="text-base">
                                       {type}
                                     </SelectItem>
                                   ))}
@@ -705,8 +705,8 @@ function DataTable({
                           })}
                         </div>
                       ) : (
-                        <div className="flex flex-col items-center justify-center py-12 px-4 text-center">
-                          <p className="text-sm text-default-500">
+                        <div className="flex flex-col items-center justify-center py-16 px-6 text-center">
+                          <p className="text-base text-default-500">
                             {translate("notebook.export.noExportColumns")}
                           </p>
                         </div>
@@ -716,7 +716,7 @@ function DataTable({
                 </div>
               </ModalBody>
 
-              <ModalFooter className="gap-3 pt-5 pb-2 border-t border-default-200/60 shrink-0">
+              <ModalFooter className="gap-4 pt-6 pb-3 border-t border-default-200/60 shrink-0">
                 <Button
                   color="default"
                   variant="light"
