@@ -145,12 +145,12 @@ pub(crate) fn format_cell_for_sql(formatted_value: &str, col_type: SqlType) -> S
             } else if let Ok(f) = formatted_value.parse::<f64>() {
                 format!("{}", f as i64)
             } else {
-                format_value_for_sql(formatted_value, false)
+                "NULL".to_string()
             }
         } else if formatted_value.parse::<i64>().is_ok() || formatted_value.parse::<f64>().is_ok() {
             formatted_value.to_string()
         } else {
-            format_value_for_sql(formatted_value, false)
+            "NULL".to_string()
         }
     } else {
         format_value_for_sql(formatted_value, true)

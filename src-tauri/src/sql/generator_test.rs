@@ -243,6 +243,15 @@ fn test_format_cell_int_large_unsigned() {
     );
 }
 
+#[test]
+fn test_format_cell_int_non_numeric_returns_null() {
+    // Regression: previously produced quoted string like 'hello' which is invalid SQL for INT columns
+    assert_eq!(format_cell_for_sql("hello", SqlType::Int), "NULL");
+    assert_eq!(format_cell_for_sql("N/A", SqlType::Int), "NULL");
+    assert_eq!(format_cell_for_sql("yes", SqlType::Int), "NULL");
+    assert_eq!(format_cell_for_sql("abc123", SqlType::Int), "NULL");
+}
+
 // ─── format_cell_for_sql: float type ──────────────────────────────────
 
 #[test]
@@ -250,6 +259,15 @@ fn test_format_cell_float_type() {
     assert_eq!(format_cell_for_sql("3.14", SqlType::Float), "3.14");
     assert_eq!(format_cell_for_sql("42", SqlType::Float), "42");
     assert_eq!(format_cell_for_sql("NULL", SqlType::Float), "NULL");
+}
+
+#[test]
+fn test_format_cell_float_non_numeric_returns_null() {
+    // Regression: previously produced quoted string like 'hello' which is invalid SQL for FLOAT columns
+    assert_eq!(format_cell_for_sql("hello", SqlType::Float), "NULL");
+    assert_eq!(format_cell_for_sql("N/A", SqlType::Float), "NULL");
+    assert_eq!(format_cell_for_sql("yes", SqlType::Float), "NULL");
+    assert_eq!(format_cell_for_sql("abc123", SqlType::Float), "NULL");
 }
 
 // ─── format_cell_for_sql: bool type ───────────────────────────────────
