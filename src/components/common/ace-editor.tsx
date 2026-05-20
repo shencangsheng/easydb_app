@@ -161,6 +161,13 @@ function CustomAceEditor({
               value: "read_mysql",
             },
             {
+              caption: translate("functions.readPostgres.name"),
+              snippet:
+                "read_postgres(${1:'table_name'}, ${2:host => 'localhost'}, ${3:username => 'postgres'}, ${4:db => 'mydb'}, ${5:pass => 'password'})",
+              meta: translate("functions.readPostgres.description"),
+              value: "read_postgres",
+            },
+            {
               caption: translate("functions.regexpLike.name"),
               snippet: "regexp_like(${1:column}, ${2:pattern})",
               meta: translate("functions.regexpLike.description"),
@@ -171,6 +178,42 @@ function CustomAceEditor({
               snippet: "conn => ${1:'connection'}",
               meta: translate("functions.readMysql.conn"),
               value: "conn",
+            },
+            {
+              caption: "host",
+              snippet: "host => ${1:'localhost'}",
+              meta: translate("functions.readPostgres.host"),
+              value: "host",
+            },
+            {
+              caption: "username",
+              snippet: "username => ${1:'postgres'}",
+              meta: translate("functions.readPostgres.username"),
+              value: "username",
+            },
+            {
+              caption: "db",
+              snippet: "db => ${1:'mydb'}",
+              meta: translate("functions.readPostgres.db"),
+              value: "db",
+            },
+            {
+              caption: "pass",
+              snippet: "pass => ${1:'password'}",
+              meta: translate("functions.readPostgres.pass"),
+              value: "pass",
+            },
+            {
+              caption: "port",
+              snippet: "port => ${1:'5432'}",
+              meta: translate("functions.readPostgres.port"),
+              value: "port",
+            },
+            {
+              caption: "sslmode",
+              snippet: "sslmode => ${1:'disable'}",
+              meta: translate("functions.readPostgres.sslmode"),
+              value: "sslmode",
             },
             {
               caption: "infer_schema",

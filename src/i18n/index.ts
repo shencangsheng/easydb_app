@@ -138,6 +138,17 @@ export interface Translations {
       table: string;
       conn: string;
     };
+    readPostgres: {
+      name: string;
+      description: string;
+      table: string;
+      host: string;
+      username: string;
+      db: string;
+      pass: string;
+      port: string;
+      sslmode: string;
+    };
     regexpLike: {
       name: string;
       description: string;
@@ -336,6 +347,17 @@ const translations: Record<Language, Translations> = {
         description: "从 MySQL 数据库读取表数据。",
         table: "要读取的表名称。",
         conn: "MySQL 连接字符串",
+      },
+      readPostgres: {
+        name: "read_postgres",
+        description: "从 PostgreSQL 数据库读取表数据。",
+        table: "要读取的表名称。",
+        host: "PostgreSQL 服务器地址。",
+        username: "PostgreSQL 用户名。",
+        db: "PostgreSQL 数据库名称。",
+        pass: "PostgreSQL 密码。",
+        port: "PostgreSQL 端口号，默认 5432。",
+        sslmode: "SSL 模式，默认 disable。",
       },
       regexpLike: {
         name: "REGEXP_LIKE",
@@ -544,6 +566,17 @@ const translations: Record<Language, Translations> = {
         description: "Read table data from MySQL database.",
         table: "Name of the table to read.",
         conn: "MySQL connection string.",
+      },
+      readPostgres: {
+        name: "read_postgres",
+        description: "Read table data from PostgreSQL database.",
+        table: "Name of the table to read.",
+        host: "PostgreSQL server host.",
+        username: "PostgreSQL username.",
+        db: "PostgreSQL database name.",
+        pass: "PostgreSQL password.",
+        port: "PostgreSQL port, defaults to 5432.",
+        sslmode: "SSL mode, defaults to disable.",
       },
       regexpLike: {
         name: "REGEXP_LIKE",
