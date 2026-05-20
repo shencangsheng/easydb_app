@@ -118,8 +118,8 @@ const readmePath = join(__dirname, "..", "README.md");
 try {
   let readmeContent = readFileSync(readmePath, "utf8");
   readmeContent = readmeContent.replace(
-    /\[!\[Version\]\(https:\/\/img\.shields\.io\/badge\/version-.*?-blue\.svg\)\]/g,
-    `[![Version](https://img.shields.io/badge/version-${newVersion}-blue.svg)]`
+    /\[!\[Release\]\(https:\/\/img\.shields\.io\/badge\/release-.*?-blue\.svg\)\]/g,
+    `[![Release](https://img.shields.io/badge/release-${newVersion}-blue.svg)]`
   );
 
   writeFileSync(readmePath, readmeContent);
@@ -133,8 +133,8 @@ const readmeCnPath = join(__dirname, "..", "README_CN.md");
 try {
   let readmeCnContent = readFileSync(readmeCnPath, "utf8");
   readmeCnContent = readmeCnContent.replace(
-    /\[!\[Version\]\(https:\/\/img\.shields\.io\/badge\/version-.*?-blue\.svg\)\]/g,
-    `[![Version](https://img.shields.io/badge/version-${newVersion}-blue.svg)]`
+    /\[!\[Release\]\(https:\/\/img\.shields\.io\/badge\/release-.*?-blue\.svg\)\]/g,
+    `[![Release](https://img.shields.io/badge/release-${newVersion}-blue.svg)]`
   );
 
   writeFileSync(readmeCnPath, readmeCnContent);

@@ -22,7 +22,7 @@
 
 EasyDB is a lightweight desktop data query tool built with Rust and Tauri, featuring a built-in Apache DataFusion query engine. No need to install a database or any other dependencies — just use SQL to query local files directly.
 
-It treats files as database tables, supporting CSV, TSV, Text, NdJson, Excel, Parquet, and MySQL as data sources. It supports complex multi-table JOINs, subqueries, window functions, and other advanced SQL features. It effortlessly handles data files from hundreds of MB to multiple GB with minimal hardware resources.
+It treats files as database tables, supporting CSV, TSV, Text, NdJson, Excel, Parquet, MySQL, and PostgreSQL as data sources. It supports complex multi-table JOINs, subqueries, window functions, and other advanced SQL features. It effortlessly handles data files from hundreds of MB to multiple GB with minimal hardware resources.
 
 ![demo.gif](assets/demo.gif)
 
@@ -30,7 +30,7 @@ It treats files as database tables, supporting CSV, TSV, Text, NdJson, Excel, Pa
 
 - **High Performance** — Built on Rust and DataFusion, effortlessly handles large files
 - **Low Memory Usage** — Runs with minimal hardware resources
-- **Multi-format Support** — CSV, TSV, Text, NdJson, Excel, Parquet, MySQL
+- **Multi-format Support** — CSV, TSV, Text, NdJson, Excel, Parquet, MySQL, PostgreSQL
 - **Ready to Use** — No file conversion needed, query directly
 - **Cross-platform** — Supports macOS and Windows
 - **Full SQL Support** — Multi-table JOINs, subqueries, window functions, regex matching, and more
@@ -58,6 +58,7 @@ See [CHANGELOG_EN.md](CHANGELOG_EN.md)
 - [x] `read_parquet()` — Read Parquet columnar storage files
 - [x] `read_ndjson()` — Read NDJSON files
 - [x] `read_mysql()` — Read MySQL database tables
+- [x] `read_postgres()` — Read PostgreSQL database tables
 
 ### Scalar Functions
 
@@ -91,18 +92,17 @@ See [CHANGELOG_EN.md](CHANGELOG_EN.md)
 
 ### Core Tech Stack
 
-| Layer           | Technology                                                                                     |
-| --------------- | ---------------------------------------------------------------------------------------------- |
-| Frontend        | React 18 + TypeScript + Vite                                                                   |
-| Backend         | Rust + Tauri v2                                                                                |
-| Query Engine    | [Apache DataFusion](https://github.com/apache/datafusion) 50.3                                 |
-| DB Connector    | [datafusion-table-providers](https://github.com/apache/arrow-datafusion-table-providers) MySQL |
-| UI Framework    | HeroUI + Tailwind CSS                                                                          |
-| Virtual Scroll  | @tanstack/react-virtual + @tanstack/react-table                                                |
-| SQL Editor      | Ace Editor (react-ace)                                                                         |
-| SQL Parsing     | sqlparser-rs (Rust) + node-sql-parser (JS)                                                     |
-| i18n            | Lightweight custom i18n, zh-CN / en-US                                                         |
-| History Storage | SQLite (rusqlite)                                                                              |
+| Layer           | Technology                                                     |
+| --------------- | -------------------------------------------------------------- |
+| Frontend        | React 18 + TypeScript + Vite                                   |
+| Backend         | Rust + Tauri v2                                                |
+| Query Engine    | [Apache DataFusion](https://github.com/apache/datafusion) 50.3 |
+| UI Framework    | HeroUI + Tailwind CSS                                          |
+| Virtual Scroll  | @tanstack/react-virtual + @tanstack/react-table                |
+| SQL Editor      | Ace Editor (react-ace)                                         |
+| SQL Parsing     | sqlparser-rs (Rust) + node-sql-parser (JS)                     |
+| i18n            | Lightweight custom i18n, zh-CN / en-US                         |
+| History Storage | SQLite (rusqlite)                                              |
 
 ### Query Engine Selection
 
@@ -150,6 +150,11 @@ SELECT *
 FROM read_mysql('users', conn => 'mysql://user:password@localhost:3306/mydb')
 WHERE "age" > 30;
 
+-- Query PostgreSQL database
+SELECT *
+FROM read_postgres('users', host => 'localhost', username => 'postgres', db => 'mydb', pass => 'password')
+WHERE "age" > 30;
+
 -- Cross-source join (Excel + MySQL)
 SELECT *
 FROM read_excel('/path/to/file.xlsx', sheet_name => 'Sheet1') AS t1
@@ -166,15 +171,16 @@ WHERE REGEXP_LIKE("Distance", '^([0-9]+)\.([0-9]+)?$');
 
 ### Supported Data Sources
 
-| Format  | Function                       | Description                                |
-| ------- | ------------------------------ | ------------------------------------------ |
-| CSV     | `read_csv()`                   | Custom delimiter, header, schema inference |
-| TSV     | `read_tsv()`                   | Tab-separated files                        |
-| Text    | `read_text()`                  | General text files with custom delimiter   |
-| Excel   | `read_excel()` / `read_xlsx()` | `.xlsx` support, optional worksheet        |
-| NdJson  | `read_ndjson()`                | One JSON object per line                   |
-| Parquet | `read_parquet()`               | Columnar storage format                    |
-| MySQL   | `read_mysql()`                 | Direct MySQL database table connection     |
+| Format     | Function                       | Description                                 |
+| ---------- | ------------------------------ | ------------------------------------------- |
+| CSV        | `read_csv()`                   | Custom delimiter, header, schema inference  |
+| TSV        | `read_tsv()`                   | Tab-separated files                         |
+| Text       | `read_text()`                  | General text files with custom delimiter    |
+| Excel      | `read_excel()` / `read_xlsx()` | `.xlsx` support, optional worksheet         |
+| NdJson     | `read_ndjson()`                | One JSON object per line                    |
+| Parquet    | `read_parquet()`               | Columnar storage format                     |
+| MySQL      | `read_mysql()`                 | Direct MySQL database table connection      |
+| PostgreSQL | `read_postgres()`              | Direct PostgreSQL database table connection |
 
 ### Function Parameters
 
@@ -206,6 +212,20 @@ WHERE REGEXP_LIKE("Distance", '^([0-9]+)\.([0-9]+)?$');
 | Parameter | Type   | Default      | Description                                                              |
 | --------- | ------ | ------------ | ------------------------------------------------------------------------ |
 | `conn`    | string | **Required** | MySQL connection string, e.g. `mysql://user:password@host:port/database` |
+
+</details>
+
+<details>
+<summary><code>read_postgres()</code> parameters</summary>
+
+| Parameter  | Type   | Default      | Description              |
+| ---------- | ------ | ------------ | ------------------------ |
+| `host`     | string | **Required** | PostgreSQL server host   |
+| `username` | string | **Required** | PostgreSQL username      |
+| `db`       | string | **Required** | PostgreSQL database name |
+| `pass`     | string | Optional     | PostgreSQL password      |
+| `port`     | string | `5432`       | PostgreSQL port number   |
+| `sslmode`  | string | `disable`    | SSL mode                 |
 
 </details>
 
@@ -334,7 +354,7 @@ cargo tauri build
 Thanks to the following open source projects:
 
 - [Apache DataFusion](https://github.com/apache/datafusion) — High-performance SQL query engine
-- [datafusion-table-providers](https://github.com/apache/arrow-datafusion-table-providers) — DataFusion extension (MySQL support)
+- [datafusion-table-providers](https://github.com/apache/arrow-datafusion-table-providers) — DataFusion extension
 - [Tauri](https://tauri.app/) — Modern desktop application framework
 - [React](https://reactjs.org/) — User interface library
 - [HeroUI](https://heroui.com/) — UI component library

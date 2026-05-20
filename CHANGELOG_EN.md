@@ -1,5 +1,18 @@
 # Changelog
 
+v2.8.0 - 2026-05-20
+
+- Added read_postgres() function, supporting PostgreSQL database queries
+- Added SQL export column configuration, supporting renaming export column names and removing unnecessary columns
+- Added BOOL type support, boolean values are exported as true/false (not wrapped in quotes)
+- Added "Export empty text as NULL" option, when enabled empty TEXT strings will be exported as NULL
+- Added feedback link in About page, redirecting to GitHub Issues
+- Optimized SQL export type inference, supporting more SQL type keywords (BIGINT, SMALLINT, DECIMAL, NUMERIC, REAL, CHAR, VARCHAR, etc.)
+- Optimized SQL type parsing performance, using pre-parsed enum instead of repeated string allocations in the hot loop
+- Fixed the issue where non-numeric data in INT/FLOAT columns generates invalid SQL during export, now outputs NULL
+- Fixed the issue of precision loss when exporting unsigned large integers (UInt64)
+- Refactored SQL export configuration into ExportColumnConfig structure, supporting column renaming, column removal, and type mapping
+
 v2.7.0 - 2026-05-18
 
 - Added column type configuration for SQL export, supporting INT/DOUBLE/TEXT target types per column; numeric types are not wrapped in quotes, text types are always wrapped in quotes

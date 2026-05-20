@@ -21,7 +21,7 @@
 
 EasyDB 是一个轻量级桌面数据查询工具，基于 Rust 与 Tauri 构建，内置 Apache DataFusion 查询引擎，无需安装数据库或其他依赖即可使用 SQL 直接查询本地文件。
 
-将文件视为数据库表，支持 CSV、TSV、Text、NdJson、Excel、Parquet 以及 MySQL 等多种数据源，支持复杂的多表 JOIN、子查询、窗口函数等高级 SQL 特性。轻松处理数百 MB 乃至数 GB 的数据文件，仅需少量硬件资源。
+将文件视为数据库表，支持 CSV、TSV、Text、NdJson、Excel、Parquet、MySQL 以及 PostgreSQL 等多种数据源，支持复杂的多表 JOIN、子查询、窗口函数等高级 SQL 特性。轻松处理数百 MB 乃至数 GB 的数据文件，仅需少量硬件资源。
 
 ![demo.gif](assets/demo.gif)
 
@@ -29,7 +29,7 @@ EasyDB 是一个轻量级桌面数据查询工具，基于 Rust 与 Tauri 构建
 
 - **高性能** — 基于 Rust 和 DataFusion 引擎，处理大型文件游刃有余
 - **低内存占用** — 仅需少量硬件资源即可运行
-- **多格式支持** — CSV、TSV、Text、NdJson、Excel、Parquet、MySQL
+- **多格式支持** — CSV、TSV、Text、NdJson、Excel、Parquet、MySQL、PostgreSQL
 - **开箱即用** — 无需文件转换，直接查询本地文件
 - **跨平台** — 支持 macOS 和 Windows
 - **完整 SQL 支持** — 多表 JOIN、子查询、窗口函数、正则匹配等
@@ -57,6 +57,7 @@ EasyDB 是一个轻量级桌面数据查询工具，基于 Rust 与 Tauri 构建
 - [x] `read_excel()` / `read_xlsx()` — 读取 Excel 文件，支持指定工作表
 - [x] `read_parquet()` — 读取 Parquet 列式存储文件
 - [x] `read_mysql()` — 读取 MySQL 数据库表
+- [x] `read_postgres()` — 读取 PostgreSQL 数据库表
 
 ### 标量函数
 
@@ -90,18 +91,17 @@ EasyDB 是一个轻量级桌面数据查询工具，基于 Rust 与 Tauri 构建
 
 ### 核心技术栈
 
-| 层级       | 技术                                                                                           |
-| ---------- | ---------------------------------------------------------------------------------------------- |
-| 前端       | React 18 + TypeScript + Vite                                                                   |
-| 后端       | Rust + Tauri v2                                                                                |
-| 查询引擎   | [Apache DataFusion](https://github.com/apache/datafusion) 50.3                                 |
-| 数据库连接 | [datafusion-table-providers](https://github.com/apache/arrow-datafusion-table-providers) MySQL |
-| UI 框架    | HeroUI + Tailwind CSS                                                                          |
-| 虚拟滚动   | @tanstack/react-virtual + @tanstack/react-table                                                |
-| SQL 编辑器 | Ace Editor (react-ace)                                                                         |
-| SQL 解析   | sqlparser-rs (Rust) + node-sql-parser (JS)                                                     |
-| 国际化     | 自建轻量 i18n，支持 zh-CN / en-US                                                              |
-| 历史存储   | SQLite (rusqlite)                                                                              |
+| 层级       | 技术                                                           |
+| ---------- | -------------------------------------------------------------- |
+| 前端       | React 18 + TypeScript + Vite                                   |
+| 后端       | Rust + Tauri v2                                                |
+| 查询引擎   | [Apache DataFusion](https://github.com/apache/datafusion) 50.3 |
+| UI 框架    | HeroUI + Tailwind CSS                                          |
+| 虚拟滚动   | @tanstack/react-virtual + @tanstack/react-table                |
+| SQL 编辑器 | Ace Editor (react-ace)                                         |
+| SQL 解析   | sqlparser-rs (Rust) + node-sql-parser (JS)                     |
+| 国际化     | 自建轻量 i18n，支持 zh-CN / en-US                              |
+| 历史存储   | SQLite (rusqlite)                                              |
 
 ### 查询引擎选择
 
@@ -149,6 +149,11 @@ SELECT *
 FROM read_mysql('users', conn => 'mysql://user:password@localhost:3306/mydb')
 WHERE "age" > 30;
 
+-- 查询 PostgreSQL 数据库
+SELECT *
+FROM read_postgres('users', host => 'localhost', username => 'postgres', db => 'mydb', pass => 'password')
+WHERE "age" > 30;
+
 -- 多源联合查询（Excel + MySQL）
 SELECT *
 FROM read_excel('/path/to/file.xlsx', sheet_name => 'Sheet1') AS t1
@@ -165,15 +170,16 @@ WHERE REGEXP_LIKE("Distance", '^([0-9]+)\.([0-9]+)?$');
 
 ### 支持的数据源
 
-| 格式    | 函数                           | 说明                                |
-| ------- | ------------------------------ | ----------------------------------- |
-| CSV     | `read_csv()`                   | 支持自定义分隔符、表头、Schema 推断 |
-| TSV     | `read_tsv()`                   | Tab 分隔文件                        |
-| Text    | `read_text()`                  | 通用文本文件，支持自定义分隔符      |
-| Excel   | `read_excel()` / `read_xlsx()` | 支持 `.xlsx`，可选工作表            |
-| NdJson  | `read_ndjson()`                | 每行一个 JSON 对象                  |
-| Parquet | `read_parquet()`               | 列式存储格式                        |
-| MySQL   | `read_mysql()`                 | 直连 MySQL 数据库表                 |
+| 格式       | 函数                           | 说明                                |
+| ---------- | ------------------------------ | ----------------------------------- |
+| CSV        | `read_csv()`                   | 支持自定义分隔符、表头、Schema 推断 |
+| TSV        | `read_tsv()`                   | Tab 分隔文件                        |
+| Text       | `read_text()`                  | 通用文本文件，支持自定义分隔符      |
+| Excel      | `read_excel()` / `read_xlsx()` | 支持 `.xlsx`，可选工作表            |
+| NdJson     | `read_ndjson()`                | 每行一个 JSON 对象                  |
+| Parquet    | `read_parquet()`               | 列式存储格式                        |
+| MySQL      | `read_mysql()`                 | 直连 MySQL 数据库表                 |
+| PostgreSQL | `read_postgres()`              | 直连 PostgreSQL 数据库表            |
 
 ### 函数参数说明
 
@@ -205,6 +211,20 @@ WHERE REGEXP_LIKE("Distance", '^([0-9]+)\.([0-9]+)?$');
 | 参数   | 类型   | 默认值   | 说明                                                            |
 | ------ | ------ | -------- | --------------------------------------------------------------- |
 | `conn` | string | **必需** | MySQL 连接字符串，如 `mysql://user:password@host:port/database` |
+
+</details>
+
+<details>
+<summary><code>read_postgres()</code> 参数</summary>
+
+| 参数       | 类型   | 默认值    | 说明                  |
+| ---------- | ------ | --------- | --------------------- |
+| `host`     | string | **必需**  | PostgreSQL 服务器地址 |
+| `username` | string | **必需**  | PostgreSQL 用户名     |
+| `db`       | string | **必需**  | PostgreSQL 数据库名称 |
+| `pass`     | string | 可选      | PostgreSQL 密码       |
+| `port`     | string | `5432`    | PostgreSQL 端口号     |
+| `sslmode`  | string | `disable` | SSL 模式              |
 
 </details>
 
@@ -333,7 +353,7 @@ cargo tauri build
 感谢以下开源项目：
 
 - [Apache DataFusion](https://github.com/apache/datafusion) — 高性能 SQL 查询引擎
-- [datafusion-table-providers](https://github.com/apache/arrow-datafusion-table-providers) — DataFusion 扩展（MySQL 支持）
+- [datafusion-table-providers](https://github.com/apache/arrow-datafusion-table-providers) — DataFusion 扩展
 - [Tauri](https://tauri.app/) — 现代桌面应用框架
 - [React](https://reactjs.org/) — 用户界面库
 - [HeroUI](https://heroui.com/) — UI 组件库

@@ -1,5 +1,18 @@
 # 更新日志
 
+v2.8.0 - 2026-05-20
+
+- 新增 read_postgres() 函数，支持 PostgreSQL 数据库查询
+- 新增 SQL 导出列配置，支持修改导出字段名、移除不需要的列
+- 新增 BOOL 类型支持，布尔值导出为 true/false（不被引号包裹）
+- 新增「空文本输出为 NULL」选项，勾选后 TEXT 类型空字符串将输出 NULL
+- 新增关于页面反馈入口，可直接跳转 GitHub Issues
+- 优化 SQL 导出类型推断，支持更多 SQL 类型关键字（BIGINT、SMALLINT、DECIMAL、NUMERIC、REAL、CHAR、VARCHAR 等）
+- 优化 SQL 类型解析性能，使用预解析枚举替代热循环中的重复字符串分配
+- 修复 INT/FLOAT 列中非数值数据导出时生成无效 SQL 的问题，现输出 NULL
+- 修复无符号大整数（UInt64）导出时精度丢失的问题
+- 重构 SQL 导出配置为 ExportColumnConfig 结构，支持列重命名、列移除与类型映射
+
 v2.7.0 - 2026-05-18
 
 - 新增 SQL 导出时列类型配置，支持为每列选择 INT/DOUBLE/TEXT 目标类型，数值类型不被引号包裹，文本类型始终被引号包裹
