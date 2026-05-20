@@ -215,30 +215,30 @@ fn test_format_bool_for_sql_unrecognized_returns_null() {
 
 #[test]
 fn test_format_cell_bool_to_int() {
-    assert_eq!(format_cell_for_sql("true", SqlType::Int), "1");
-    assert_eq!(format_cell_for_sql("false", SqlType::Int), "0");
+    assert_eq!(format_cell_for_sql("true", SqlType::Int, false), "1");
+    assert_eq!(format_cell_for_sql("false", SqlType::Int, false), "0");
 }
 
 #[test]
 fn test_format_cell_bool_to_float() {
-    assert_eq!(format_cell_for_sql("true", SqlType::Float), "1");
-    assert_eq!(format_cell_for_sql("false", SqlType::Float), "0");
+    assert_eq!(format_cell_for_sql("true", SqlType::Float, false), "1");
+    assert_eq!(format_cell_for_sql("false", SqlType::Float, false), "0");
 }
 
 // ─── format_cell_for_sql: integer type ────────────────────────────────
 
 #[test]
 fn test_format_cell_int_type() {
-    assert_eq!(format_cell_for_sql("42", SqlType::Int), "42");
-    assert_eq!(format_cell_for_sql("-5", SqlType::Int), "-5");
-    assert_eq!(format_cell_for_sql("3.7", SqlType::Int), "3"); // truncates float
-    assert_eq!(format_cell_for_sql("NULL", SqlType::Int), "NULL");
+    assert_eq!(format_cell_for_sql("42", SqlType::Int, false), "42");
+    assert_eq!(format_cell_for_sql("-5", SqlType::Int, false), "-5");
+    assert_eq!(format_cell_for_sql("3.7", SqlType::Int, false), "3"); // truncates float
+    assert_eq!(format_cell_for_sql("NULL", SqlType::Int, false), "NULL");
 }
 
 #[test]
 fn test_format_cell_int_large_unsigned() {
     assert_eq!(
-        format_cell_for_sql("18446744073709551615", SqlType::Int),
+        format_cell_for_sql("18446744073709551615", SqlType::Int, false),
         "18446744073709551615"
     );
 }
@@ -246,86 +246,86 @@ fn test_format_cell_int_large_unsigned() {
 #[test]
 fn test_format_cell_int_non_numeric_returns_null() {
     // Regression: previously produced quoted string like 'hello' which is invalid SQL for INT columns
-    assert_eq!(format_cell_for_sql("hello", SqlType::Int), "NULL");
-    assert_eq!(format_cell_for_sql("N/A", SqlType::Int), "NULL");
-    assert_eq!(format_cell_for_sql("yes", SqlType::Int), "NULL");
-    assert_eq!(format_cell_for_sql("abc123", SqlType::Int), "NULL");
+    assert_eq!(format_cell_for_sql("hello", SqlType::Int, false), "NULL");
+    assert_eq!(format_cell_for_sql("N/A", SqlType::Int, false), "NULL");
+    assert_eq!(format_cell_for_sql("yes", SqlType::Int, false), "NULL");
+    assert_eq!(format_cell_for_sql("abc123", SqlType::Int, false), "NULL");
 }
 
 // ─── format_cell_for_sql: float type ──────────────────────────────────
 
 #[test]
 fn test_format_cell_float_type() {
-    assert_eq!(format_cell_for_sql("3.14", SqlType::Float), "3.14");
-    assert_eq!(format_cell_for_sql("42", SqlType::Float), "42");
-    assert_eq!(format_cell_for_sql("NULL", SqlType::Float), "NULL");
+    assert_eq!(format_cell_for_sql("3.14", SqlType::Float, false), "3.14");
+    assert_eq!(format_cell_for_sql("42", SqlType::Float, false), "42");
+    assert_eq!(format_cell_for_sql("NULL", SqlType::Float, false), "NULL");
 }
 
 #[test]
 fn test_format_cell_float_non_numeric_returns_null() {
     // Regression: previously produced quoted string like 'hello' which is invalid SQL for FLOAT columns
-    assert_eq!(format_cell_for_sql("hello", SqlType::Float), "NULL");
-    assert_eq!(format_cell_for_sql("N/A", SqlType::Float), "NULL");
-    assert_eq!(format_cell_for_sql("yes", SqlType::Float), "NULL");
-    assert_eq!(format_cell_for_sql("abc123", SqlType::Float), "NULL");
+    assert_eq!(format_cell_for_sql("hello", SqlType::Float, false), "NULL");
+    assert_eq!(format_cell_for_sql("N/A", SqlType::Float, false), "NULL");
+    assert_eq!(format_cell_for_sql("yes", SqlType::Float, false), "NULL");
+    assert_eq!(format_cell_for_sql("abc123", SqlType::Float, false), "NULL");
 }
 
 #[test]
 fn test_format_cell_non_finite_float_returns_null() {
     // NaN and Infinity are invalid SQL literals; must return NULL instead
-    assert_eq!(format_cell_for_sql("NaN", SqlType::Float), "NULL");
-    assert_eq!(format_cell_for_sql("inf", SqlType::Float), "NULL");
-    assert_eq!(format_cell_for_sql("-inf", SqlType::Float), "NULL");
-    assert_eq!(format_cell_for_sql("infinity", SqlType::Float), "NULL");
-    assert_eq!(format_cell_for_sql("-infinity", SqlType::Float), "NULL");
+    assert_eq!(format_cell_for_sql("NaN", SqlType::Float, false), "NULL");
+    assert_eq!(format_cell_for_sql("inf", SqlType::Float, false), "NULL");
+    assert_eq!(format_cell_for_sql("-inf", SqlType::Float, false), "NULL");
+    assert_eq!(format_cell_for_sql("infinity", SqlType::Float, false), "NULL");
+    assert_eq!(format_cell_for_sql("-infinity", SqlType::Float, false), "NULL");
 }
 
 #[test]
 fn test_format_cell_non_finite_int_returns_null() {
     // NaN and Infinity must not be silently cast to 0 or i64::MAX
-    assert_eq!(format_cell_for_sql("NaN", SqlType::Int), "NULL");
-    assert_eq!(format_cell_for_sql("inf", SqlType::Int), "NULL");
-    assert_eq!(format_cell_for_sql("-inf", SqlType::Int), "NULL");
-    assert_eq!(format_cell_for_sql("infinity", SqlType::Int), "NULL");
-    assert_eq!(format_cell_for_sql("-infinity", SqlType::Int), "NULL");
+    assert_eq!(format_cell_for_sql("NaN", SqlType::Int, false), "NULL");
+    assert_eq!(format_cell_for_sql("inf", SqlType::Int, false), "NULL");
+    assert_eq!(format_cell_for_sql("-inf", SqlType::Int, false), "NULL");
+    assert_eq!(format_cell_for_sql("infinity", SqlType::Int, false), "NULL");
+    assert_eq!(format_cell_for_sql("-infinity", SqlType::Int, false), "NULL");
 }
 
 // ─── format_cell_for_sql: bool type ───────────────────────────────────
 
 #[test]
 fn test_format_cell_bool_type() {
-    assert_eq!(format_cell_for_sql("true", SqlType::Bool), "true");
-    assert_eq!(format_cell_for_sql("false", SqlType::Bool), "false");
-    assert_eq!(format_cell_for_sql("1", SqlType::Bool), "true");
-    assert_eq!(format_cell_for_sql("0", SqlType::Bool), "false");
-    assert_eq!(format_cell_for_sql("NULL", SqlType::Bool), "NULL");
+    assert_eq!(format_cell_for_sql("true", SqlType::Bool, false), "true");
+    assert_eq!(format_cell_for_sql("false", SqlType::Bool, false), "false");
+    assert_eq!(format_cell_for_sql("1", SqlType::Bool, false), "true");
+    assert_eq!(format_cell_for_sql("0", SqlType::Bool, false), "false");
+    assert_eq!(format_cell_for_sql("NULL", SqlType::Bool, false), "NULL");
 }
 
 #[test]
 fn test_format_cell_bool_type_unrecognized_returns_null() {
-    assert_eq!(format_cell_for_sql("maybe", SqlType::Bool), "NULL");
-    assert_eq!(format_cell_for_sql("2", SqlType::Bool), "NULL");
+    assert_eq!(format_cell_for_sql("maybe", SqlType::Bool, false), "NULL");
+    assert_eq!(format_cell_for_sql("2", SqlType::Bool, false), "NULL");
 }
 
 // ─── format_cell_for_sql: text type ───────────────────────────────────
 
 #[test]
 fn test_format_cell_text_type() {
-    assert_eq!(format_cell_for_sql("hello", SqlType::Text), "'hello'");
-    assert_eq!(format_cell_for_sql("it's", SqlType::Text), "'it''s'"); // escapes quotes
-    assert_eq!(format_cell_for_sql("NULL", SqlType::Text), "NULL");
+    assert_eq!(format_cell_for_sql("hello", SqlType::Text, false), "'hello'");
+    assert_eq!(format_cell_for_sql("it's", SqlType::Text, false), "'it''s'"); // escapes quotes
+    assert_eq!(format_cell_for_sql("NULL", SqlType::Text, false), "NULL");
 }
 
 // ─── format_cell_for_sql: unknown type ────────────────────────────────
 
 #[test]
 fn test_format_cell_unknown_type() {
-    assert_eq!(format_cell_for_sql("42", SqlType::Unknown), "42");
-    assert_eq!(format_cell_for_sql("3.14", SqlType::Unknown), "3.14");
-    assert_eq!(format_cell_for_sql("true", SqlType::Unknown), "true");
-    assert_eq!(format_cell_for_sql("false", SqlType::Unknown), "false");
-    assert_eq!(format_cell_for_sql("hello", SqlType::Unknown), "'hello'");
-    assert_eq!(format_cell_for_sql("NULL", SqlType::Unknown), "NULL");
+    assert_eq!(format_cell_for_sql("42", SqlType::Unknown, false), "42");
+    assert_eq!(format_cell_for_sql("3.14", SqlType::Unknown, false), "3.14");
+    assert_eq!(format_cell_for_sql("true", SqlType::Unknown, false), "true");
+    assert_eq!(format_cell_for_sql("false", SqlType::Unknown, false), "false");
+    assert_eq!(format_cell_for_sql("hello", SqlType::Unknown, false), "'hello'");
+    assert_eq!(format_cell_for_sql("NULL", SqlType::Unknown, false), "NULL");
 }
 
 // ─── strip_float_zero_suffix ──────────────────────────────────────────
@@ -424,7 +424,7 @@ fn test_perf_format_cell_for_sql_enum_dispatch() {
     for _ in 0..iterations {
         for v in &values {
             for t in &types {
-                std::hint::black_box(format_cell_for_sql(v, *t));
+                std::hint::black_box(format_cell_for_sql(v, *t, false));
             }
         }
     }
@@ -486,4 +486,33 @@ fn test_perf_resolve_export_specs_large_columns() {
         column_count,
         duration
     );
+}
+
+// ─── empty_text_as_null ──────────────────────────────────────────────
+
+#[test]
+fn test_format_cell_empty_text_as_null_enabled() {
+    assert_eq!(format_cell_for_sql("", SqlType::Text, true), "NULL");
+    assert_eq!(format_cell_for_sql("", SqlType::Unknown, true), "NULL");
+    assert_eq!(format_cell_for_sql("hello", SqlType::Text, true), "'hello'");
+    assert_eq!(format_cell_for_sql("42", SqlType::Unknown, true), "42");
+}
+
+#[test]
+fn test_format_cell_empty_text_as_null_disabled() {
+    assert_eq!(format_cell_for_sql("", SqlType::Text, false), "''");
+    assert_eq!(format_cell_for_sql("", SqlType::Unknown, false), "''");
+}
+
+#[test]
+fn test_format_cell_empty_text_as_null_no_effect_on_non_text_types() {
+    assert_eq!(format_cell_for_sql("", SqlType::Int, true), "NULL");
+    assert_eq!(format_cell_for_sql("", SqlType::Float, true), "NULL");
+    assert_eq!(format_cell_for_sql("", SqlType::Bool, true), "NULL");
+}
+
+#[test]
+fn test_format_cell_null_value_ignores_empty_text_as_null() {
+    assert_eq!(format_cell_for_sql("NULL", SqlType::Text, true), "NULL");
+    assert_eq!(format_cell_for_sql("NULL", SqlType::Text, false), "NULL");
 }

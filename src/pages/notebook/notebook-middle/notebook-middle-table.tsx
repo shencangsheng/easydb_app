@@ -24,6 +24,7 @@ import {
   Tab,
   Select,
   SelectItem,
+  Checkbox,
 } from "@heroui/react";
 import { memo, useState, useEffect } from "react";
 import DataResult from "./notebook-middle-data-result";
@@ -135,6 +136,7 @@ function DataTable({
   const [columnTypes, setColumnTypes] = useState<ColumnTypeInfo[]>([]);
   const [exportColumns, setExportColumns] = useState<ExportColumnConfig[]>([]);
   const [isLoadingColumnTypes, setIsLoadingColumnTypes] = useState(false);
+  const [emptyTextAsNull, setEmptyTextAsNull] = useState(false);
   const { translate } = useTranslation();
 
   // 自动隐藏提示
@@ -154,7 +156,8 @@ function DataTable({
     sqlStatementType?: string,
     whereColumn?: string,
     dialect?: string,
-    exportColumns?: ExportColumnConfig[]
+    exportColumns?: ExportColumnConfig[],
+    emptyTextAsNull?: boolean
   ) {
     try {
       setIsDownloading(true);
@@ -169,6 +172,7 @@ function DataTable({
         whereColumn: fileType === "SQL" ? whereColumn : undefined,
         dialect: fileType === "SQL" ? dialect : undefined,
         exportColumns: fileType === "SQL" ? exportColumns : undefined,
+        emptyTextAsNull: fileType === "SQL" ? emptyTextAsNull : undefined,
       });
       setExportResult(result);
     } catch (error) {
@@ -186,6 +190,7 @@ function DataTable({
     setDatabaseDialect("MySQL");
     setColumnTypes([]);
     setExportColumns([]);
+    setEmptyTextAsNull(false);
     setIsTableNameModalOpen(true);
 
     // Fetch column types from backend
@@ -232,7 +237,8 @@ function DataTable({
       sqlStatementType,
       whereColumn,
       databaseDialect,
-      exportColumns
+      exportColumns,
+      emptyTextAsNull
     );
   }
 
@@ -551,6 +557,23 @@ function DataTable({
                           {translate("notebook.export.postgresql")}
                         </SelectItem>
                       </Select>
+                    </div>
+
+                    {/* 空文本输出为 NULL */}
+                    <div className="space-y-3">
+                      <Checkbox
+                        isSelected={emptyTextAsNull}
+                        onValueChange={setEmptyTextAsNull}
+                        size="md"
+                        classNames={{
+                          label: "text-sm text-foreground",
+                        }}
+                      >
+                        {translate("notebook.export.emptyTextAsNull")}
+                      </Checkbox>
+                      <p className="text-xs text-default-400 pl-7">
+                        {translate("notebook.export.emptyTextAsNullHint")}
+                      </p>
                     </div>
                   </div>
 

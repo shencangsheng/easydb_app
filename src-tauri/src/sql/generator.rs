@@ -120,9 +120,21 @@ pub(crate) fn resolve_export_specs(
     Ok(specs)
 }
 
-pub(crate) fn format_cell_for_sql(formatted_value: &str, col_type: SqlType) -> String {
+pub(crate) fn format_cell_for_sql(
+    formatted_value: &str,
+    col_type: SqlType,
+    empty_text_as_null: bool,
+) -> String {
     if formatted_value == "NULL" {
         return "NULL".to_string();
+    }
+
+    // When empty_text_as_null is enabled, treat empty strings as NULL for text-like types
+    if empty_text_as_null && formatted_value.is_empty() {
+        match col_type {
+            SqlType::Text | SqlType::Unknown => return "NULL".to_string(),
+            _ => {}
+        }
     }
 
     if col_type == SqlType::Unknown {
@@ -210,6 +222,7 @@ pub(crate) fn format_value_for_sql(value: &str, strip_float_suffix: bool) -> Str
 fn extract_rows_from_batches<F>(
     batches: Vec<RecordBatch>,
     export_specs: &[ColumnExportSpec],
+    empty_text_as_null: bool,
     mut on_row: F,
 ) -> AppResult<()>
 where
@@ -237,7 +250,7 @@ where
                 let formatted_value = formatters[spec.source_index]
                     .value(row_idx)
                     .to_string();
-                cells.push(format_cell_for_sql(&formatted_value, spec.sql_type));
+                cells.push(format_cell_for_sql(&formatted_value, spec.sql_type, empty_text_as_null));
             }
             on_row(cells)?;
         }
@@ -269,6 +282,7 @@ pub async fn generate_sql_inserts(
     max_values_per_insert: usize,
     db_dialect: &Dialect,
     export_columns: Option<&[ExportColumnConfig]>,
+    empty_text_as_null: bool,
 ) -> AppResult<String> {
     // Collect RecordBatches from DataFrame
     let batches = df
@@ -327,7 +341,7 @@ pub async fn generate_sql_inserts(
         Ok(())
     };
 
-    extract_rows_from_batches(batches, &export_specs, |row| {
+    extract_rows_from_batches(batches, &export_specs, empty_text_as_null, |row| {
         pending_rows.push(row);
         if pending_rows.len() == chunk_limit {
             flush_chunk(&mut pending_rows)?;
@@ -347,6 +361,7 @@ pub async fn generate_sql_update(
     where_column: &str,
     db_dialect: &Dialect,
     export_columns: Option<&[ExportColumnConfig]>,
+    empty_text_as_null: bool,
 ) -> AppResult<String> {
     // Collect RecordBatches from DataFrame
     let batches = df
@@ -409,7 +424,7 @@ pub async fn generate_sql_update(
 
     let mut sql_statements = String::new();
 
-    extract_rows_from_batches(batches, &extract_specs, |row| {
+    extract_rows_from_batches(batches, &extract_specs, empty_text_as_null, |row| {
         let mut set_clauses = Vec::new();
         let mut where_value: Option<String> = None;
 

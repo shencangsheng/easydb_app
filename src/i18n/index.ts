@@ -74,6 +74,8 @@ export interface Translations {
       sourceColumn: string;
       removeColumn: string;
       noExportColumns: string;
+      emptyTextAsNull: string;
+      emptyTextAsNullHint: string;
     };
   };
   functions: {
@@ -271,7 +273,7 @@ const translations: Record<Language, Translations> = {
         confirmExport: "确认导出",
         columnTypes: "导出列类型",
         columnTypesDescription:
-          "可修改导出字段名、删除不需要的列，并为每列选择目标 SQL 类型。INT/DOUBLE/BOOL 类型的值将不被引号包裹（BOOL 导出为 true/false），TEXT 类型的值将始终被引号包裹",
+          "可修改导出字段名、删除不需要的列，并为每列选择目标 SQL 类型。INT/DOUBLE/BOOL 类型的值将不被引号包裹（BOOL 导出为 true/false），TEXT 类型的值将始终被引号包裹。可勾选「空文本输出为 NULL」将空字符串导出为 NULL",
         columnName: "列名",
         arrowType: "原始类型",
         sqlType: "SQL 类型",
@@ -279,6 +281,8 @@ const translations: Record<Language, Translations> = {
         sourceColumn: "源列",
         removeColumn: "移除此列",
         noExportColumns: "请至少保留一列用于导出",
+        emptyTextAsNull: "空文本输出为 NULL",
+        emptyTextAsNullHint: "勾选后，TEXT 类型字段值为空字符串时将输出 NULL；未勾选则输出空字符串 ''",
       },
     },
     functions: {
@@ -487,7 +491,7 @@ const translations: Record<Language, Translations> = {
         confirmExport: "Confirm Export",
         columnTypes: "Export Column Types",
         columnTypesDescription:
-          "Rename export column names, remove columns you don't need, and select SQL types. INT/DOUBLE/BOOL types won't be quoted (BOOL exports as true/false), TEXT type will always be quoted",
+          "Rename export column names, remove columns you don't need, and select SQL types. INT/DOUBLE/BOOL types won't be quoted (BOOL exports as true/false), TEXT type will always be quoted. Enable \"Export empty text as NULL\" to output NULL for empty strings",
         columnName: "Column",
         arrowType: "Source Type",
         sqlType: "SQL Type",
@@ -495,6 +499,8 @@ const translations: Record<Language, Translations> = {
         sourceColumn: "Source",
         removeColumn: "Remove column",
         noExportColumns: "Keep at least one column to export",
+        emptyTextAsNull: "Export empty text as NULL",
+        emptyTextAsNullHint: "When enabled, empty TEXT values will be exported as NULL instead of an empty string ''",
       },
     },
     functions: {

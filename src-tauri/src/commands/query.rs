@@ -286,6 +286,7 @@ pub async fn writer(
     where_column: Option<String>,
     dialect: Option<String>,
     export_columns: Option<Vec<ExportColumnConfig>>,
+    empty_text_as_null: Option<bool>,
 ) -> AppResult<WriterResult> {
     run_blocking_async(move || async move {
         let mut downloads_dir = dirs::download_dir().ok_or_else(|| AppError::BadRequest {
@@ -377,15 +378,16 @@ pub async fn writer(
                     .as_ref()
                     .map(|s| s.to_uppercase())
                     .unwrap_or_else(|| "INSERT".to_string());
+                let empty_as_null = empty_text_as_null.unwrap_or(false);
 
                 let sql_content = match statement_type.as_str() {
                     "INSERT" => {
                         let max_values = max_values_per_insert.unwrap();
-                        generate_sql_inserts(df, &table_name_value, max_values, &db_dialect, export_columns.as_deref()).await?
+                        generate_sql_inserts(df, &table_name_value, max_values, &db_dialect, export_columns.as_deref(), empty_as_null).await?
                     }
                     "UPDATE" => {
                         let where_column_value = where_column.unwrap();
-                        generate_sql_update(df, &table_name_value, &where_column_value, &db_dialect, export_columns.as_deref())
+                        generate_sql_update(df, &table_name_value, &where_column_value, &db_dialect, export_columns.as_deref(), empty_as_null)
                             .await?
                     }
                     _ => {
