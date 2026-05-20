@@ -346,10 +346,6 @@ cargo tauri build
   <img src="https://contrib.rocks/image?repo=shencangsheng/easydb_app" />
 </a>
 
-### AI 开发
-
-从 v2.7.0 版本开始，本项目将全面采用 AI 进行开发。早些时候，大模型对 Rust 代码的生成一次通过率较低，几乎滥用 `unwrap()` 来处理错误，因此项目只有前端部分借助 AI 开发，而 Rust 部分几乎使用古法编程。随着大模型能力的持续提升和 `skills` 的加入，现已逐步让 AI 接管 Rust 代码的开发工作，期望借助 AI 的力量攻克更多技术难题。
-
 ## 联系我们
 
 - 问题反馈: [GitHub Issues](https://github.com/shencangsheng/easydb_app/issues)

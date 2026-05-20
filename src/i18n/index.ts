@@ -70,6 +70,12 @@ export interface Translations {
       columnName: string;
       arrowType: string;
       sqlType: string;
+      exportColumnName: string;
+      sourceColumn: string;
+      removeColumn: string;
+      noExportColumns: string;
+      emptyTextAsNull: string;
+      emptyTextAsNullHint: string;
     };
   };
   functions: {
@@ -133,6 +139,17 @@ export interface Translations {
       description: string;
       table: string;
       conn: string;
+    };
+    readPostgres: {
+      name: string;
+      description: string;
+      table: string;
+      host: string;
+      username: string;
+      db: string;
+      pass: string;
+      port: string;
+      sslmode: string;
     };
     regexpLike: {
       name: string;
@@ -256,10 +273,16 @@ const translations: Record<Language, Translations> = {
         confirmExport: "确认导出",
         columnTypes: "导出列类型",
         columnTypesDescription:
-          "为每列选择目标 SQL 类型，INT/DOUBLE 类型的值将不被引号包裹，TEXT 类型的值将始终被引号包裹",
+          "可修改导出字段名、删除不需要的列，并为每列选择目标 SQL 类型。INT/DOUBLE/BOOL 类型的值将不被引号包裹（BOOL 导出为 true/false），TEXT 类型的值将始终被引号包裹。可勾选「空文本输出为 NULL」将空字符串导出为 NULL",
         columnName: "列名",
         arrowType: "原始类型",
         sqlType: "SQL 类型",
+        exportColumnName: "导出字段名",
+        sourceColumn: "源列",
+        removeColumn: "移除此列",
+        noExportColumns: "请至少保留一列用于导出",
+        emptyTextAsNull: "空文本输出为 NULL",
+        emptyTextAsNullHint: "勾选后，TEXT 类型字段值为空字符串时将输出 NULL；未勾选则输出空字符串 ''",
       },
     },
     functions: {
@@ -328,6 +351,17 @@ const translations: Record<Language, Translations> = {
         description: "从 MySQL 数据库读取表数据。",
         table: "要读取的表名称。",
         conn: "MySQL 连接字符串",
+      },
+      readPostgres: {
+        name: "read_postgres",
+        description: "从 PostgreSQL 数据库读取表数据。",
+        table: "要读取的表名称。",
+        host: "PostgreSQL 服务器地址。",
+        username: "PostgreSQL 用户名。",
+        db: "PostgreSQL 数据库名称。",
+        pass: "PostgreSQL 密码。",
+        port: "PostgreSQL 端口号，默认 5432。",
+        sslmode: "SSL 模式，默认 disable。",
       },
       regexpLike: {
         name: "REGEXP_LIKE",
@@ -457,10 +491,16 @@ const translations: Record<Language, Translations> = {
         confirmExport: "Confirm Export",
         columnTypes: "Export Column Types",
         columnTypesDescription:
-          "Select the target SQL type for each column. INT/DOUBLE types won't be quoted, TEXT type will always be quoted",
+          "Rename export column names, remove columns you don't need, and select SQL types. INT/DOUBLE/BOOL types won't be quoted (BOOL exports as true/false), TEXT type will always be quoted. Enable \"Export empty text as NULL\" to output NULL for empty strings",
         columnName: "Column",
         arrowType: "Source Type",
         sqlType: "SQL Type",
+        exportColumnName: "Export Name",
+        sourceColumn: "Source",
+        removeColumn: "Remove column",
+        noExportColumns: "Keep at least one column to export",
+        emptyTextAsNull: "Export empty text as NULL",
+        emptyTextAsNullHint: "When enabled, empty TEXT values will be exported as NULL instead of an empty string ''",
       },
     },
     functions: {
@@ -532,6 +572,17 @@ const translations: Record<Language, Translations> = {
         description: "Read table data from MySQL database.",
         table: "Name of the table to read.",
         conn: "MySQL connection string.",
+      },
+      readPostgres: {
+        name: "read_postgres",
+        description: "Read table data from PostgreSQL database.",
+        table: "Name of the table to read.",
+        host: "PostgreSQL server host.",
+        username: "PostgreSQL username.",
+        db: "PostgreSQL database name.",
+        pass: "PostgreSQL password.",
+        port: "PostgreSQL port, defaults to 5432.",
+        sslmode: "SSL mode, defaults to disable.",
       },
       regexpLike: {
         name: "REGEXP_LIKE",

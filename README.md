@@ -347,10 +347,6 @@ Thanks to the following open source projects:
   <img src="https://contrib.rocks/image?repo=shencangsheng/easydb_app" />
 </a>
 
-### AI Development
-
-Starting from v2.7.0, this project will be fully developed using AI. Earlier, the generation rate of AI for Rust code was very low, almost abusing `unwrap()` to handle errors, so the project only used AI for the front-end part, and the Rust part was almost written by hand. With the continuous improvement of AI capabilities and the addition of `skills`, AI has gradually taken over the development work of Rust code, expecting to use AI to overcome more technical challenges.
-
 ## Contact
 
 - Bug Reports: [GitHub Issues](https://github.com/shencangsheng/easydb_app/issues)

@@ -220,6 +220,63 @@ const createMethods = (t: (key: string) => string) => [
     isBeta: true,
   },
   {
+    name: "read_postgres",
+    description: t("functions.readPostgres.description"),
+    type: "table-valued" as FunctionType,
+    params: [
+      {
+        name: "host",
+        type: "string",
+        default: undefined,
+        desc: t("functions.readPostgres.host"),
+        example: "localhost",
+        required: true,
+      },
+      {
+        name: "username",
+        type: "string",
+        default: undefined,
+        desc: t("functions.readPostgres.username"),
+        example: "postgres",
+        required: true,
+      },
+      {
+        name: "db",
+        type: "string",
+        default: undefined,
+        desc: t("functions.readPostgres.db"),
+        example: "mydb",
+        required: true,
+      },
+      {
+        name: "pass",
+        type: "string",
+        default: undefined,
+        desc: t("functions.readPostgres.pass"),
+        example: "password",
+        required: false,
+      },
+      {
+        name: "port",
+        type: "string",
+        default: "5432",
+        desc: t("functions.readPostgres.port"),
+        example: "5432",
+        required: false,
+      },
+      {
+        name: "sslmode",
+        type: "string",
+        default: "disable",
+        desc: t("functions.readPostgres.sslmode"),
+        example: "disable",
+        required: false,
+      },
+    ],
+    example: `select * from read_postgres('users', host => 'localhost', username => 'postgres', db => 'mydb', pass => 'password')`,
+    isBeta: true,
+  },
+  {
     name: "regexp_like",
     description: t("functions.regexpLike.description"),
     type: "scalar-valued" as FunctionType,
@@ -608,8 +665,8 @@ function NotebookRight() {
                             {param.required === true
                               ? translate("functions.required")
                               : param.default !== undefined
-                              ? String(param.default)
-                              : "-"}
+                                ? String(param.default)
+                                : "-"}
                           </span>
                           <span
                             style={{
@@ -639,7 +696,7 @@ function NotebookRight() {
                             {param.desc}
                           </span>
                         </div>
-                      )
+                      ),
                     )}
                   </div>
                 </div>

@@ -3,7 +3,9 @@ use calamine::XlsxError;
 use datafusion::arrow::error::ArrowError;
 use datafusion::error::DataFusionError;
 use datafusion_table_providers::mysql;
+use datafusion_table_providers::postgres;
 use datafusion_table_providers::sql::db_connection_pool::mysqlpool;
+use datafusion_table_providers::sql::db_connection_pool::postgrespool;
 use derive_more::with_trait::{Display, Error};
 use glob::{GlobError, PatternError};
 use sqlparser::parser::ParserError;
@@ -137,6 +139,24 @@ impl From<mysqlpool::Error> for AppError {
 
 impl From<mysql::Error> for AppError {
     fn from(error: mysql::Error) -> Self {
+        AppError::log_backtrace();
+        BadRequest {
+            message: error.to_string(),
+        }
+    }
+}
+
+impl From<postgrespool::Error> for AppError {
+    fn from(error: postgrespool::Error) -> Self {
+        AppError::log_backtrace();
+        BadRequest {
+            message: error.to_string(),
+        }
+    }
+}
+
+impl From<postgres::Error> for AppError {
+    fn from(error: postgres::Error) -> Self {
         AppError::log_backtrace();
         BadRequest {
             message: error.to_string(),

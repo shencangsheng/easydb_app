@@ -2,7 +2,9 @@ use crate::commands::{run_blocking, run_blocking_async};
 use crate::context::context::{collect, get_data_frame, get_sql_context, register};
 use crate::context::error::AppError;
 use crate::context::schema::AppResult;
-use crate::sql::generator::{generate_sql_inserts, generate_sql_update};
+use crate::sql::generator::{
+    generate_sql_inserts, generate_sql_update, ExportColumnConfig,
+};
 use crate::utils::date_utils::time_difference_from_now;
 use crate::utils::db_utils;
 use crate::utils::db_utils::insert_query_history;
@@ -75,8 +77,8 @@ fn arrow_type_to_sql_type(arrow_type: &datafusion::arrow::datatypes::DataType) -
     use datafusion::arrow::datatypes::DataType;
 
     match arrow_type {
-        DataType::Boolean
-        | DataType::Int8 | DataType::Int16 | DataType::Int32
+        DataType::Boolean => "BOOL".to_string(),
+        DataType::Int8 | DataType::Int16 | DataType::Int32
         | DataType::Int64
         | DataType::UInt8 | DataType::UInt16 | DataType::UInt32
         | DataType::UInt64 => "INT".to_string(),
@@ -87,6 +89,11 @@ fn arrow_type_to_sql_type(arrow_type: &datafusion::arrow::datatypes::DataType) -
         DataType::Decimal128(_, _) | DataType::Decimal256(_, _) => "DOUBLE".to_string(),
         _ => "TEXT".to_string(),
     }
+}
+
+/// Check if a SQL type is a boolean type (values should be exported as true/false without quotes)
+pub fn is_sql_bool_type(sql_type: &str) -> bool {
+    sql_type.to_uppercase().starts_with("BOOL")
 }
 
 /// Check if a SQL type is a numeric type (values should not be quoted in SQL)
@@ -278,7 +285,8 @@ pub async fn writer(
     sql_statement_type: Option<String>,
     where_column: Option<String>,
     dialect: Option<String>,
-    column_types: Option<Vec<String>>,
+    export_columns: Option<Vec<ExportColumnConfig>>,
+    empty_text_as_null: Option<bool>,
 ) -> AppResult<WriterResult> {
     run_blocking_async(move || async move {
         let mut downloads_dir = dirs::download_dir().ok_or_else(|| AppError::BadRequest {
@@ -370,15 +378,16 @@ pub async fn writer(
                     .as_ref()
                     .map(|s| s.to_uppercase())
                     .unwrap_or_else(|| "INSERT".to_string());
+                let empty_as_null = empty_text_as_null.unwrap_or(false);
 
                 let sql_content = match statement_type.as_str() {
                     "INSERT" => {
                         let max_values = max_values_per_insert.unwrap();
-                        generate_sql_inserts(df, &table_name_value, max_values, &db_dialect, column_types.as_deref()).await?
+                        generate_sql_inserts(df, &table_name_value, max_values, &db_dialect, export_columns.as_deref(), empty_as_null).await?
                     }
                     "UPDATE" => {
                         let where_column_value = where_column.unwrap();
-                        generate_sql_update(df, &table_name_value, &where_column_value, &db_dialect, column_types.as_deref())
+                        generate_sql_update(df, &table_name_value, &where_column_value, &db_dialect, export_columns.as_deref(), empty_as_null)
                             .await?
                     }
                     _ => {

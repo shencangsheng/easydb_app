@@ -8,7 +8,11 @@ use datafusion::dataframe::DataFrame;
 use datafusion::prelude::{CsvReadOptions, NdJsonReadOptions, ParquetReadOptions, SessionContext};
 use datafusion::sql::TableReference;
 use datafusion_table_providers::{
-    mysql::MySQLTableFactory, sql::db_connection_pool::mysqlpool::MySQLConnectionPool,
+    mysql::MySQLTableFactory,
+    postgres::PostgresTableFactory,
+    sql::db_connection_pool::{
+        mysqlpool::MySQLConnectionPool, postgrespool::PostgresConnectionPool,
+    },
     util::secrets::to_secret_map,
 };
 use sqlparser::ast::SetExpr::Select;
@@ -265,6 +269,88 @@ pub async fn register_mysql(
     Ok(())
 }
 
+pub async fn register_postgres(
+    ctx: &mut SessionContext,
+    table_name: &String,
+    table_path: &String,
+    args: &mut Option<TableFunctionArgs>,
+) -> AppResult<()> {
+    let args = get_function_args(args);
+    let mut host: Option<String> = None;
+    let mut username: Option<String> = None;
+    let mut db: Option<String> = None;
+    let mut pass: Option<String> = None;
+    let mut port: Option<String> = None;
+    let mut sslmode: Option<String> = None;
+
+    if let Some(args) = args {
+        for arg in args {
+            if let FunctionArg::Named { name, arg, .. } = arg {
+                if let FunctionArgExpr::Expr(Expr::Value(Value::SingleQuotedString(value))) = arg {
+                    match name.value.as_str() {
+                        "host" => host = Some(value.to_string()),
+                        "username" => username = Some(value.to_string()),
+                        "db" => db = Some(value.to_string()),
+                        "pass" => pass = Some(value.to_string()),
+                        "port" => port = Some(value.to_string()),
+                        "sslmode" => sslmode = Some(value.to_string()),
+                        _ => {}
+                    }
+                }
+            }
+        }
+    }
+
+    if host.is_none() {
+        return Err(AppError::BadRequest {
+            message: "'host' parameter is required".to_string(),
+        });
+    }
+    if username.is_none() {
+        return Err(AppError::BadRequest {
+            message: "'username' parameter is required".to_string(),
+        });
+    }
+    if db.is_none() {
+        return Err(AppError::BadRequest {
+            message: "'db' parameter is required".to_string(),
+        });
+    }
+
+    let mut params = HashMap::from([
+        ("host".to_string(), host.unwrap()),
+        ("user".to_string(), username.unwrap()),
+        ("db".to_string(), db.unwrap()),
+    ]);
+
+    if let Some(pass) = pass {
+        params.insert("pass".to_string(), pass);
+    }
+    params.insert(
+        "port".to_string(),
+        port.unwrap_or_else(|| "5432".to_string()),
+    );
+    params.insert(
+        "sslmode".to_string(),
+        sslmode.unwrap_or_else(|| "disable".to_string()),
+    );
+
+    let postgres_params = to_secret_map(params);
+
+    let postgres_pool = Arc::new(PostgresConnectionPool::new(postgres_params).await?);
+
+    let table_factory = PostgresTableFactory::new(postgres_pool);
+
+    ctx.register_table(
+        table_name,
+        table_factory
+            .table_provider(TableReference::bare(table_path.clone()))
+            .await?,
+    )?;
+
+    Ok(())
+}
+
 pub async fn register_table(
     ctx: &mut SessionContext,
     relation: &mut TableFactor,
@@ -308,6 +394,9 @@ pub async fn register_table(
             "read_mysql" => {
                 register_mysql(ctx, &table_name, &table_path, args).await?;
             }
+            "read_postgres" => {
+                register_postgres(ctx, &table_name, &table_path, args).await?;
+            }
             "read_text" => {
                 let mut options = CsvReadOptions::default();
                 options.delimiter = b'\t';
@@ -317,7 +406,7 @@ pub async fn register_table(
                     &table_path,
                     get_csv_read_options(args, options)?,
                 )
-                    .await?
+                .await?
             }
             _ => {
                 return Err(AppError::BadRequest {
