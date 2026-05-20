@@ -270,6 +270,26 @@ fn test_format_cell_float_non_numeric_returns_null() {
     assert_eq!(format_cell_for_sql("abc123", SqlType::Float), "NULL");
 }
 
+#[test]
+fn test_format_cell_non_finite_float_returns_null() {
+    // NaN and Infinity are invalid SQL literals; must return NULL instead
+    assert_eq!(format_cell_for_sql("NaN", SqlType::Float), "NULL");
+    assert_eq!(format_cell_for_sql("inf", SqlType::Float), "NULL");
+    assert_eq!(format_cell_for_sql("-inf", SqlType::Float), "NULL");
+    assert_eq!(format_cell_for_sql("infinity", SqlType::Float), "NULL");
+    assert_eq!(format_cell_for_sql("-infinity", SqlType::Float), "NULL");
+}
+
+#[test]
+fn test_format_cell_non_finite_int_returns_null() {
+    // NaN and Infinity must not be silently cast to 0 or i64::MAX
+    assert_eq!(format_cell_for_sql("NaN", SqlType::Int), "NULL");
+    assert_eq!(format_cell_for_sql("inf", SqlType::Int), "NULL");
+    assert_eq!(format_cell_for_sql("-inf", SqlType::Int), "NULL");
+    assert_eq!(format_cell_for_sql("infinity", SqlType::Int), "NULL");
+    assert_eq!(format_cell_for_sql("-infinity", SqlType::Int), "NULL");
+}
+
 // ─── format_cell_for_sql: bool type ───────────────────────────────────
 
 #[test]

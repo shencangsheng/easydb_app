@@ -71,6 +71,12 @@ pub(crate) fn resolve_export_specs(
         });
     }
 
+    let header_index: std::collections::HashMap<&str, usize> = headers
+        .iter()
+        .enumerate()
+        .map(|(idx, name)| (name.as_str(), idx))
+        .collect();
+
     let mut seen_names = std::collections::HashSet::new();
     let mut specs = Vec::with_capacity(export_columns.len());
     for col in export_columns {
@@ -94,9 +100,9 @@ pub(crate) fn resolve_export_specs(
         }
         seen_names.insert(export_name.to_string());
 
-        let source_index = headers
-            .iter()
-            .position(|h| h == &col.source_column_name)
+        let source_index = header_index
+            .get(col.source_column_name.as_str())
+            .copied()
             .ok_or_else(|| crate::context::error::AppError::BadRequest {
                 message: format!(
                     "Source column '{}' not found in query result",
@@ -137,18 +143,20 @@ pub(crate) fn format_cell_for_sql(formatted_value: &str, col_type: SqlType) -> S
             "1".to_string()
         } else if formatted_value == "false" {
             "0".to_string()
-        } else if col_type == SqlType::Int {
-            if formatted_value.parse::<i64>().is_ok()
-                || formatted_value.parse::<u64>().is_ok()
-            {
-                formatted_value.to_string()
-            } else if let Ok(f) = formatted_value.parse::<f64>() {
-                format!("{}", f as i64)
+        } else if let Ok(i) = formatted_value.parse::<i64>() {
+            i.to_string()
+        } else if let Ok(u) = formatted_value.parse::<u64>() {
+            u.to_string()
+        } else if let Ok(f) = formatted_value.parse::<f64>() {
+            if f.is_finite() {
+                if col_type == SqlType::Int {
+                    format!("{}", f as i64)
+                } else {
+                    formatted_value.to_string()
+                }
             } else {
                 "NULL".to_string()
             }
-        } else if formatted_value.parse::<i64>().is_ok() || formatted_value.parse::<f64>().is_ok() {
-            formatted_value.to_string()
         } else {
             "NULL".to_string()
         }
