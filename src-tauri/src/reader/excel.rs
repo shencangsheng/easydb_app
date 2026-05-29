@@ -2,7 +2,7 @@ use crate::context::error::AppError;
 use crate::context::schema::AppResult;
 use crate::utils::file_utils::find_files;
 use calamine::{open_workbook, Data, HeaderRow, Range, Reader, Xlsx};
-use chrono::{DateTime, NaiveDateTime, Utc};
+use chrono::{DateTime, NaiveDate, NaiveDateTime, Utc};
 use datafusion::arrow::array::{
     Array, Float64Array, Int64Array, StringArray, TimestampNanosecondArray,
 };
@@ -93,33 +93,7 @@ impl ExcelReader {
                                     float64_data[i].push(value);
                                 }
                                 DataType::Timestamp(TimeUnit::Nanosecond, _) => {
-                                    let value = match cell {
-                                        Data::DateTime(dt) => {
-                                            // ExcelDateTime with "dates" feature: convert via chrono
-                                            // ExcelDateTime in calamine 0.30.1 with dates feature is a newtype
-                                            // We can convert it by using the underlying chrono::NaiveDateTime
-                                            // Try accessing via Deref or using a conversion method
-                                            let dt_str = dt.to_string();
-                                            NaiveDateTime::parse_from_str(
-                                                &dt_str,
-                                                "%Y-%m-%d %H:%M:%S",
-                                            )
-                                            .ok()
-                                            .or_else(|| {
-                                                NaiveDateTime::parse_from_str(&dt_str, "%Y-%m-%d")
-                                                    .ok()
-                                            })
-                                            .map(|naive_dt| {
-                                                let dt_utc =
-                                                    DateTime::<Utc>::from_naive_utc_and_offset(
-                                                        naive_dt, Utc,
-                                                    );
-                                                dt_utc.timestamp_nanos_opt()
-                                            })
-                                            .flatten()
-                                        }
-                                        _ => None,
-                                    };
+                                    let value = excel_cell_to_timestamp_nanos(cell);
                                     timestamp_data[i].push(value);
                                 }
                                 _ => {
@@ -231,7 +205,29 @@ pub fn infer_field_schema(range: &Range<Data>, infer_schema_length: usize) -> Ap
     Ok(Schema::new(fields))
 }
 
-fn infer_cell_data_type(cell: &Data) -> DataType {
+/// Convert an Excel cell into a UTC timestamp in nanoseconds.
+///
+/// calamine's `ExcelDateTime::to_string()` returns the raw serial number
+/// (e.g. `46168.82`), not a formatted date, so it must be converted through
+/// `as_datetime()` (enabled by the `dates` feature) instead of string parsing.
+pub(crate) fn excel_cell_to_timestamp_nanos(cell: &Data) -> Option<i64> {
+    let naive_dt = match cell {
+        Data::DateTime(dt) => dt.as_datetime(),
+        Data::DateTimeIso(s) => NaiveDateTime::parse_from_str(s, "%Y-%m-%dT%H:%M:%S")
+            .ok()
+            .or_else(|| NaiveDateTime::parse_from_str(s, "%Y-%m-%d %H:%M:%S").ok())
+            .or_else(|| {
+                NaiveDate::parse_from_str(s, "%Y-%m-%d")
+                    .ok()
+                    .map(|d| d.and_hms_opt(0, 0, 0).unwrap_or_default())
+            }),
+        _ => None,
+    }?;
+
+    DateTime::<Utc>::from_naive_utc_and_offset(naive_dt, Utc).timestamp_nanos_opt()
+}
+
+pub(crate) fn infer_cell_data_type(cell: &Data) -> DataType {
     match cell {
         Data::Int(_) => DataType::Int64,
         Data::Float(v) => {
@@ -244,7 +240,7 @@ fn infer_cell_data_type(cell: &Data) -> DataType {
                 DataType::Float64
             }
         }
-        Data::DateTime(_) => DataType::Timestamp(TimeUnit::Nanosecond, None),
+        Data::DateTime(_) | Data::DateTimeIso(_) => DataType::Timestamp(TimeUnit::Nanosecond, None),
         _ => DataType::Utf8,
     }
 }

@@ -26,6 +26,19 @@ const SQL_STORAGE_KEY = "notebook-sql";
 
 const QUERY_PAGE_SIZE = 200;
 
+interface ColumnTypeInfo {
+  column_name: string;
+  arrow_type: string;
+  default_sql_type: string;
+}
+
+interface FetchResult {
+  header: string[];
+  columns: ColumnTypeInfo[];
+  rows: string[][];
+  query_time: string;
+}
+
 interface NotebookMiddleProps {
   source: string;
 }
@@ -45,12 +58,9 @@ function NotebookMiddle({ source }: NotebookMiddleProps) {
   });
   const [isRunning, setIsRunning] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [data, setData] = useState<{
-    header: string[];
-    rows: string[][];
-    query_time: string;
-  }>({
+  const [data, setData] = useState<FetchResult>({
     header: [],
+    columns: [],
     rows: [],
     query_time: "",
   });
@@ -220,18 +230,14 @@ function NotebookMiddle({ source }: NotebookMiddleProps) {
 
     setIsRunning(true);
     setIsLoading(true);
-    setData({ header: [], rows: [], query_time: "" });
+    setData({ header: [], columns: [], rows: [], query_time: "" });
 
     // Create AbortController for canceling request
     const abortController = new AbortController();
     abortControllerRef.current = abortController;
 
     try {
-      const results: {
-        header: string[];
-        rows: string[][];
-        query_time: string;
-      } = await invoke("fetch", {
+      const results: FetchResult = await invoke("fetch", {
         sql: sqlToExecute,
         offset: 0,
         limit: QUERY_PAGE_SIZE,
@@ -241,6 +247,7 @@ function NotebookMiddle({ source }: NotebookMiddleProps) {
       if (abortController.signal.aborted) {
         setData({
           header: ["Status"],
+          columns: [],
           rows: [["Query cancelled"]],
           query_time: "-",
         });
@@ -255,12 +262,14 @@ function NotebookMiddle({ source }: NotebookMiddleProps) {
       if (abortController.signal.aborted) {
         setData({
           header: ["Status"],
+          columns: [],
           rows: [["Query cancelled"]],
           query_time: "-",
         });
       } else {
         setData({
           header: ["Error"],
+          columns: [],
           rows: [[`${error}`]],
           query_time: "<1ms",
         });
@@ -308,6 +317,7 @@ function NotebookMiddle({ source }: NotebookMiddleProps) {
   const clearData = useCallback(() => {
     setData({
       header: [],
+      columns: [],
       rows: [],
       query_time: "",
     });
@@ -321,11 +331,7 @@ function NotebookMiddle({ source }: NotebookMiddleProps) {
     const offset = data.rows.length;
     setIsLoadingMore(true);
     try {
-      const results: {
-        header: string[];
-        rows: string[][];
-        query_time: string;
-      } = await invoke("fetch_page", {
+      const results: FetchResult = await invoke("fetch_page", {
         sql: lastExecutedSql,
         offset,
         limit: QUERY_PAGE_SIZE,

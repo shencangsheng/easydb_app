@@ -23,6 +23,7 @@ use tauri::{command, AppHandle};
 #[derive(Serialize)]
 pub struct FetchResult {
     pub header: Vec<String>,
+    pub columns: Vec<ColumnTypeInfo>,
     pub rows: Vec<Vec<String>>,
     pub query_time: String,
 }
@@ -73,7 +74,7 @@ impl Dialect {
 }
 
 /// Map Arrow DataType to a simplified default SQL type string
-fn arrow_type_to_sql_type(arrow_type: &datafusion::arrow::datatypes::DataType) -> String {
+pub(crate) fn arrow_type_to_sql_type(arrow_type: &datafusion::arrow::datatypes::DataType) -> String {
     use datafusion::arrow::datatypes::DataType;
 
     match arrow_type {
@@ -151,10 +152,11 @@ pub async fn fetch(
                 err
             })?;
 
-        let (header, records) = collect(&mut context, &new_sql).await.map_err(|err| {
+        let (columns, records) = collect(&mut context, &new_sql).await.map_err(|err| {
             let _ = insert_query_history(&app, &sql, "fail");
             err
         })?;
+        let header: Vec<String> = columns.iter().map(|c| c.column_name.clone()).collect();
         let width = header.len();
 
         // Pre-calculate the total number of rows to avoid frequent reallocation
@@ -182,6 +184,7 @@ pub async fn fetch(
 
         Ok(FetchResult {
             header,
+            columns,
             rows,
             query_time: time_difference_from_now(start),
         })
@@ -215,10 +218,11 @@ pub async fn fetch_page(
                 err
             })?;
 
-        let (header, records) = collect(&mut context, &new_sql).await.map_err(|err| {
+        let (columns, records) = collect(&mut context, &new_sql).await.map_err(|err| {
             let _ = insert_query_history(&app, &sql, "fail");
             err
         })?;
+        let header: Vec<String> = columns.iter().map(|c| c.column_name.clone()).collect();
         let width = header.len();
 
         let total_rows: usize = records.iter().map(|r| r.num_rows()).sum();
@@ -243,6 +247,7 @@ pub async fn fetch_page(
 
         Ok(FetchResult {
             header,
+            columns,
             rows,
             query_time: time_difference_from_now(start),
         })

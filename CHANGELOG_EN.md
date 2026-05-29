@@ -1,5 +1,13 @@
 # Changelog
 
+v2.9.0 - 2026-05-29
+
+- Show Arrow column types in query result headers for better data structure recognition
+- Query interface (fetch / fetch_page) returns column metadata (column name, Arrow type, default SQL type)
+- Optimized SQL export column type configuration, directly reusing column types from query results, reducing one backend request
+- Fixed read_excel() date time column parsing error (previously mistaking Excel serial numbers as date strings)
+- Optimized Excel date time conversion, supporting DateTimeIso format strings
+
 v2.8.0 - 2026-05-20
 
 - Added read_postgres() function, supporting PostgreSQL database queries

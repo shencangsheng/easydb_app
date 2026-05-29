@@ -31,9 +31,16 @@ import DataResult from "./notebook-middle-data-result";
 import { invoke } from "@tauri-apps/api/core";
 import { useTranslation } from "../../../i18n";
 
+interface ColumnTypeInfo {
+  column_name: string;
+  arrow_type: string;
+  default_sql_type: string;
+}
+
 interface TableProps {
   data: {
     header: string[];
+    columns: ColumnTypeInfo[];
     rows: string[][];
   };
   isLoading: boolean;
@@ -47,12 +54,6 @@ interface TableProps {
 interface ExportResult {
   query_time: string;
   file_name: string;
-}
-
-interface ColumnTypeInfo {
-  column_name: string;
-  arrow_type: string;
-  default_sql_type: string;
 }
 
 interface ExportColumnConfig {
@@ -193,34 +194,40 @@ function DataTable({
     setEmptyTextAsNull(false);
     setIsTableNameModalOpen(true);
 
-    // Fetch column types from backend
-    setIsLoadingColumnTypes(true);
-    try {
-      const result = await invoke<{ columns: ColumnTypeInfo[] }>("fetch_column_types", {
-        sql,
-      });
-      setColumnTypes(result.columns);
+    const applyColumnTypes = (columns: ColumnTypeInfo[]) => {
+      setColumnTypes(columns);
       setExportColumns(
-        result.columns.map((c) => ({
+        columns.map((c) => ({
           source_column_name: c.column_name,
           export_column_name: c.column_name,
           sql_type: c.default_sql_type,
         }))
       );
+    };
+
+    // Reuse the column types already returned by the query result, avoiding a
+    // second round-trip to the backend.
+    if (data.columns && data.columns.length > 0) {
+      applyColumnTypes(data.columns);
+      return;
+    }
+
+    // Fallback: fetch column types from backend (e.g. when the result carries no
+    // column metadata).
+    setIsLoadingColumnTypes(true);
+    try {
+      const result = await invoke<{ columns: ColumnTypeInfo[] }>("fetch_column_types", {
+        sql,
+      });
+      applyColumnTypes(result.columns);
     } catch (error) {
       console.error("Failed to fetch column types:", error);
       // Fallback: use header names with TEXT type
-      const fallback = data.header.map((h) => ({
-        column_name: h,
-        arrow_type: "Unknown",
-        default_sql_type: "TEXT",
-      }));
-      setColumnTypes(fallback);
-      setExportColumns(
-        fallback.map((c) => ({
-          source_column_name: c.column_name,
-          export_column_name: c.column_name,
-          sql_type: c.default_sql_type,
+      applyColumnTypes(
+        data.header.map((h) => ({
+          column_name: h,
+          arrow_type: "Unknown",
+          default_sql_type: "TEXT",
         }))
       );
     } finally {

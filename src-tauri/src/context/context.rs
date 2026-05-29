@@ -1,3 +1,4 @@
+use crate::commands::query::{arrow_type_to_sql_type, ColumnTypeInfo};
 use crate::context::error::AppError;
 use crate::context::schema::AppResult;
 use crate::reader::excel::ExcelReader;
@@ -34,20 +35,26 @@ pub async fn get_data_frame(ctx: &mut SessionContext, sql: &String) -> AppResult
 pub async fn collect(
     ctx: &mut SessionContext,
     sql: &String,
-) -> AppResult<(Vec<String>, Vec<RecordBatch>)> {
+) -> AppResult<(Vec<ColumnTypeInfo>, Vec<RecordBatch>)> {
     let df = get_data_frame(ctx, sql).await?;
 
-    // Get header from DataFrame's schema (column information can be retrieved even if there's no data)
-    let header: Vec<String> = df
+    // Get column metadata (name + type) from DataFrame's schema so the frontend can
+    // reuse the type information (e.g. for SQL export) without a second round-trip.
+    // Column information can be retrieved even if there's no data.
+    let columns: Vec<ColumnTypeInfo> = df
         .schema()
         .fields()
         .iter()
-        .map(|f| f.name().to_string())
+        .map(|f| ColumnTypeInfo {
+            column_name: f.name().to_string(),
+            arrow_type: f.data_type().to_string(),
+            default_sql_type: arrow_type_to_sql_type(f.data_type()),
+        })
         .collect();
 
     let records = df.collect().await.map_err(AppError::from)?;
 
-    Ok((header, records))
+    Ok((columns, records))
 }
 
 /// Parse delimiter string to u8 byte value

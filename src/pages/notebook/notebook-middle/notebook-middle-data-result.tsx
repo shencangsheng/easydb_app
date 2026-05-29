@@ -18,9 +18,16 @@ import {
   ColumnDef,
 } from "@tanstack/react-table";
 
+interface ColumnTypeInfo {
+  column_name: string;
+  arrow_type: string;
+  default_sql_type: string;
+}
+
 interface DataResultProps {
   data: {
     header: string[];
+    columns?: ColumnTypeInfo[];
     rows: string[][];
   };
   isLoading: boolean;
@@ -38,6 +45,30 @@ const MODAL_DEFAULT_WIDTH = 512;
 const MODAL_DEFAULT_HEIGHT = 400;
 
 const SCROLL_LOAD_THRESHOLD = 50;
+
+function ColumnHeaderLabel({
+  name,
+  columnType,
+}: {
+  name: string;
+  columnType?: string;
+}) {
+  return (
+    <div className="flex flex-col gap-0.5 min-w-0">
+      <span className="truncate text-sm font-semibold text-default-700" title={name}>
+        {name}
+      </span>
+      {columnType && (
+        <span
+          className="truncate text-xs font-normal font-mono text-default-500"
+          title={columnType}
+        >
+          {columnType}
+        </span>
+      )}
+    </div>
+  );
+}
 
 function DataResult({
   data,
@@ -80,17 +111,22 @@ function DataResult({
     const isSingleColumn = data.header.length === 1;
 
     const dataColumns: ColumnDef<string[]>[] = data.header.map(
-      (header, index) => ({
-        id: `col_${index}`,
-        accessorFn: (row: string[]) => row[index],
-        header: header,
-        size: isSingleColumn ? 9999 : DEFAULT_COLUMN_WIDTH,
-        minSize: 50,
-      })
+      (header, index) => {
+        const columnType = data.columns?.[index]?.arrow_type;
+        return {
+          id: `col_${index}`,
+          accessorFn: (row: string[]) => row[index],
+          header: () => (
+            <ColumnHeaderLabel name={header} columnType={columnType} />
+          ),
+          size: isSingleColumn ? 9999 : DEFAULT_COLUMN_WIDTH,
+          minSize: 50,
+        };
+      }
     );
 
     return [indexColumn, ...dataColumns];
-  }, [data.header]);
+  }, [data.header, data.columns]);
 
   // Table instance
   const table = useReactTable({
@@ -242,15 +278,18 @@ function DataResult({
                 <th className="px-3 py-2 text-left border-r border-default-200 w-14">
                   #
                 </th>
-                {data.header.map((col, i) => (
-                  <th
-                    key={i}
-                    className="px-3 py-2 text-left font-semibold whitespace-nowrap border-r border-default-200 last:border-r-0"
-                    style={{ minWidth: 100 }}
-                  >
-                    {col}
-                  </th>
-                ))}
+                {data.header.map((col, i) => {
+                  const columnType = data.columns?.[i]?.arrow_type;
+                  return (
+                    <th
+                      key={i}
+                      className="px-3 py-2 text-left font-semibold whitespace-nowrap border-r border-default-200 last:border-r-0"
+                      style={{ minWidth: 100 }}
+                    >
+                      <ColumnHeaderLabel name={col} columnType={columnType} />
+                    </th>
+                  );
+                })}
               </tr>
             </thead>
           </table>
@@ -350,10 +389,10 @@ function DataResult({
                   return (
                   <div
                     key={header.id}
-                    className={`relative px-3 py-2 font-semibold text-sm text-default-600 border-r border-default-200 last:border-r-0 whitespace-nowrap overflow-hidden text-ellipsis ${
+                    className={`relative px-3 border-r border-default-200 last:border-r-0 overflow-hidden ${
                       header.id === "_index"
-                        ? "text-center sticky left-0 bg-default-100 z-30"
-                        : "text-left"
+                        ? "py-2 font-semibold text-sm text-default-600 text-center sticky left-0 bg-default-100 z-30 whitespace-nowrap"
+                        : "py-2.5 text-left"
                     }`}
                     style={
                       isSingleColumn && header.id !== "_index"

@@ -9,9 +9,16 @@ import {
   faTimesCircle,
 } from "@fortawesome/free-solid-svg-icons";
 
+interface ColumnTypeInfo {
+  column_name: string;
+  arrow_type: string;
+  default_sql_type: string;
+}
+
 interface NotebookMiddleBottomProps {
   data: {
     header: string[];
+    columns: ColumnTypeInfo[];
     rows: string[][];
     query_time: string;
   };
