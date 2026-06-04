@@ -251,6 +251,22 @@ WHERE REGEXP_LIKE("Distance", '^([0-9]+)\.([0-9]+)?$');
 
 ### 安装
 
+#### macOS（Homebrew）
+
+```bash
+brew install --cask shencangsheng/easydb/easydb
+```
+
+若 cask 已合并进官方 Homebrew：
+
+```bash
+brew install --cask easydb
+```
+
+每次发布 tag 后会自动更新 Homebrew cask，维护者配置见 [homebrew/README.md](homebrew/README.md)。
+
+#### 手动下载
+
 1. 访问 [Releases](https://github.com/shencangsheng/easydb_app/releases) 页面，下载适合您系统的安装包
 2. **macOS**: 下载 `.dmg` 文件，拖拽到应用程序文件夹
 3. **Windows**: 下载 `.exe` 文件，运行安装程序

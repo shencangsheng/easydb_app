@@ -1,0 +1,21 @@
+cask "easydb" do
+  arch arm: "aarch64", intel: "x64"
+
+  version "${EASYDB_VERSION}"
+  sha256 arm:   "${EASYDB_SHA256_ARM64}",
+         intel: "${EASYDB_SHA256_X64}"
+
+  url "https://github.com/shencangsheng/easydb_app/releases/download/v#{version}/EasyDB_#{version}_#{arch}.dmg"
+  name "EasyDB"
+  desc "Lightweight desktop data query tool that uses SQL to query local files"
+  homepage "https://github.com/shencangsheng/easydb_app"
+
+  app "EasyDB.app"
+
+  zap trash: [
+    "~/Library/Application Support/com.easydb.app",
+    "~/Library/Caches/com.easydb.app",
+    "~/Library/Preferences/com.easydb.app.plist",
+    "~/Library/Saved Application State/com.easydb.app.savedState",
+  ]
+end
