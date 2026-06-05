@@ -54,21 +54,21 @@ pub fn insert_query_history(app: &AppHandle, sql: &str, status: &str) -> AppResu
 
 pub fn insert_saved_query(app: &AppHandle, name: &str, sql: &str) -> AppResult<i64> {
     let now = Local::now().format("%Y-%m-%d %H:%M:%S").to_string();
-    conn(app)?.execute(
+    let conn = conn(app)?;
+    conn.execute(
         r#"
         INSERT INTO saved_queries (name, sql, created_at, updated_at)
         VALUES (?1, ?2, ?3, ?4)
         "#,
         params![name, sql, &now, &now],
     )?;
-    Ok(conn(app)?.last_insert_rowid())
+    Ok(conn.last_insert_rowid())
 }
 
 pub fn list_saved_queries(app: &AppHandle) -> AppResult<Vec<(i64, String, String, String)>> {
     let conn = conn(app)?;
-    let mut stmt = conn.prepare(
-        "SELECT id, name, sql, created_at FROM saved_queries ORDER BY updated_at DESC",
-    )?;
+    let mut stmt = conn
+        .prepare("SELECT id, name, sql, created_at FROM saved_queries ORDER BY updated_at DESC")?;
 
     let rows = stmt.query_map([], |row| {
         Ok((

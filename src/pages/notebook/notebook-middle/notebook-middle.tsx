@@ -1,4 +1,6 @@
-import CustomAceEditor, { AceEditorInstance } from "@/components/common/ace-editor";
+import CustomAceEditor, {
+  AceEditorInstance,
+} from "@/components/common/ace-editor";
 import {
   faStop,
   faPlay,
@@ -57,11 +59,7 @@ function getFormatSql(sql: string) {
   }).replace(/=\s>/g, "=>");
 }
 
-function NotebookMiddle({
-  sql,
-  setSql,
-  onQuerySaved,
-}: NotebookMiddleProps) {
+function NotebookMiddle({ sql, setSql, onQuerySaved }: NotebookMiddleProps) {
   const { translate } = useTranslation();
   const {
     isOpen: isSaveModalOpen,
@@ -69,6 +67,7 @@ function NotebookMiddle({
     onOpenChange: onSaveModalOpenChange,
   } = useDisclosure();
   const [saveQueryName, setSaveQueryName] = useState("");
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [isRunning, setIsRunning] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -117,6 +116,7 @@ function NotebookMiddle({
       return;
     }
     setIsSaving(true);
+    setSaveError(null);
     try {
       await invoke("save_query", { name, sql });
       setSaveQueryName("");
@@ -124,6 +124,7 @@ function NotebookMiddle({
       onQuerySaved();
     } catch (error) {
       console.error("Failed to save query:", error);
+      setSaveError(error instanceof Error ? error.message : String(error));
     } finally {
       setIsSaving(false);
     }
@@ -131,6 +132,7 @@ function NotebookMiddle({
 
   const openSaveModal = useCallback(() => {
     setSaveQueryName("");
+    setSaveError(null);
     onSaveModalOpen();
   }, [onSaveModalOpen]);
 
@@ -251,72 +253,76 @@ function NotebookMiddle({
   ]);
 
   // Cache query execution function with useCallback
-  const executeQuery = useCallback(async (sqlToExecute?: string) => {
-    if (!sqlToExecute) {
-      if (editorRef.current) {
-        const selectedText = editorRef.current.getSelectedText();
-        sqlToExecute = (selectedText && selectedText.trim())
-          ? selectedText
-          : editorRef.current.getSession().getValue();
-      } else {
-        sqlToExecute = sql;
-      }
-    }
-
-    if (isRunning || !sqlToExecute.trim()) return;
-
-    setIsRunning(true);
-    setIsLoading(true);
-    setData({ header: [], columns: [], rows: [], query_time: "" });
-
-    // Create AbortController for canceling request
-    const abortController = new AbortController();
-    abortControllerRef.current = abortController;
-
-    try {
-      const results: FetchResult = await invoke("fetch", {
-        sql: sqlToExecute,
-        offset: 0,
-        limit: QUERY_PAGE_SIZE,
-      });
-
-      // Check if cancelled
-      if (abortController.signal.aborted) {
-        setData({
-          header: ["Status"],
-          columns: [],
-          rows: [["Query cancelled"]],
-          query_time: "-",
-        });
-        return;
+  const executeQuery = useCallback(
+    async (sqlToExecute?: string) => {
+      if (!sqlToExecute) {
+        if (editorRef.current) {
+          const selectedText = editorRef.current.getSelectedText();
+          sqlToExecute =
+            selectedText && selectedText.trim()
+              ? selectedText
+              : editorRef.current.getSession().getValue();
+        } else {
+          sqlToExecute = sql;
+        }
       }
 
-      setData(results);
-      setLastExecutedSql(sqlToExecute);
-      setHasMore(results.rows.length >= QUERY_PAGE_SIZE);
-    } catch (error) {
-      // Check if it's a cancellation error
-      if (abortController.signal.aborted) {
-        setData({
-          header: ["Status"],
-          columns: [],
-          rows: [["Query cancelled"]],
-          query_time: "-",
+      if (isRunning || !sqlToExecute.trim()) return;
+
+      setIsRunning(true);
+      setIsLoading(true);
+      setData({ header: [], columns: [], rows: [], query_time: "" });
+
+      // Create AbortController for canceling request
+      const abortController = new AbortController();
+      abortControllerRef.current = abortController;
+
+      try {
+        const results: FetchResult = await invoke("fetch", {
+          sql: sqlToExecute,
+          offset: 0,
+          limit: QUERY_PAGE_SIZE,
         });
-      } else {
-        setData({
-          header: ["Error"],
-          columns: [],
-          rows: [[`${error}`]],
-          query_time: "<1ms",
-        });
+
+        // Check if cancelled
+        if (abortController.signal.aborted) {
+          setData({
+            header: ["Status"],
+            columns: [],
+            rows: [["Query cancelled"]],
+            query_time: "-",
+          });
+          return;
+        }
+
+        setData(results);
+        setLastExecutedSql(sqlToExecute);
+        setHasMore(results.rows.length >= QUERY_PAGE_SIZE);
+      } catch (error) {
+        // Check if it's a cancellation error
+        if (abortController.signal.aborted) {
+          setData({
+            header: ["Status"],
+            columns: [],
+            rows: [["Query cancelled"]],
+            query_time: "-",
+          });
+        } else {
+          setData({
+            header: ["Error"],
+            columns: [],
+            rows: [[`${error}`]],
+            query_time: "<1ms",
+          });
+        }
+      } finally {
+        setIsRunning(false);
+        setIsLoading(false);
+        abortControllerRef.current = null;
       }
-    } finally {
-      setIsRunning(false);
-      setIsLoading(false);
-      abortControllerRef.current = null;
-    }
-  }, [isRunning, sql]);
+    },
+    [isRunning, sql],
+  );
 
   // Cache cancel query function with useCallback
   const cancelQuery = useCallback(() => {
@@ -481,7 +487,11 @@ function NotebookMiddle({
               isIconOnly
               isDisabled={sql === ""}
               style={{ backgroundColor: "transparent" }}
-              aria-label={isRunning ? translate("notebook.stop") : `${translate("notebook.run")} (⌘Enter / F5)`}
+              aria-label={
+                isRunning
+                  ? translate("notebook.stop")
+                  : `${translate("notebook.run")} (⌘Enter / F5)`
+              }
               onPress={isRunning ? cancelQuery : () => executeQuery()}
             >
               <FontAwesomeIcon
@@ -636,7 +646,12 @@ function NotebookMiddle({
                     "notebook.savedQueries.namePlaceholder",
                   )}
                   value={saveQueryName}
-                  onValueChange={setSaveQueryName}
+                  onValueChange={(val) => {
+                    setSaveQueryName(val);
+                    if (saveError) setSaveError(null);
+                  }}
+                  isInvalid={!!saveError}
+                  errorMessage={saveError}
                   autoFocus
                   onKeyDown={(e) => {
                     if (e.key === "Enter" && saveQueryName.trim()) {

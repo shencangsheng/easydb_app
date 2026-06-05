@@ -1,7 +1,7 @@
 import { useTranslation } from "@/i18n";
 import { faBookmark, faTrash } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { Button } from "@heroui/react";
+import { Button, Input } from "@heroui/react";
 import { memo, useCallback, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 
@@ -57,23 +57,20 @@ function NotebookLeftSavedQueries({
     );
   }, [items, filterText]);
 
-  const showSqlTooltip = useCallback(
-    (sql: string, element: HTMLElement) => {
-      const rect = element.getBoundingClientRect();
-      const maxWidth = 420;
-      const margin = 8;
-      let left = rect.right + margin;
-      if (left + maxWidth > window.innerWidth - margin) {
-        left = Math.max(margin, rect.left - maxWidth - margin);
-      }
-      setSqlTooltip({
-        sql,
-        top: rect.top,
-        left,
-      });
-    },
-    [],
-  );
+  const showSqlTooltip = useCallback((sql: string, element: HTMLElement) => {
+    const rect = element.getBoundingClientRect();
+    const maxWidth = 420;
+    const margin = 8;
+    let left = rect.right + margin;
+    if (left + maxWidth > window.innerWidth - margin) {
+      left = Math.max(margin, rect.left - maxWidth - margin);
+    }
+    setSqlTooltip({
+      sql,
+      top: rect.top,
+      left,
+    });
+  }, []);
 
   const hideSqlTooltip = useCallback(() => {
     setSqlTooltip(null);
@@ -90,18 +87,14 @@ function NotebookLeftSavedQueries({
       }}
     >
       {items.length > 0 && (
-        <input
+        <Input
           type="text"
           value={filterText}
-          onChange={(e) => setFilterText(e.target.value)}
-          style={{
-            width: "calc(100% - 20px)",
-            padding: "8px",
-            margin: "10px",
-            border: "1px solid #ccc",
-            borderRadius: "4px",
-            fontSize: "14px",
-          }}
+          onValueChange={setFilterText}
+          placeholder={translate("notebook.history.searchPlaceholder")}
+          size="sm"
+          variant="bordered"
+          className="px-3 py-2"
         />
       )}
       <div style={{ flex: 1, overflowY: "auto", minHeight: 0 }}>
@@ -149,6 +142,7 @@ function NotebookLeftSavedQueries({
                 onMouseLeave={hideSqlTooltip}
                 onFocus={(e) => showSqlTooltip(item.sql, e.currentTarget)}
                 onBlur={hideSqlTooltip}
+                className="hover:bg-gray-100"
                 style={{
                   display: "flex",
                   alignItems: "flex-start",
@@ -158,12 +152,6 @@ function NotebookLeftSavedQueries({
                   cursor: "pointer",
                   borderBottom: "1px solid rgba(17, 17, 17, 0.08)",
                   transition: "background-color 0.15s",
-                }}
-                onMouseOver={(e) => {
-                  e.currentTarget.style.backgroundColor = "#f5f5f5";
-                }}
-                onMouseOut={(e) => {
-                  e.currentTarget.style.backgroundColor = "";
                 }}
               >
                 <FontAwesomeIcon
@@ -216,12 +204,10 @@ function NotebookLeftSavedQueries({
                   size="sm"
                   variant="light"
                   aria-label={translate("notebook.savedQueries.delete")}
-                  onPress={(e) => {
-                    e?.stopPropagation?.();
+                  onClick={(e) => {
+                    e.stopPropagation();
                     onDelete(item.id);
                   }}
-                  onClick={(e) => e.stopPropagation()}
-                  onMouseEnter={(e) => e.stopPropagation()}
                   style={{ minWidth: "32px", width: "32px", height: "32px" }}
                 >
                   <FontAwesomeIcon icon={faTrash} color="#9ca3af" />
