@@ -36,6 +36,14 @@ pub struct FetchHistory {
 }
 
 #[derive(Serialize)]
+pub struct SavedQueryItem {
+    pub id: i64,
+    pub name: String,
+    pub sql: String,
+    pub created_at: String,
+}
+
+#[derive(Serialize)]
 pub struct WriterResult {
     pub query_time: String,
     pub file_name: String,
@@ -253,6 +261,33 @@ pub async fn fetch_page(
         })
     })
     .await
+}
+
+#[command]
+pub async fn save_query(app: AppHandle, name: String, sql: String) -> AppResult<i64> {
+    run_blocking(move || db_utils::insert_saved_query(&app, &name, &sql)).await
+}
+
+#[command]
+pub async fn list_saved_queries(app: AppHandle) -> AppResult<Vec<SavedQueryItem>> {
+    run_blocking(move || {
+        let rows = db_utils::list_saved_queries(&app)?;
+        Ok(rows
+            .into_iter()
+            .map(|(id, name, sql, created_at)| SavedQueryItem {
+                id,
+                name,
+                sql,
+                created_at,
+            })
+            .collect())
+    })
+    .await
+}
+
+#[command]
+pub async fn delete_saved_query(app: AppHandle, id: i64) -> AppResult<()> {
+    run_blocking(move || db_utils::delete_saved_query(&app, id)).await
 }
 
 #[command]

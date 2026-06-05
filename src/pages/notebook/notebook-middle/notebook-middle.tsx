@@ -1,11 +1,13 @@
-import CustomAceEditor, { AceEditorInstance } from "@/components/common/ace-editor";
+import CustomAceEditor, {
+  AceEditorInstance,
+} from "@/components/common/ace-editor";
 import {
-  faServer,
   faStop,
   faPlay,
   faScrewdriverWrench,
   faAlignLeft,
   faEraser,
+  faFloppyDisk,
 } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
@@ -14,6 +16,13 @@ import {
   DropdownItem,
   DropdownMenu,
   DropdownTrigger,
+  Input,
+  Modal,
+  ModalBody,
+  ModalContent,
+  ModalFooter,
+  ModalHeader,
+  useDisclosure,
 } from "@heroui/react";
 import { memo, useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { format } from "sql-formatter";
@@ -21,8 +30,6 @@ import NotebookMiddleBottom from "./notebook-mddle-bottom";
 import { invoke } from "@tauri-apps/api/core";
 import { useTranslation } from "@/i18n";
 import { listen } from "@tauri-apps/api/event";
-
-const SQL_STORAGE_KEY = "notebook-sql";
 
 const QUERY_PAGE_SIZE = 200;
 
@@ -40,7 +47,9 @@ interface FetchResult {
 }
 
 interface NotebookMiddleProps {
-  source: string;
+  sql: string;
+  setSql: (sql: string) => void;
+  onQuerySaved: () => void;
 }
 
 function getFormatSql(sql: string) {
@@ -50,12 +59,17 @@ function getFormatSql(sql: string) {
   }).replace(/=\s>/g, "=>");
 }
 
-function NotebookMiddle({ source }: NotebookMiddleProps) {
+function NotebookMiddle({ sql, setSql, onQuerySaved }: NotebookMiddleProps) {
   const { translate } = useTranslation();
-  const [sql, setSql] = useState(() => {
-    const saved = localStorage.getItem(SQL_STORAGE_KEY);
-    return saved ?? "";
-  });
+  const {
+    isOpen: isSaveModalOpen,
+    onOpen: onSaveModalOpen,
+    onClose: onSaveModalClose,
+    onOpenChange: onSaveModalOpenChange,
+  } = useDisclosure();
+  const [saveQueryName, setSaveQueryName] = useState("");
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
   const [isRunning, setIsRunning] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [data, setData] = useState<FetchResult>({
@@ -95,7 +109,33 @@ function NotebookMiddle({ source }: NotebookMiddleProps) {
   // Cache clear function with useCallback
   const clearSql = useCallback(() => {
     setSql("");
-  }, []);
+  }, [setSql]);
+
+  const handleSaveQuery = useCallback(async () => {
+    const name = saveQueryName.trim();
+    if (!name || !sql.trim()) {
+      return;
+    }
+    setIsSaving(true);
+    setSaveError(null);
+    try {
+      await invoke("save_query", { name, sql });
+      setSaveQueryName("");
+      onSaveModalClose();
+      onQuerySaved();
+    } catch (error) {
+      console.error("Failed to save query:", error);
+      setSaveError(error instanceof Error ? error.message : String(error));
+    } finally {
+      setIsSaving(false);
+    }
+  }, [saveQueryName, sql, onSaveModalClose, onQuerySaved]);
+
+  const openSaveModal = useCallback(() => {
+    setSaveQueryName("");
+    setSaveError(null);
+    onSaveModalOpen();
+  }, [onSaveModalOpen]);
 
   // Cache file extension to SQL query mapping with useMemo
   const fileExtensionToSql = useMemo(
@@ -166,15 +206,12 @@ function NotebookMiddle({ source }: NotebookMiddleProps) {
           droppedFileExtension as keyof typeof fileExtensionToReadFunction
         ];
       const readFunctionCall = `${readFunction}('${droppedFilePath}')`;
-      setSql((prevSql) => {
-        // If editor is not empty, add newline and content at the end
-        return prevSql ? `${prevSql}\n${readFunctionCall}` : readFunctionCall;
-      });
+      setSql(sql ? `${sql}\n${readFunctionCall}` : readFunctionCall);
       setIsDropModalOpen(false);
       setDroppedFilePath(null);
       setDroppedFileExtension(null);
     }
-  }, [droppedFilePath, droppedFileExtension, fileExtensionToReadFunction]);
+  }, [droppedFilePath, droppedFileExtension, fileExtensionToReadFunction, sql, setSql]);
 
   // Generate option preview text
   const insertOptions = useMemo(() => {
@@ -214,72 +251,76 @@ function NotebookMiddle({ source }: NotebookMiddleProps) {
   ]);
 
   // Cache query execution function with useCallback
-  const executeQuery = useCallback(async (sqlToExecute?: string) => {
-    if (!sqlToExecute) {
-      if (editorRef.current) {
-        const selectedText = editorRef.current.getSelectedText();
-        sqlToExecute = (selectedText && selectedText.trim())
-          ? selectedText
-          : editorRef.current.getSession().getValue();
-      } else {
-        sqlToExecute = sql;
-      }
-    }
-
-    if (isRunning || !sqlToExecute.trim()) return;
-
-    setIsRunning(true);
-    setIsLoading(true);
-    setData({ header: [], columns: [], rows: [], query_time: "" });
-
-    // Create AbortController for canceling request
-    const abortController = new AbortController();
-    abortControllerRef.current = abortController;
-
-    try {
-      const results: FetchResult = await invoke("fetch", {
-        sql: sqlToExecute,
-        offset: 0,
-        limit: QUERY_PAGE_SIZE,
-      });
-
-      // Check if cancelled
-      if (abortController.signal.aborted) {
-        setData({
-          header: ["Status"],
-          columns: [],
-          rows: [["Query cancelled"]],
-          query_time: "-",
-        });
-        return;
+  const executeQuery = useCallback(
+    async (sqlToExecute?: string) => {
+      if (!sqlToExecute) {
+        if (editorRef.current) {
+          const selectedText = editorRef.current.getSelectedText();
+          sqlToExecute =
+            selectedText && selectedText.trim()
+              ? selectedText
+              : editorRef.current.getSession().getValue();
+        } else {
+          sqlToExecute = sql;
+        }
       }
 
-      setData(results);
-      setLastExecutedSql(sqlToExecute);
-      setHasMore(results.rows.length >= QUERY_PAGE_SIZE);
-    } catch (error) {
-      // Check if it's a cancellation error
-      if (abortController.signal.aborted) {
-        setData({
-          header: ["Status"],
-          columns: [],
-          rows: [["Query cancelled"]],
-          query_time: "-",
+      if (isRunning || !sqlToExecute.trim()) return;
+
+      setIsRunning(true);
+      setIsLoading(true);
+      setData({ header: [], columns: [], rows: [], query_time: "" });
+
+      // Create AbortController for canceling request
+      const abortController = new AbortController();
+      abortControllerRef.current = abortController;
+
+      try {
+        const results: FetchResult = await invoke("fetch", {
+          sql: sqlToExecute,
+          offset: 0,
+          limit: QUERY_PAGE_SIZE,
         });
-      } else {
-        setData({
-          header: ["Error"],
-          columns: [],
-          rows: [[`${error}`]],
-          query_time: "<1ms",
-        });
+
+        // Check if cancelled
+        if (abortController.signal.aborted) {
+          setData({
+            header: ["Status"],
+            columns: [],
+            rows: [["Query cancelled"]],
+            query_time: "-",
+          });
+          return;
+        }
+
+        setData(results);
+        setLastExecutedSql(sqlToExecute);
+        setHasMore(results.rows.length >= QUERY_PAGE_SIZE);
+      } catch (error) {
+        // Check if it's a cancellation error
+        if (abortController.signal.aborted) {
+          setData({
+            header: ["Status"],
+            columns: [],
+            rows: [["Query cancelled"]],
+            query_time: "-",
+          });
+        } else {
+          setData({
+            header: ["Error"],
+            columns: [],
+            rows: [[`${error}`]],
+            query_time: "<1ms",
+          });
+        }
+      } finally {
+        setIsRunning(false);
+        setIsLoading(false);
+        abortControllerRef.current = null;
       }
-    } finally {
-      setIsRunning(false);
-      setIsLoading(false);
-      abortControllerRef.current = null;
-    }
-  }, [isRunning, sql]);
+    },
+    [isRunning, sql],
+  );
 
   // Cache cancel query function with useCallback
   const cancelQuery = useCallback(() => {
@@ -309,8 +350,17 @@ function NotebookMiddle({ source }: NotebookMiddleProps) {
           formatSql();
         },
       },
+      {
+        name: "saveQuery",
+        bindKey: { win: "Ctrl-S", mac: "Cmd-S" },
+        exec: () => {
+          if (sql.trim()) {
+            openSaveModal();
+          }
+        },
+      },
     ],
-    [executeQuery, formatSql, isRunning],
+    [executeQuery, formatSql, isRunning, openSaveModal, sql],
   );
 
   // Cache clear data function with useCallback
@@ -393,14 +443,6 @@ function NotebookMiddle({ source }: NotebookMiddleProps) {
     }
   }, [isDropModalOpen]);
 
-  // Debounced auto-save SQL content to localStorage
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      localStorage.setItem(SQL_STORAGE_KEY, sql);
-    }, 500);
-    return () => clearTimeout(timer);
-  }, [sql]);
-
   // Cache style objects with useMemo
   const containerStyle = useMemo(
     () => ({
@@ -410,15 +452,6 @@ function NotebookMiddle({ source }: NotebookMiddleProps) {
       borderRight: "1px solid rgba(17, 17, 17, 0.15)",
       overflow: "hidden",
       position: "relative" as const,
-    }),
-    [],
-  );
-
-  const headerStyle = useMemo(
-    () => ({
-      height: 60,
-      borderBottom: "1px solid rgba(17, 17, 17, 0.15)",
-      backgroundColor: "#F5F5F5",
     }),
     [],
   );
@@ -437,21 +470,6 @@ function NotebookMiddle({ source }: NotebookMiddleProps) {
 
   return (
     <div ref={dropAreaRef} style={containerStyle}>
-      <div style={headerStyle}>
-        <p
-          style={{
-            fontSize: "20px",
-            textAlign: "left",
-            paddingLeft: "15px",
-            display: "flex",
-            alignItems: "center",
-            height: "100%",
-          }}
-        >
-          <FontAwesomeIcon icon={faServer} style={{ marginRight: "10px" }} />
-          {source}
-        </p>
-      </div>
       <div style={editorContainerStyle}>
         <div
           style={{
@@ -467,7 +485,11 @@ function NotebookMiddle({ source }: NotebookMiddleProps) {
               isIconOnly
               isDisabled={sql === ""}
               style={{ backgroundColor: "transparent" }}
-              aria-label={isRunning ? translate("notebook.stop") : `${translate("notebook.run")} (⌘Enter / F5)`}
+              aria-label={
+                isRunning
+                  ? translate("notebook.stop")
+                  : `${translate("notebook.run")} (⌘Enter / F5)`
+              }
               onPress={isRunning ? cancelQuery : () => executeQuery()}
             >
               <FontAwesomeIcon
@@ -477,6 +499,15 @@ function NotebookMiddle({ source }: NotebookMiddleProps) {
                   fontSize: "1.2em",
                 }}
               />
+            </Button>
+            <Button
+              isIconOnly
+              isDisabled={sql === ""}
+              variant="light"
+              aria-label={`${translate("notebook.savedQueries.save")} (⌘S)`}
+              onPress={openSaveModal}
+            >
+              <FontAwesomeIcon icon={faFloppyDisk} />
             </Button>
             <Dropdown placement="bottom-start" isDisabled={sql === ""}>
               <DropdownTrigger>
@@ -599,6 +630,51 @@ function NotebookMiddle({ source }: NotebookMiddleProps) {
           )}
         </div>
       </div>
+      <Modal isOpen={isSaveModalOpen} onOpenChange={onSaveModalOpenChange}>
+        <ModalContent>
+          {(onClose) => (
+            <>
+              <ModalHeader>
+                {translate("notebook.savedQueries.saveTitle")}
+              </ModalHeader>
+              <ModalBody>
+                <Input
+                  label={translate("notebook.savedQueries.nameLabel")}
+                  placeholder={translate(
+                    "notebook.savedQueries.namePlaceholder",
+                  )}
+                  value={saveQueryName}
+                  onValueChange={(val) => {
+                    setSaveQueryName(val);
+                    if (saveError) setSaveError(null);
+                  }}
+                  isInvalid={!!saveError}
+                  errorMessage={saveError}
+                  autoFocus
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && saveQueryName.trim()) {
+                      handleSaveQuery();
+                    }
+                  }}
+                />
+              </ModalBody>
+              <ModalFooter>
+                <Button variant="light" onPress={onClose}>
+                  {translate("notebook.savedQueries.cancel")}
+                </Button>
+                <Button
+                  color="primary"
+                  isLoading={isSaving}
+                  isDisabled={!saveQueryName.trim()}
+                  onPress={handleSaveQuery}
+                >
+                  {translate("notebook.savedQueries.confirm")}
+                </Button>
+              </ModalFooter>
+            </>
+          )}
+        </ModalContent>
+      </Modal>
       <div style={{ marginTop: "20px", marginLeft: "50px" }}>
         <NotebookMiddleBottom
           data={data}

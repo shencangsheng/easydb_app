@@ -29,6 +29,9 @@ export interface Translations {
     resultsEmptyDescription: string;
     resultsEmptyShortcutRun: string;
     resultsEmptyShortcutFormat: string;
+    sidebar: {
+      title: string;
+    };
     history: {
       title: string;
       emptyState: {
@@ -40,6 +43,20 @@ export interface Translations {
       searchPlaceholder: string;
       noResults: string;
       noResultsDescription: string;
+    };
+    savedQueries: {
+      title: string;
+      save: string;
+      saveTitle: string;
+      nameLabel: string;
+      namePlaceholder: string;
+      confirm: string;
+      cancel: string;
+      emptyDescription: string;
+      noResults: string;
+      delete: string;
+      saveSuccess: string;
+      nameRequired: string;
     };
     export: {
       export: string;
@@ -235,6 +252,9 @@ const translations: Record<Language, Translations> = {
       resultsEmptyDescription: "执行 SQL 查询以查看结果",
       resultsEmptyShortcutRun: "执行查询",
       resultsEmptyShortcutFormat: "格式化 SQL",
+      sidebar: {
+        title: "工作台",
+      },
       history: {
         title: "查询历史",
         emptyState: {
@@ -246,6 +266,20 @@ const translations: Record<Language, Translations> = {
         searchPlaceholder: "搜索查询历史...",
         noResults: "未找到匹配的查询",
         noResultsDescription: "请尝试使用其他关键词搜索",
+      },
+      savedQueries: {
+        title: "查询",
+        save: "保存 SQL",
+        saveTitle: "保存 SQL 查询",
+        nameLabel: "名称",
+        namePlaceholder: "输入查询名称",
+        confirm: "保存",
+        cancel: "取消",
+        emptyDescription: "暂无保存的 SQL，使用编辑器工具栏保存当前查询",
+        noResults: "未找到匹配的 SQL",
+        delete: "删除",
+        saveSuccess: "SQL 已保存",
+        nameRequired: "请输入名称",
       },
       export: {
         export: "导出",
@@ -451,6 +485,9 @@ const translations: Record<Language, Translations> = {
       resultsEmptyDescription: "Run a SQL query to see results",
       resultsEmptyShortcutRun: "Run Query",
       resultsEmptyShortcutFormat: "Format SQL",
+      sidebar: {
+        title: "Workbench",
+      },
       history: {
         title: "Query History",
         emptyState: {
@@ -462,6 +499,21 @@ const translations: Record<Language, Translations> = {
         searchPlaceholder: "Search query history...",
         noResults: "No matching queries found",
         noResultsDescription: "Try using different search keywords",
+      },
+      savedQueries: {
+        title: "Queries",
+        save: "Save SQL",
+        saveTitle: "Save SQL Query",
+        nameLabel: "Name",
+        namePlaceholder: "Enter query name",
+        confirm: "Save",
+        cancel: "Cancel",
+        emptyDescription:
+          "No saved SQL yet. Use the editor toolbar to save the current query",
+        noResults: "No matching SQL found",
+        delete: "Delete",
+        saveSuccess: "SQL saved",
+        nameRequired: "Please enter a name",
       },
       export: {
         export: "Export",

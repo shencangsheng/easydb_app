@@ -1,64 +1,43 @@
-import FilterList from "@/components/common/filter-list";
+import { useTranslation } from "@/i18n";
 import {
+  faBookmark,
   faChevronLeft,
   faDatabase,
-  faFolder,
-  faTable,
 } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import {
-  Button,
-  Listbox,
-  ListboxItem,
-  Modal,
-  ModalBody,
-  ModalContent,
-  ModalHeader,
-  useDisclosure,
-} from "@heroui/react";
-import { memo, useState } from "react";
+import { Button, Listbox, ListboxItem } from "@heroui/react";
+import { memo } from "react";
+import NotebookLeftSavedQueries, {
+  SavedQueryItem,
+  SAVED_QUERIES_SOURCE,
+} from "./notebook-left-saved-queries";
 
 interface NotebookLeftProps {
   source: string;
   setSource: (source: string) => void;
+  setSql: (sql: string) => void;
+  savedQueries: SavedQueryItem[];
+  onDeleteSavedQuery: (id: number) => void;
 }
 
-interface Catalog {
-  id: number;
-  table_ref: string;
-  table_path: string;
-  table_schema: [
-    {
-      field: string;
-      field_type: string;
-      comment?: string;
-    }
-  ];
-}
-
-function NotebookLeft({ source, setSource }: NotebookLeftProps) {
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const [tables, setTables] = useState<Catalog[]>([]);
-
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  async function refreshTables() {
-    // const catalog: Catalog[] = await get("/api/catalog");
-    // setTables(catalog);
-  }
-
-  const { isOpen, onOpen, onOpenChange } = useDisclosure();
-  const [selectTable, setSelectTable] = useState<Catalog | null>(null);
-
-  const handleTableClick = (item: string) => {
-    setSelectTable(tables.find((table) => table.table_ref === item) ?? null);
-    onOpen();
-  };
+function NotebookLeft({
+  source,
+  setSource,
+  setSql,
+  savedQueries,
+  onDeleteSavedQuery,
+}: NotebookLeftProps) {
+  const { translate } = useTranslation();
 
   return (
     <div
       style={{
         width: "250px",
         textAlign: "center",
+        height: "100%",
+        display: "flex",
+        flexDirection: "column",
+        minHeight: 0,
       }}
     >
       <div
@@ -74,7 +53,7 @@ function NotebookLeft({ source, setSource }: NotebookLeftProps) {
       >
         <Button
           isIconOnly
-          aria-label="Like"
+          aria-label="Database"
           style={{
             backgroundColor: "transparent",
             fontSize: "21px",
@@ -87,175 +66,100 @@ function NotebookLeft({ source, setSource }: NotebookLeftProps) {
             color={"#000000"}
             className="hover:text-black"
           />
-        </Button>{" "}
+        </Button>
       </div>
-      {source === "" ? (
-        <div>
-          <p
-            style={{
-              fontSize: "16px",
-              fontWeight: "bold",
-              textAlign: "left",
-              paddingLeft: "15px",
-              paddingTop: "10px",
-              color: "gray",
-            }}
-          >
-            Sources
-          </p>
-          <Listbox
-            aria-label="Dynamic Actions"
-            onAction={(value) => {
-              setSource(value.toString());
-            }}
-            disabledKeys={[]}
-            style={{
-              width: "100%",
-              textAlign: "left",
-            }}
-          >
-            <ListboxItem
-              key="Local"
-              startContent={<FontAwesomeIcon icon={faFolder} />}
-              onPress={() => {
-                // alert("暂未实现");
-              }}
-            >
-              Local
-            </ListboxItem>
-          </Listbox>
-        </div>
-      ) : (
-        <div>
-          <p
-            style={{
-              fontSize: "16px",
-              textAlign: "left",
-              paddingLeft: "1px",
-              paddingTop: "3px",
-              display: "flex",
-              alignItems: "center",
-            }}
-          >
-            <Button
-              isIconOnly
-              onPress={() => {
-                setSource("");
-              }}
-              style={{
-                backgroundColor: "transparent",
-                fontSize: "16px",
-              }}
-            >
-              <FontAwesomeIcon icon={faChevronLeft} />
-            </Button>
-            <FontAwesomeIcon icon={faFolder} style={{ marginRight: "5px" }} />
-            {source}
-          </p>
-          <p
-            style={{
-              fontSize: "16px",
-              textAlign: "left",
-              paddingLeft: "10px",
-              fontWeight: "bold",
-              color: "gray", // Set text color to gray
-            }}
-          >
-            Folder
-          </p>
-          <FilterList
-            items={[]}
-            icon={<FontAwesomeIcon icon={faFolder} />}
-            onSelect={(item) => {
-              handleTableClick(item);
-            }}
-          />
-        </div>
-      )}
-      <Modal
-        isOpen={isOpen}
-        onOpenChange={onOpenChange}
+      <div
         style={{
-          maxWidth: "40vw",
-          position: "absolute",
-          top: "0",
-          left: "340px",
-          height: "500px",
+          flex: 1,
+          minHeight: 0,
+          display: "flex",
+          flexDirection: "column",
         }}
       >
-        <ModalContent>
-          <ModalHeader>
-            <div
+        {source === "" ? (
+          <div>
+            <p
               style={{
-                display: "flex",
-                justifyContent: "left",
-                alignItems: "center",
-                width: "100%",
+                fontSize: "15px",
+                fontWeight: "bold",
+                textAlign: "left",
+                paddingLeft: "15px",
+                paddingTop: "12px",
+                paddingBottom: "8px",
+                color: "gray",
               }}
             >
-              <FontAwesomeIcon icon={faTable} style={{ marginRight: "8px" }} />{" "}
-              {selectTable?.table_ref}
-            </div>
-          </ModalHeader>
-          <ModalBody>
-            {selectTable && (
-              <div
+              {translate("notebook.sidebar.title")}
+            </p>
+            <Listbox
+              aria-label={translate("notebook.sidebar.title")}
+              onAction={(value) => {
+                setSource(value.toString());
+              }}
+              style={{
+                width: "100%",
+                textAlign: "left",
+              }}
+              itemClasses={{
+                base: "min-h-[48px] px-3 py-2 rounded-lg data-[hover=true]:bg-default-100",
+                title: "text-[16px] font-medium",
+              }}
+            >
+              <ListboxItem
+                key={SAVED_QUERIES_SOURCE}
+                startContent={
+                  <FontAwesomeIcon
+                    icon={faBookmark}
+                    style={{ fontSize: "20px", width: "24px" }}
+                  />
+                }
+              >
+                {translate("notebook.savedQueries.title")}
+              </ListboxItem>
+            </Listbox>
+          </div>
+        ) : (
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              flex: 1,
+              minHeight: 0,
+            }}
+          >
+            <p
+              style={{
+                fontSize: "16px",
+                textAlign: "left",
+                paddingLeft: "1px",
+                paddingTop: "3px",
+                display: "flex",
+                alignItems: "center",
+              }}
+            >
+              <Button
+                isIconOnly
+                onPress={() => {
+                  setSource("");
+                }}
                 style={{
-                  height: "100%",
+                  backgroundColor: "transparent",
+                  fontSize: "16px",
                 }}
               >
-                <h3
-                  style={{
-                    fontSize: "16px",
-                    fontWeight: "bold",
-                    marginBottom: "10px",
-                  }}
-                >
-                  <div style={{ color: "#6b7280" }}>
-                    Location: {selectTable.table_path}
-                  </div>
-                  Columns ({selectTable.table_schema.length})
-                </h3>
-                <div
-                  style={{
-                    maxHeight: "350px",
-                    overflowY: "auto",
-                    marginTop: "20px",
-                  }}
-                >
-                  <table className="w-full border-collapse border border-gray-200">
-                    <thead style={{ position: "sticky", top: 0, zIndex: 1 }}>
-                      <tr className="bg-gray-50">
-                        <th className="py-2 px-4 text-left font-medium">
-                          Name
-                        </th>
-                        <th className="py-2 px-4 text-left font-medium">
-                          Type
-                        </th>
-                        <th className="py-2 px-4 text-left font-medium">
-                          Comment
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {selectTable.table_schema.map((column) => (
-                        <tr
-                          key={column.field}
-                          className="border-t border-gray-200"
-                        >
-                          <td className="py-2 px-4">{column.field}</td>
-                          <td className="py-2 px-4">{column.field_type}</td>
-                          <td className="py-2 px-4">{column.comment}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            )}
-          </ModalBody>
-        </ModalContent>
-      </Modal>
+                <FontAwesomeIcon icon={faChevronLeft} />
+              </Button>
+              <FontAwesomeIcon icon={faBookmark} style={{ marginRight: "5px" }} />
+              {translate("notebook.savedQueries.title")}
+            </p>
+            <NotebookLeftSavedQueries
+              items={savedQueries}
+              setSql={setSql}
+              onDelete={onDeleteSavedQuery}
+            />
+          </div>
+        )}
+      </div>
     </div>
   );
 }
