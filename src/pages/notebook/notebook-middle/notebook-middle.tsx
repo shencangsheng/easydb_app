@@ -64,6 +64,7 @@ function NotebookMiddle({ sql, setSql, onQuerySaved }: NotebookMiddleProps) {
   const {
     isOpen: isSaveModalOpen,
     onOpen: onSaveModalOpen,
+    onClose: onSaveModalClose,
     onOpenChange: onSaveModalOpenChange,
   } = useDisclosure();
   const [saveQueryName, setSaveQueryName] = useState("");
@@ -120,7 +121,7 @@ function NotebookMiddle({ sql, setSql, onQuerySaved }: NotebookMiddleProps) {
     try {
       await invoke("save_query", { name, sql });
       setSaveQueryName("");
-      onSaveModalOpenChange(false);
+      onSaveModalClose();
       onQuerySaved();
     } catch (error) {
       console.error("Failed to save query:", error);
@@ -128,7 +129,7 @@ function NotebookMiddle({ sql, setSql, onQuerySaved }: NotebookMiddleProps) {
     } finally {
       setIsSaving(false);
     }
-  }, [saveQueryName, sql, onSaveModalOpenChange, onQuerySaved]);
+  }, [saveQueryName, sql, onSaveModalClose, onQuerySaved]);
 
   const openSaveModal = useCallback(() => {
     setSaveQueryName("");
@@ -205,15 +206,12 @@ function NotebookMiddle({ sql, setSql, onQuerySaved }: NotebookMiddleProps) {
           droppedFileExtension as keyof typeof fileExtensionToReadFunction
         ];
       const readFunctionCall = `${readFunction}('${droppedFilePath}')`;
-      setSql((prevSql) => {
-        // If editor is not empty, add newline and content at the end
-        return prevSql ? `${prevSql}\n${readFunctionCall}` : readFunctionCall;
-      });
+      setSql(sql ? `${sql}\n${readFunctionCall}` : readFunctionCall);
       setIsDropModalOpen(false);
       setDroppedFilePath(null);
       setDroppedFileExtension(null);
     }
-  }, [droppedFilePath, droppedFileExtension, fileExtensionToReadFunction]);
+  }, [droppedFilePath, droppedFileExtension, fileExtensionToReadFunction, sql, setSql]);
 
   // Generate option preview text
   const insertOptions = useMemo(() => {
