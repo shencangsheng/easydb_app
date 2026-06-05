@@ -1,11 +1,11 @@
 import CustomAceEditor, { AceEditorInstance } from "@/components/common/ace-editor";
 import {
-  faServer,
   faStop,
   faPlay,
   faScrewdriverWrench,
   faAlignLeft,
   faEraser,
+  faFloppyDisk,
 } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
@@ -14,6 +14,13 @@ import {
   DropdownItem,
   DropdownMenu,
   DropdownTrigger,
+  Input,
+  Modal,
+  ModalBody,
+  ModalContent,
+  ModalFooter,
+  ModalHeader,
+  useDisclosure,
 } from "@heroui/react";
 import { memo, useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { format } from "sql-formatter";
@@ -21,8 +28,6 @@ import NotebookMiddleBottom from "./notebook-mddle-bottom";
 import { invoke } from "@tauri-apps/api/core";
 import { useTranslation } from "@/i18n";
 import { listen } from "@tauri-apps/api/event";
-
-const SQL_STORAGE_KEY = "notebook-sql";
 
 const QUERY_PAGE_SIZE = 200;
 
@@ -40,7 +45,9 @@ interface FetchResult {
 }
 
 interface NotebookMiddleProps {
-  source: string;
+  sql: string;
+  setSql: (sql: string) => void;
+  onQuerySaved: () => void;
 }
 
 function getFormatSql(sql: string) {
@@ -50,12 +57,19 @@ function getFormatSql(sql: string) {
   }).replace(/=\s>/g, "=>");
 }
 
-function NotebookMiddle({ source }: NotebookMiddleProps) {
+function NotebookMiddle({
+  sql,
+  setSql,
+  onQuerySaved,
+}: NotebookMiddleProps) {
   const { translate } = useTranslation();
-  const [sql, setSql] = useState(() => {
-    const saved = localStorage.getItem(SQL_STORAGE_KEY);
-    return saved ?? "";
-  });
+  const {
+    isOpen: isSaveModalOpen,
+    onOpen: onSaveModalOpen,
+    onOpenChange: onSaveModalOpenChange,
+  } = useDisclosure();
+  const [saveQueryName, setSaveQueryName] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
   const [isRunning, setIsRunning] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [data, setData] = useState<FetchResult>({
@@ -95,7 +109,30 @@ function NotebookMiddle({ source }: NotebookMiddleProps) {
   // Cache clear function with useCallback
   const clearSql = useCallback(() => {
     setSql("");
-  }, []);
+  }, [setSql]);
+
+  const handleSaveQuery = useCallback(async () => {
+    const name = saveQueryName.trim();
+    if (!name || !sql.trim()) {
+      return;
+    }
+    setIsSaving(true);
+    try {
+      await invoke("save_query", { name, sql });
+      setSaveQueryName("");
+      onSaveModalOpenChange(false);
+      onQuerySaved();
+    } catch (error) {
+      console.error("Failed to save query:", error);
+    } finally {
+      setIsSaving(false);
+    }
+  }, [saveQueryName, sql, onSaveModalOpenChange, onQuerySaved]);
+
+  const openSaveModal = useCallback(() => {
+    setSaveQueryName("");
+    onSaveModalOpen();
+  }, [onSaveModalOpen]);
 
   // Cache file extension to SQL query mapping with useMemo
   const fileExtensionToSql = useMemo(
@@ -309,8 +346,17 @@ function NotebookMiddle({ source }: NotebookMiddleProps) {
           formatSql();
         },
       },
+      {
+        name: "saveQuery",
+        bindKey: { win: "Ctrl-S", mac: "Cmd-S" },
+        exec: () => {
+          if (sql.trim()) {
+            openSaveModal();
+          }
+        },
+      },
     ],
-    [executeQuery, formatSql, isRunning],
+    [executeQuery, formatSql, isRunning, openSaveModal, sql],
   );
 
   // Cache clear data function with useCallback
@@ -393,14 +439,6 @@ function NotebookMiddle({ source }: NotebookMiddleProps) {
     }
   }, [isDropModalOpen]);
 
-  // Debounced auto-save SQL content to localStorage
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      localStorage.setItem(SQL_STORAGE_KEY, sql);
-    }, 500);
-    return () => clearTimeout(timer);
-  }, [sql]);
-
   // Cache style objects with useMemo
   const containerStyle = useMemo(
     () => ({
@@ -410,15 +448,6 @@ function NotebookMiddle({ source }: NotebookMiddleProps) {
       borderRight: "1px solid rgba(17, 17, 17, 0.15)",
       overflow: "hidden",
       position: "relative" as const,
-    }),
-    [],
-  );
-
-  const headerStyle = useMemo(
-    () => ({
-      height: 60,
-      borderBottom: "1px solid rgba(17, 17, 17, 0.15)",
-      backgroundColor: "#F5F5F5",
     }),
     [],
   );
@@ -437,21 +466,6 @@ function NotebookMiddle({ source }: NotebookMiddleProps) {
 
   return (
     <div ref={dropAreaRef} style={containerStyle}>
-      <div style={headerStyle}>
-        <p
-          style={{
-            fontSize: "20px",
-            textAlign: "left",
-            paddingLeft: "15px",
-            display: "flex",
-            alignItems: "center",
-            height: "100%",
-          }}
-        >
-          <FontAwesomeIcon icon={faServer} style={{ marginRight: "10px" }} />
-          {source}
-        </p>
-      </div>
       <div style={editorContainerStyle}>
         <div
           style={{
@@ -477,6 +491,15 @@ function NotebookMiddle({ source }: NotebookMiddleProps) {
                   fontSize: "1.2em",
                 }}
               />
+            </Button>
+            <Button
+              isIconOnly
+              isDisabled={sql === ""}
+              variant="light"
+              aria-label={`${translate("notebook.savedQueries.save")} (⌘S)`}
+              onPress={openSaveModal}
+            >
+              <FontAwesomeIcon icon={faFloppyDisk} />
             </Button>
             <Dropdown placement="bottom-start" isDisabled={sql === ""}>
               <DropdownTrigger>
@@ -599,6 +622,46 @@ function NotebookMiddle({ source }: NotebookMiddleProps) {
           )}
         </div>
       </div>
+      <Modal isOpen={isSaveModalOpen} onOpenChange={onSaveModalOpenChange}>
+        <ModalContent>
+          {(onClose) => (
+            <>
+              <ModalHeader>
+                {translate("notebook.savedQueries.saveTitle")}
+              </ModalHeader>
+              <ModalBody>
+                <Input
+                  label={translate("notebook.savedQueries.nameLabel")}
+                  placeholder={translate(
+                    "notebook.savedQueries.namePlaceholder",
+                  )}
+                  value={saveQueryName}
+                  onValueChange={setSaveQueryName}
+                  autoFocus
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && saveQueryName.trim()) {
+                      handleSaveQuery();
+                    }
+                  }}
+                />
+              </ModalBody>
+              <ModalFooter>
+                <Button variant="light" onPress={onClose}>
+                  {translate("notebook.savedQueries.cancel")}
+                </Button>
+                <Button
+                  color="primary"
+                  isLoading={isSaving}
+                  isDisabled={!saveQueryName.trim()}
+                  onPress={handleSaveQuery}
+                >
+                  {translate("notebook.savedQueries.confirm")}
+                </Button>
+              </ModalFooter>
+            </>
+          )}
+        </ModalContent>
+      </Modal>
       <div style={{ marginTop: "20px", marginLeft: "50px" }}>
         <NotebookMiddleBottom
           data={data}
