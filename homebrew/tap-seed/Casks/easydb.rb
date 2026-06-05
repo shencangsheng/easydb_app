@@ -18,4 +18,10 @@ cask "easydb" do
     "~/Library/Preferences/com.easydb.app.plist",
     "~/Library/Saved Application State/com.easydb.app.savedState",
   ]
+
+  caveats <<~EOS
+    EasyDB is not code-signed. If macOS shows "damaged" or blocks launch, run:
+
+      xattr -r -d com.apple.quarantine #{appdir}/EasyDB.app
+  EOS
 end

@@ -140,16 +140,16 @@ jobs:
             echo "- arm64: \`$SHA256_ARM64\`"
             echo "- x64: \`$SHA256_X64\`"
             echo ""
-            echo "Install via tap:"
+            echo "Install (personal tap):"
             echo "\`brew install --cask shencangsheng/easydb/easydb\`"
           } >> "$GITHUB_STEP_SUMMARY"
 
-      - name: Update personal Homebrew tap
+      - name: Update Homebrew tap
         env:
           HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
         run: |
           if [ -z "$HOMEBREW_TAP_TOKEN" ]; then
-            echo "HOMEBREW_TAP_TOKEN not set, skipping personal tap update"
+            echo "HOMEBREW_TAP_TOKEN not set, skipping Homebrew tap update"
             exit 0
           fi
 
@@ -169,23 +169,3 @@ jobs:
           git add Casks/easydb.rb
           git commit -m "Update easydb to ${VERSION}"
           git push origin HEAD:main
-
-      - name: Bump official Homebrew cask
-        env:
-          HOMEBREW_GITHUB_API_TOKEN: ${{ secrets.HOMEBREW_GITHUB_API_TOKEN }}
-          HOMEBREW_NO_INSTALL_FROM_API: "1"
-        run: |
-          if [ -z "$HOMEBREW_GITHUB_API_TOKEN" ]; then
-            echo "HOMEBREW_GITHUB_API_TOKEN not set, skipping official cask bump"
-            exit 0
-          fi
-
-          SHA256_ARM64="$(grep 'sha256 arm:' -A1 homebrew/Casks/easydb.rb | tail -1 | sed -n 's/.*"\([a-f0-9]\{64\}\)".*/\1/p')"
-          SHA256_X64="$(grep 'intel:' homebrew/Casks/easydb.rb | sed -n 's/.*"\([a-f0-9]\{64\}\)".*/\1/p')"
-
-          brew bump-cask-pr easydb \
-            --version="${VERSION}" \
-            --sha256="arm64:${SHA256_ARM64},intel:${SHA256_X64}" \
-            --write-only
-
-          echo "Opened bump PR for official homebrew-cask easydb ${VERSION}"

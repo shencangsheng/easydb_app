@@ -258,13 +258,9 @@ WHERE REGEXP_LIKE("Distance", '^([0-9]+)\.([0-9]+)?$');
 brew install --cask shencangsheng/easydb/easydb
 ```
 
-After the cask is accepted into official Homebrew:
+Distributed via the author's [homebrew-easydb](https://github.com/shencangsheng/homebrew-easydb) tap (not in official Homebrew, because the app is not code-signed yet). The cask is updated automatically on each release tag. If macOS blocks launch, see [FAQ](#macos-application-is-damaged-and-cannot-be-opened) below.
 
-```bash
-brew install --cask easydb
-```
-
-Homebrew casks are updated automatically on each release tag. See [homebrew/README.md](homebrew/README.md) for maintainer setup.
+Maintainer setup: [homebrew/README.md](homebrew/README.md).
 
 #### Manual download
 

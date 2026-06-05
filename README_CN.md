@@ -257,13 +257,9 @@ WHERE REGEXP_LIKE("Distance", '^([0-9]+)\.([0-9]+)?$');
 brew install --cask shencangsheng/easydb/easydb
 ```
 
-若 cask 已合并进官方 Homebrew：
+通过作者维护的 [homebrew-easydb](https://github.com/shencangsheng/homebrew-easydb) tap 分发（应用暂未签名，未进入官方 Homebrew）。每次发布 tag 后会自动更新 cask。若 macOS 阻止启动，见下方 [常见问题](#macos-提示应用已损坏无法打开)。
 
-```bash
-brew install --cask easydb
-```
-
-每次发布 tag 后会自动更新 Homebrew cask，维护者配置见 [homebrew/README.md](homebrew/README.md)。
+维护者配置见 [homebrew/README.md](homebrew/README.md)。
 
 #### 手动下载
 
