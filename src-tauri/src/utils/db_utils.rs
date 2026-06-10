@@ -102,29 +102,21 @@ pub fn list_sql_history(
         l => l,
     };
 
-    let mut results = Vec::new();
+    let pattern = keyword
+        .map(|s| s.trim())
+        .filter(|s| !s.is_empty())
+        .map(|s| format!("%{}%", s));
 
-    if let Some(k) = keyword.map(|s| s.trim()).filter(|s| !s.is_empty()) {
-        let pattern = format!("%{}%", k);
-        let mut stmt = conn.prepare(
-            "SELECT sql, status, created_at FROM sql_history WHERE sql LIKE ?1 ORDER BY id DESC LIMIT ?2",
-        )?;
-        let rows = stmt.query_map(params![pattern, lim], |row| {
-            Ok((row.get(0)?, row.get(1)?, row.get(2)?))
-        })?;
-        for row in rows {
-            results.push(row?);
-        }
-    } else {
-        let mut stmt = conn.prepare(
-            "SELECT sql, status, created_at FROM sql_history ORDER BY id DESC LIMIT ?1",
-        )?;
-        let rows = stmt.query_map(params![lim], |row| {
-            Ok((row.get(0)?, row.get(1)?, row.get(2)?))
-        })?;
-        for row in rows {
-            results.push(row?);
-        }
+    let mut stmt = conn.prepare(
+        "SELECT sql, status, created_at FROM sql_history WHERE (?1 IS NULL OR sql LIKE ?1) ORDER BY id DESC LIMIT ?2",
+    )?;
+    let rows = stmt.query_map(params![pattern, lim], |row| {
+        Ok((row.get(0)?, row.get(1)?, row.get(2)?))
+    })?;
+
+    let mut results = Vec::new();
+    for row in rows {
+        results.push(row?);
     }
 
     Ok(results)
