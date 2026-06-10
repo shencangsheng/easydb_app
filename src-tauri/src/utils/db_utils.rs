@@ -131,6 +131,8 @@ pub fn delete_sql_history_before(app: &AppHandle, before: &str) -> AppResult<usi
 }
 
 pub fn delete_all_sql_history(app: &AppHandle) -> AppResult<usize> {
-    let deleted = conn(app)?.execute("DELETE FROM sql_history", [])?;
-    Ok(deleted)
+    let conn = conn(app)?;
+    let count: usize = conn.query_row("SELECT COUNT(*) FROM sql_history", [], |r| r.get(0))?;
+    conn.execute("DELETE FROM sql_history", [])?;
+    Ok(count)
 }
