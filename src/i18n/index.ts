@@ -43,6 +43,18 @@ export interface Translations {
       searchPlaceholder: string;
       noResults: string;
       noResultsDescription: string;
+      limitLabel: string;
+      limitAll: string;
+      searchAllHint: string;
+      deleteHistory: string;
+      deleteBefore7Days: string;
+      deleteBefore30Days: string;
+      deleteBefore90Days: string;
+      deleteAll: string;
+      deleteConfirmBefore: string;
+      deleteConfirmAll: string;
+      deleteSuccess: string;
+      loading: string;
     };
     savedQueries: {
       title: string;
@@ -266,6 +278,18 @@ const translations: Record<Language, Translations> = {
         searchPlaceholder: "搜索查询历史...",
         noResults: "未找到匹配的查询",
         noResultsDescription: "请尝试使用其他关键词搜索",
+        limitLabel: "显示条数",
+        limitAll: "全部",
+        searchAllHint: "搜索全部历史记录",
+        deleteHistory: "清理历史",
+        deleteBefore7Days: "7 天前",
+        deleteBefore30Days: "30 天前",
+        deleteBefore90Days: "90 天前",
+        deleteAll: "全部清空",
+        deleteConfirmBefore: "确认删除 {{days}} 天前的历史记录？",
+        deleteConfirmAll: "确认清空全部查询历史？此操作不可恢复。",
+        deleteSuccess: "已删除 {{count}} 条记录",
+        loading: "加载中...",
       },
       savedQueries: {
         title: "查询",
@@ -499,6 +523,18 @@ const translations: Record<Language, Translations> = {
         searchPlaceholder: "Search query history...",
         noResults: "No matching queries found",
         noResultsDescription: "Try using different search keywords",
+        limitLabel: "Show",
+        limitAll: "All",
+        searchAllHint: "Search all history",
+        deleteHistory: "Clear history",
+        deleteBefore7Days: "Before 7 days",
+        deleteBefore30Days: "Before 30 days",
+        deleteBefore90Days: "Before 90 days",
+        deleteAll: "Clear all",
+        deleteConfirmBefore: "Delete history older than {{days}} days?",
+        deleteConfirmAll: "Clear all query history? This cannot be undone.",
+        deleteSuccess: "Deleted {{count}} record(s)",
+        loading: "Loading...",
       },
       savedQueries: {
         title: "Queries",

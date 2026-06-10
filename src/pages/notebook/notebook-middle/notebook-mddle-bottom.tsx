@@ -2,7 +2,6 @@ import { Tabs, Tab } from "@heroui/react";
 import { memo, useState } from "react";
 import DataTable from "./notebook-middle-table";
 import QueryHistory from "./notebook-middle-history";
-import { invoke } from "@tauri-apps/api/core";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faCheckCircle,
@@ -41,32 +40,7 @@ function NotebookMiddleBottom({
   hasMore = false,
   isLoadingMore = false,
 }: NotebookMiddleBottomProps) {
-  const [queryHistory, setQueryHistory] = useState<
-    { sql: string; created_at: string; status: string }[]
-  >([]);
-  const [isHistoryLoaded, setIsHistoryLoaded] = useState(false);
-
-  const loadQueryHistory = async () => {
-    if (!isHistoryLoaded) {
-      try {
-        const history = (await invoke("sql_history", {})) as {
-          sql: string;
-          created_at: string;
-          status: string;
-        }[];
-        setQueryHistory(history);
-        setIsHistoryLoaded(true);
-      } catch (error) {
-        console.error("Failed to load query history:", error);
-      }
-    }
-  };
-
-  const handleTabChange = async (key: string | number) => {
-    if (key === "history") {
-      await loadQueryHistory();
-    }
-  };
+  const [activeTab, setActiveTab] = useState("results");
 
   // 判断查询状态
   const getQueryStatus = () => {
@@ -118,11 +92,14 @@ function NotebookMiddleBottom({
       <Tabs
         variant="underlined"
         defaultSelectedKey="results"
-        onSelectionChange={handleTabChange}
+        onSelectionChange={(key) => setActiveTab(String(key))}
         destroyInactiveTabPanel={false}
       >
         <Tab key="history" title="Query History">
-          <QueryHistory setSql={setSql} data={queryHistory} />
+          <QueryHistory
+            setSql={setSql}
+            isActive={activeTab === "history"}
+          />
         </Tab>
         <Tab key="results" title={resultsTitle}>
           <DataTable

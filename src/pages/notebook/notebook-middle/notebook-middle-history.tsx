@@ -1,21 +1,103 @@
 import { formatRelativeTime } from "@/utils/date-util";
-import { memo, useCallback, useMemo, useState } from "react";
 import { useTranslation } from "@/i18n";
+import { invoke } from "@tauri-apps/api/core";
+import { ask } from "@tauri-apps/plugin-dialog";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
+
+const HISTORY_LIMIT_STORAGE_KEY = "query-history-limit";
+const HISTORY_LIMIT_OPTIONS = [50, 100, 200, 500, 0] as const;
+const SEARCH_DEBOUNCE_MS = 300;
+
+type HistoryItem = {
+  sql: string;
+  created_at: string;
+  status: string;
+};
 
 interface QueryHistoryProps {
   setSql: (sql: string) => void;
-  data: {
-    sql: string;
-    created_at: string;
-    status: string;
-  }[];
+  isActive: boolean;
 }
 
-function QueryHistory({ setSql, data }: QueryHistoryProps) {
-  const { t } = useTranslation();
-  const [searchText, setSearchText] = useState("");
+function loadStoredLimit(): number {
+  if (typeof window === "undefined") {
+    return 50;
+  }
+  const saved = localStorage.getItem(HISTORY_LIMIT_STORAGE_KEY);
+  if (saved === null) {
+    return 50;
+  }
+  const parsed = Number(saved);
+  return HISTORY_LIMIT_OPTIONS.includes(parsed as (typeof HISTORY_LIMIT_OPTIONS)[number])
+    ? parsed
+    : 50;
+}
 
-  // 使用 useCallback 缓存点击处理函数
+function QueryHistory({ setSql, isActive }: QueryHistoryProps) {
+  const { t } = useTranslation();
+  const [data, setData] = useState<HistoryItem[]>([]);
+  const [searchText, setSearchText] = useState("");
+  const [limit, setLimit] = useState(loadStoredLimit);
+  const [isLoading, setIsLoading] = useState(false);
+  const [showDeleteMenu, setShowDeleteMenu] = useState(false);
+  const deleteMenuRef = useRef<HTMLDivElement>(null);
+  const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const fetchHistory = useCallback(
+    async (keyword: string, displayLimit: number) => {
+      setIsLoading(true);
+      try {
+        const isSearching = keyword.trim().length > 0;
+        const history = (await invoke("sql_history", {
+          limit: isSearching ? 0 : displayLimit,
+          keyword: isSearching ? keyword.trim() : null,
+        })) as HistoryItem[];
+        setData(history);
+      } catch (error) {
+        console.error("Failed to load query history:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    []
+  );
+
+  useEffect(() => {
+    if (!isActive) {
+      return;
+    }
+    if (searchDebounceRef.current) {
+      clearTimeout(searchDebounceRef.current);
+    }
+    searchDebounceRef.current = setTimeout(() => {
+      void fetchHistory(searchText, limit);
+    }, searchText.trim() ? SEARCH_DEBOUNCE_MS : 0);
+
+    return () => {
+      if (searchDebounceRef.current) {
+        clearTimeout(searchDebounceRef.current);
+      }
+    };
+  }, [isActive, searchText, limit, fetchHistory]);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        deleteMenuRef.current &&
+        !deleteMenuRef.current.contains(event.target as Node)
+      ) {
+        setShowDeleteMenu(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const handleLimitChange = useCallback((value: number) => {
+    setLimit(value);
+    localStorage.setItem(HISTORY_LIMIT_STORAGE_KEY, String(value));
+  }, []);
+
   const handleRowClick = useCallback(
     (sql: string) => {
       setSql(sql);
@@ -23,18 +105,54 @@ function QueryHistory({ setSql, data }: QueryHistoryProps) {
     [setSql]
   );
 
-  // 使用 useMemo 缓存过滤后的数据
-  const filteredData = useMemo(() => {
-    if (!searchText.trim()) {
-      return data;
-    }
-    const lowerSearchText = searchText.toLowerCase();
-    return data.filter((item) =>
-      item.sql.toLowerCase().includes(lowerSearchText)
-    );
-  }, [data, searchText]);
+  const handleDelete = useCallback(
+    async (daysAgo: number | null) => {
+      setShowDeleteMenu(false);
 
-  // 使用 useMemo 缓存空状态内容
+      const confirmed = await ask(
+        daysAgo === null
+          ? t("notebook.history.deleteConfirmAll")
+          : t("notebook.history.deleteConfirmBefore").replace(
+              "{{days}}",
+              String(daysAgo)
+            ),
+        {
+          title: t("notebook.history.deleteHistory"),
+          kind: "warning",
+          okLabel: t("notebook.savedQueries.confirm"),
+          cancelLabel: t("notebook.savedQueries.cancel"),
+        }
+      );
+
+      if (!confirmed) {
+        return;
+      }
+
+      try {
+        const deleted = (await invoke("delete_sql_history_before", {
+          daysAgo,
+        })) as number;
+        await fetchHistory(searchText, limit);
+        if (deleted > 0) {
+          await ask(
+            t("notebook.history.deleteSuccess").replace(
+              "{{count}}",
+              String(deleted)
+            ),
+            {
+              title: t("notebook.history.deleteHistory"),
+              kind: "info",
+              okLabel: t("notebook.savedQueries.confirm"),
+            }
+          );
+        }
+      } catch (error) {
+        console.error("Failed to delete query history:", error);
+      }
+    },
+    [t, fetchHistory, searchText, limit]
+  );
+
   const emptyStateContent = useMemo(
     () => (
       <div className="flex flex-col items-center justify-center h-full text-gray-500">
@@ -52,12 +170,11 @@ function QueryHistory({ setSql, data }: QueryHistoryProps) {
     [t]
   );
 
-  // 使用 useMemo 缓存历史记录行
   const historyRows = useMemo(
     () =>
-      filteredData.map((value, index) => (
+      data.map((value, index) => (
         <tr
-          key={index}
+          key={`${value.created_at}-${index}`}
           className="border-b border-gray-200"
           onClick={() => handleRowClick(value.sql)}
           style={{
@@ -105,8 +222,10 @@ function QueryHistory({ setSql, data }: QueryHistoryProps) {
           </td>
         </tr>
       )),
-    [filteredData, handleRowClick, t]
+    [data, handleRowClick, t]
   );
+
+  const isSearching = searchText.trim().length > 0;
 
   return (
     <div
@@ -116,44 +235,106 @@ function QueryHistory({ setSql, data }: QueryHistoryProps) {
         flexDirection: "column",
       }}
     >
-      {/* 搜索输入框 */}
-      {data.length > 0 && (
-        <div className="p-2 border-b border-gray-200">
+      <div className="p-2 border-b border-gray-200">
+        <div className="flex items-center gap-2">
           <input
             type="text"
-            placeholder={t("notebook.history.searchPlaceholder")}
+            placeholder={
+              isSearching
+                ? t("notebook.history.searchAllHint")
+                : t("notebook.history.searchPlaceholder")
+            }
             value={searchText}
             onChange={(e) => setSearchText(e.target.value)}
             autoComplete="off"
             spellCheck="false"
             inputMode="search"
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            style={{
-              fontSize: "14px",
-            }}
+            className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            style={{ fontSize: "14px" }}
           />
+          <div className="flex items-center gap-2 shrink-0 text-sm text-gray-600">
+            <span>{t("notebook.history.limitLabel")}:</span>
+            <select
+              value={limit}
+              onChange={(e) => handleLimitChange(Number(e.target.value))}
+              disabled={isSearching}
+              className="px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {HISTORY_LIMIT_OPTIONS.map((option) => (
+                <option key={option} value={option}>
+                  {option === 0 ? t("notebook.history.limitAll") : option}
+                </option>
+              ))}
+            </select>
+            <div className="relative" ref={deleteMenuRef}>
+              <button
+                type="button"
+                onClick={() => setShowDeleteMenu((prev) => !prev)}
+                className="px-3 py-2 text-sm border border-gray-300 rounded-md hover:bg-gray-50 whitespace-nowrap"
+              >
+                {t("notebook.history.deleteHistory")}
+              </button>
+              {showDeleteMenu && (
+                <div className="absolute right-0 top-full mt-1 z-10 bg-white border border-gray-200 rounded-md shadow-lg min-w-[140px]">
+                  <button
+                    type="button"
+                    className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50"
+                    onClick={() => void handleDelete(7)}
+                  >
+                    {t("notebook.history.deleteBefore7Days")}
+                  </button>
+                  <button
+                    type="button"
+                    className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50"
+                    onClick={() => void handleDelete(30)}
+                  >
+                    {t("notebook.history.deleteBefore30Days")}
+                  </button>
+                  <button
+                    type="button"
+                    className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50"
+                    onClick={() => void handleDelete(90)}
+                  >
+                    {t("notebook.history.deleteBefore90Days")}
+                  </button>
+                  <button
+                    type="button"
+                    className="w-full text-left px-3 py-2 text-sm text-red-600 hover:bg-red-50 border-t border-gray-100"
+                    onClick={() => void handleDelete(null)}
+                  >
+                    {t("notebook.history.deleteAll")}
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
-      )}
+      </div>
 
-      {/* 历史记录列表 */}
       <div
         style={{
           flex: 1,
           overflow: "auto",
         }}
       >
-        {data.length === 0 ? (
-          emptyStateContent
-        ) : filteredData.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-full text-gray-500">
-            <div className="text-4xl mb-4">🔍</div>
-            <div className="text-lg font-medium mb-2">
-              {t("notebook.history.noResults")}
-            </div>
-            <div className="text-sm text-gray-400">
-              {t("notebook.history.noResultsDescription")}
-            </div>
+        {isLoading ? (
+          <div className="flex items-center justify-center h-full text-gray-400 text-sm">
+            {t("notebook.history.loading")}
           </div>
+        ) : data.length === 0 ? (
+          searchText.trim() ? (
+            <div className="flex flex-col items-center justify-center h-full text-gray-500">
+              <div className="text-4xl mb-4">🔍</div>
+              <div className="text-lg font-medium mb-2">
+                {t("notebook.history.noResults")}
+              </div>
+              <div className="text-sm text-gray-400">
+                {t("notebook.history.noResultsDescription")}
+              </div>
+            </div>
+          ) : (
+            emptyStateContent
+          )
         ) : (
           <table className="w-full border-collapse border border-gray-200">
             <tbody>{historyRows}</tbody>

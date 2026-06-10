@@ -90,3 +90,91 @@ pub fn delete_saved_query(app: &AppHandle, id: i64) -> AppResult<()> {
     conn(app)?.execute("DELETE FROM saved_queries WHERE id = ?1", params![id])?;
     Ok(())
 }
+
+pub fn list_sql_history(
+    app: &AppHandle,
+    limit: Option<i64>,
+    keyword: Option<&str>,
+) -> AppResult<Vec<(String, String, String)>> {
+    let conn = conn(app)?;
+    let has_keyword = keyword
+        .map(|k| !k.trim().is_empty())
+        .unwrap_or(false);
+    let lim = limit.unwrap_or(50);
+
+    let mut results = Vec::new();
+
+    if has_keyword {
+        let pattern = format!("%{}%", keyword.unwrap().trim());
+        if lim > 0 {
+            let mut stmt = conn.prepare(
+                "SELECT sql, status, created_at FROM sql_history WHERE sql LIKE ?1 ORDER BY id DESC LIMIT ?2",
+            )?;
+            let rows = stmt.query_map(params![pattern, lim], |row| {
+                Ok((
+                    row.get::<_, String>(0)?,
+                    row.get::<_, String>(1)?,
+                    row.get::<_, String>(2)?,
+                ))
+            })?;
+            for row in rows {
+                results.push(row?);
+            }
+        } else {
+            let mut stmt = conn.prepare(
+                "SELECT sql, status, created_at FROM sql_history WHERE sql LIKE ?1 ORDER BY id DESC",
+            )?;
+            let rows = stmt.query_map(params![pattern], |row| {
+                Ok((
+                    row.get::<_, String>(0)?,
+                    row.get::<_, String>(1)?,
+                    row.get::<_, String>(2)?,
+                ))
+            })?;
+            for row in rows {
+                results.push(row?);
+            }
+        }
+    } else if lim > 0 {
+        let mut stmt = conn
+            .prepare("SELECT sql, status, created_at FROM sql_history ORDER BY id DESC LIMIT ?1")?;
+        let rows = stmt.query_map(params![lim], |row| {
+            Ok((
+                row.get::<_, String>(0)?,
+                row.get::<_, String>(1)?,
+                row.get::<_, String>(2)?,
+            ))
+        })?;
+        for row in rows {
+            results.push(row?);
+        }
+    } else {
+        let mut stmt =
+            conn.prepare("SELECT sql, status, created_at FROM sql_history ORDER BY id DESC")?;
+        let rows = stmt.query_map([], |row| {
+            Ok((
+                row.get::<_, String>(0)?,
+                row.get::<_, String>(1)?,
+                row.get::<_, String>(2)?,
+            ))
+        })?;
+        for row in rows {
+            results.push(row?);
+        }
+    }
+
+    Ok(results)
+}
+
+pub fn delete_sql_history_before(app: &AppHandle, before: &str) -> AppResult<usize> {
+    let deleted = conn(app)?.execute(
+        "DELETE FROM sql_history WHERE created_at < ?1",
+        params![before],
+    )?;
+    Ok(deleted)
+}
+
+pub fn delete_all_sql_history(app: &AppHandle) -> AppResult<usize> {
+    let deleted = conn(app)?.execute("DELETE FROM sql_history", [])?;
+    Ok(deleted)
+}
