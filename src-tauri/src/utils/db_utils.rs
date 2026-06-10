@@ -97,9 +97,6 @@ pub fn list_sql_history(
     keyword: Option<&str>,
 ) -> AppResult<Vec<(String, String, String)>> {
     let conn = conn(app)?;
-    let has_keyword = keyword
-        .map(|k| !k.trim().is_empty())
-        .unwrap_or(false);
     let lim = match limit.unwrap_or(50) {
         l if l <= 0 => -1,
         l => l,
@@ -107,8 +104,8 @@ pub fn list_sql_history(
 
     let mut results = Vec::new();
 
-    if has_keyword {
-        let pattern = format!("%{}%", keyword.unwrap().trim());
+    if let Some(k) = keyword.map(|s| s.trim()).filter(|s| !s.is_empty()) {
+        let pattern = format!("%{}%", k);
         let mut stmt = conn.prepare(
             "SELECT sql, status, created_at FROM sql_history WHERE sql LIKE ?1 ORDER BY id DESC LIMIT ?2",
         )?;
