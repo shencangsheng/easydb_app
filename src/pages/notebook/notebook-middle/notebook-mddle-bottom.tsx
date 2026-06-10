@@ -1,4 +1,5 @@
 import { Tabs, Tab } from "@heroui/react";
+import { useTranslation } from "@/i18n";
 import { memo, useState } from "react";
 import DataTable from "./notebook-middle-table";
 import QueryHistory from "./notebook-middle-history";
@@ -40,6 +41,7 @@ function NotebookMiddleBottom({
   hasMore = false,
   isLoadingMore = false,
 }: NotebookMiddleBottomProps) {
+  const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState("results");
 
   // 判断查询状态
@@ -95,7 +97,7 @@ function NotebookMiddleBottom({
         onSelectionChange={(key) => setActiveTab(String(key))}
         destroyInactiveTabPanel={false}
       >
-        <Tab key="history" title="Query History">
+        <Tab key="history" title={t("notebook.history.title")}>
           <QueryHistory
             setSql={setSql}
             isActive={activeTab === "history"}

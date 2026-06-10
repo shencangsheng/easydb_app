@@ -100,63 +100,30 @@ pub fn list_sql_history(
     let has_keyword = keyword
         .map(|k| !k.trim().is_empty())
         .unwrap_or(false);
-    let lim = limit.unwrap_or(50);
+    let lim = match limit.unwrap_or(50) {
+        l if l <= 0 => -1,
+        l => l,
+    };
 
     let mut results = Vec::new();
 
     if has_keyword {
         let pattern = format!("%{}%", keyword.unwrap().trim());
-        if lim > 0 {
-            let mut stmt = conn.prepare(
-                "SELECT sql, status, created_at FROM sql_history WHERE sql LIKE ?1 ORDER BY id DESC LIMIT ?2",
-            )?;
-            let rows = stmt.query_map(params![pattern, lim], |row| {
-                Ok((
-                    row.get::<_, String>(0)?,
-                    row.get::<_, String>(1)?,
-                    row.get::<_, String>(2)?,
-                ))
-            })?;
-            for row in rows {
-                results.push(row?);
-            }
-        } else {
-            let mut stmt = conn.prepare(
-                "SELECT sql, status, created_at FROM sql_history WHERE sql LIKE ?1 ORDER BY id DESC",
-            )?;
-            let rows = stmt.query_map(params![pattern], |row| {
-                Ok((
-                    row.get::<_, String>(0)?,
-                    row.get::<_, String>(1)?,
-                    row.get::<_, String>(2)?,
-                ))
-            })?;
-            for row in rows {
-                results.push(row?);
-            }
-        }
-    } else if lim > 0 {
-        let mut stmt = conn
-            .prepare("SELECT sql, status, created_at FROM sql_history ORDER BY id DESC LIMIT ?1")?;
-        let rows = stmt.query_map(params![lim], |row| {
-            Ok((
-                row.get::<_, String>(0)?,
-                row.get::<_, String>(1)?,
-                row.get::<_, String>(2)?,
-            ))
+        let mut stmt = conn.prepare(
+            "SELECT sql, status, created_at FROM sql_history WHERE sql LIKE ?1 ORDER BY id DESC LIMIT ?2",
+        )?;
+        let rows = stmt.query_map(params![pattern, lim], |row| {
+            Ok((row.get(0)?, row.get(1)?, row.get(2)?))
         })?;
         for row in rows {
             results.push(row?);
         }
     } else {
-        let mut stmt =
-            conn.prepare("SELECT sql, status, created_at FROM sql_history ORDER BY id DESC")?;
-        let rows = stmt.query_map([], |row| {
-            Ok((
-                row.get::<_, String>(0)?,
-                row.get::<_, String>(1)?,
-                row.get::<_, String>(2)?,
-            ))
+        let mut stmt = conn.prepare(
+            "SELECT sql, status, created_at FROM sql_history ORDER BY id DESC LIMIT ?1",
+        )?;
+        let rows = stmt.query_map(params![lim], |row| {
+            Ok((row.get(0)?, row.get(1)?, row.get(2)?))
         })?;
         for row in rows {
             results.push(row?);

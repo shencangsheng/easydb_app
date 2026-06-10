@@ -317,6 +317,12 @@ pub async fn delete_sql_history_before(
 ) -> AppResult<usize> {
     run_blocking(move || {
         if let Some(days) = days_ago {
+            if days < 0 || days > 36500 {
+                return Err(AppError::BadRequest {
+                    message: "days_ago must be non-negative and within a reasonable range"
+                        .to_string(),
+                });
+            }
             let before = chrono::Local::now() - chrono::Duration::days(days);
             let before_str = before.format("%Y-%m-%d %H:%M:%S").to_string();
             db_utils::delete_sql_history_before(&app, &before_str)

@@ -42,9 +42,11 @@ function QueryHistory({ setSql, isActive }: QueryHistoryProps) {
   const [showDeleteMenu, setShowDeleteMenu] = useState(false);
   const deleteMenuRef = useRef<HTMLDivElement>(null);
   const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const requestCountRef = useRef(0);
 
   const fetchHistory = useCallback(
     async (keyword: string, displayLimit: number) => {
+      const requestId = ++requestCountRef.current;
       setIsLoading(true);
       try {
         const isSearching = keyword.trim().length > 0;
@@ -52,11 +54,15 @@ function QueryHistory({ setSql, isActive }: QueryHistoryProps) {
           limit: isSearching ? 0 : displayLimit,
           keyword: isSearching ? keyword.trim() : null,
         })) as HistoryItem[];
-        setData(history);
+        if (requestId === requestCountRef.current) {
+          setData(history);
+        }
       } catch (error) {
         console.error("Failed to load query history:", error);
       } finally {
-        setIsLoading(false);
+        if (requestId === requestCountRef.current) {
+          setIsLoading(false);
+        }
       }
     },
     []
@@ -130,7 +136,7 @@ function QueryHistory({ setSql, isActive }: QueryHistoryProps) {
 
       try {
         const deleted = (await invoke("delete_sql_history_before", {
-          daysAgo,
+          days_ago: daysAgo,
         })) as number;
         await fetchHistory(searchText, limit);
         if (deleted > 0) {
