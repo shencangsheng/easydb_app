@@ -2,6 +2,7 @@ import { formatRelativeTime } from "@/utils/date-util";
 import { useTranslation } from "@/i18n";
 import { invoke } from "@tauri-apps/api/core";
 import { ask, message } from "@tauri-apps/plugin-dialog";
+import { Spinner } from "@heroui/react";
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 const HISTORY_LIMIT_STORAGE_KEY = "query-history-limit";
@@ -39,10 +40,14 @@ function QueryHistory({ setSql, isActive }: QueryHistoryProps) {
   const [searchText, setSearchText] = useState("");
   const [limit, setLimit] = useState(loadStoredLimit);
   const [isLoading, setIsLoading] = useState(false);
+  const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
   const [showDeleteMenu, setShowDeleteMenu] = useState(false);
   const deleteMenuRef = useRef<HTMLDivElement>(null);
   const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const requestCountRef = useRef(0);
+
+  const showTableLoading =
+    isLoading || (isActive && !hasLoadedOnce && data.length === 0);
 
   const fetchHistory = useCallback(
     async (keyword: string, displayLimit: number) => {
@@ -62,6 +67,7 @@ function QueryHistory({ setSql, isActive }: QueryHistoryProps) {
       } finally {
         if (requestId === requestCountRef.current) {
           setIsLoading(false);
+          setHasLoadedOnce(true);
         }
       }
     },
@@ -74,14 +80,23 @@ function QueryHistory({ setSql, isActive }: QueryHistoryProps) {
     }
     if (searchDebounceRef.current) {
       clearTimeout(searchDebounceRef.current);
+      searchDebounceRef.current = null;
     }
+
+    const delay = searchText.trim() ? SEARCH_DEBOUNCE_MS : 0;
+    if (delay === 0) {
+      void fetchHistory(searchText, limit);
+      return;
+    }
+
     searchDebounceRef.current = setTimeout(() => {
       void fetchHistory(searchText, limit);
-    }, searchText.trim() ? SEARCH_DEBOUNCE_MS : 0);
+    }, delay);
 
     return () => {
       if (searchDebounceRef.current) {
         clearTimeout(searchDebounceRef.current);
+        searchDebounceRef.current = null;
       }
     };
   }, [isActive, searchText, limit, fetchHistory]);
@@ -316,47 +331,64 @@ function QueryHistory({ setSql, isActive }: QueryHistoryProps) {
           flex: 1,
           overflow: "auto",
         }}
-        className={isLoading && data.length > 0 ? "opacity-60 pointer-events-none" : ""}
+        className={
+          showTableLoading && data.length > 0
+            ? "opacity-60 pointer-events-none"
+            : ""
+        }
       >
-        {isLoading && data.length === 0 ? (
-          <div className="flex items-center justify-center h-full text-gray-400 text-sm">
-            {t("notebook.history.loading")}
-          </div>
-        ) : data.length === 0 ? (
-          searchText.trim() ? (
-            <div className="flex flex-col items-center justify-center h-full text-gray-500">
-              <div className="text-4xl mb-4">🔍</div>
-              <div className="text-lg font-medium mb-2">
-                {t("notebook.history.noResults")}
-              </div>
-              <div className="text-sm text-gray-400">
-                {t("notebook.history.noResultsDescription")}
-              </div>
-            </div>
-          ) : (
-            emptyStateContent
-          )
-        ) : (
-          <table className="w-full border-collapse border border-gray-200">
-            <thead>
-              <tr className="border-b border-gray-200 bg-gray-100 text-sm text-gray-600">
-                <th className="py-2 px-2 text-center font-medium w-12">
-                  {t("notebook.history.indexLabel")}
-                </th>
-                <th className="py-2 px-4 text-left font-medium">
-                  {t("notebook.history.timeLabel")}
-                </th>
-                <th className="py-2 px-4 text-left font-medium">
-                  {t("notebook.history.statusLabel")}
-                </th>
-                <th className="py-2 px-4 text-left font-medium">
-                  {t("notebook.history.sqlLabel")}
-                </th>
+        <table className="w-full border-collapse border border-gray-200">
+          <thead>
+            <tr className="border-b border-gray-200 bg-gray-100 text-sm text-gray-600">
+              <th className="py-2 px-2 text-center font-medium w-12">
+                {t("notebook.history.indexLabel")}
+              </th>
+              <th className="py-2 px-4 text-left font-medium">
+                {t("notebook.history.timeLabel")}
+              </th>
+              <th className="py-2 px-4 text-left font-medium">
+                {t("notebook.history.statusLabel")}
+              </th>
+              <th className="py-2 px-4 text-left font-medium">
+                {t("notebook.history.sqlLabel")}
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {showTableLoading && data.length === 0 ? (
+              <tr>
+                <td colSpan={4} className="py-12">
+                  <div className="flex items-center justify-center">
+                    <Spinner
+                      size="sm"
+                      label={t("notebook.history.loading")}
+                    />
+                  </div>
+                </td>
               </tr>
-            </thead>
-            <tbody>{historyRows}</tbody>
-          </table>
-        )}
+            ) : data.length === 0 ? (
+              <tr>
+                <td colSpan={4} className="py-12">
+                  {searchText.trim() ? (
+                    <div className="flex flex-col items-center justify-center text-gray-500">
+                      <div className="text-4xl mb-4">🔍</div>
+                      <div className="text-lg font-medium mb-2">
+                        {t("notebook.history.noResults")}
+                      </div>
+                      <div className="text-sm text-gray-400">
+                        {t("notebook.history.noResultsDescription")}
+                      </div>
+                    </div>
+                  ) : (
+                    emptyStateContent
+                  )}
+                </td>
+              </tr>
+            ) : (
+              historyRows
+            )}
+          </tbody>
+        </table>
       </div>
     </div>
   );

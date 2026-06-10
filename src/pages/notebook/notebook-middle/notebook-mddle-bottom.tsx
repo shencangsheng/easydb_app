@@ -93,7 +93,7 @@ function NotebookMiddleBottom({
     <div className="flex w-full flex-col">
       <Tabs
         variant="underlined"
-        defaultSelectedKey="results"
+        selectedKey={activeTab}
         onSelectionChange={(key) => setActiveTab(String(key))}
         destroyInactiveTabPanel={false}
       >
