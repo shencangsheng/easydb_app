@@ -195,7 +195,7 @@ function QueryHistory({ setSql, isActive }: QueryHistoryProps) {
           <td className="py-2 px-2 text-center text-gray-500 w-12 shrink-0">
             {index + 1}
           </td>
-          <td className="py-2 px-4 text-left bg-gray-50 font-medium">
+          <td className="py-2 px-4 text-left font-medium">
             {formatRelativeTime(value.created_at)}
           </td>
           <td className="py-2 px-4 text-left">
@@ -316,8 +316,9 @@ function QueryHistory({ setSql, isActive }: QueryHistoryProps) {
           flex: 1,
           overflow: "auto",
         }}
+        className={isLoading && data.length > 0 ? "opacity-60 pointer-events-none" : ""}
       >
-        {isLoading ? (
+        {isLoading && data.length === 0 ? (
           <div className="flex items-center justify-center h-full text-gray-400 text-sm">
             {t("notebook.history.loading")}
           </div>

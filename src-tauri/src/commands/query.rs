@@ -323,7 +323,7 @@ pub async fn delete_sql_history_before(
                         .to_string(),
                 });
             }
-            let before = chrono::Local::now() - chrono::Duration::days(days);
+            let before = chrono::Local::now() - chrono::TimeDelta::days(days);
             let before_str = before.format("%Y-%m-%d %H:%M:%S").to_string();
             db_utils::delete_sql_history_before(&app, &before_str)
         } else {
