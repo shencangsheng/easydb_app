@@ -1,7 +1,7 @@
 import { formatRelativeTime } from "@/utils/date-util";
 import { useTranslation } from "@/i18n";
 import { invoke } from "@tauri-apps/api/core";
-import { ask } from "@tauri-apps/plugin-dialog";
+import { ask, message } from "@tauri-apps/plugin-dialog";
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 const HISTORY_LIMIT_STORAGE_KEY = "query-history-limit";
@@ -140,7 +140,7 @@ function QueryHistory({ setSql, isActive }: QueryHistoryProps) {
         })) as number;
         await fetchHistory(searchText, limit);
         if (deleted > 0) {
-          await ask(
+          await message(
             t("notebook.history.deleteSuccess").replace(
               "{{count}}",
               String(deleted)
