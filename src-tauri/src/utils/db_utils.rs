@@ -114,12 +114,7 @@ pub fn list_sql_history(
         Ok((row.get(0)?, row.get(1)?, row.get(2)?))
     })?;
 
-    let mut results = Vec::new();
-    for row in rows {
-        results.push(row?);
-    }
-
-    Ok(results)
+    Ok(rows.collect::<Result<Vec<_>, _>>()?)
 }
 
 pub fn delete_sql_history_before(app: &AppHandle, before: &str) -> AppResult<usize> {
@@ -131,8 +126,8 @@ pub fn delete_sql_history_before(app: &AppHandle, before: &str) -> AppResult<usi
 }
 
 pub fn delete_all_sql_history(app: &AppHandle) -> AppResult<usize> {
-    let conn = conn(app)?;
-    let count: usize = conn.query_row("SELECT COUNT(*) FROM sql_history", [], |r| r.get(0))?;
-    conn.execute("DELETE FROM sql_history", [])?;
-    Ok(count)
+    // WHERE clause disables SQLite's truncate optimization, which otherwise
+    // reports 0 affected rows for DELETE without a predicate.
+    let deleted = conn(app)?.execute("DELETE FROM sql_history WHERE 1=1", [])?;
+    Ok(deleted)
 }
