@@ -40,6 +40,10 @@ export interface Translations {
         description: string;
       };
       clickToUse: string;
+      indexLabel: string;
+      timeLabel: string;
+      statusLabel: string;
+      sqlLabel: string;
       searchPlaceholder: string;
       noResults: string;
       noResultsDescription: string;
@@ -275,6 +279,10 @@ const translations: Record<Language, Translations> = {
           description: "执行查询后将显示历史记录",
         },
         clickToUse: "点击使用此查询",
+        indexLabel: "序号",
+        timeLabel: "时间",
+        statusLabel: "状态",
+        sqlLabel: "SQL",
         searchPlaceholder: "搜索查询历史...",
         noResults: "未找到匹配的查询",
         noResultsDescription: "请尝试使用其他关键词搜索",
@@ -520,6 +528,10 @@ const translations: Record<Language, Translations> = {
           description: "Query history will appear after executing queries",
         },
         clickToUse: "Click to use this query",
+        indexLabel: "#",
+        timeLabel: "Time",
+        statusLabel: "Status",
+        sqlLabel: "SQL",
         searchPlaceholder: "Search query history...",
         noResults: "No matching queries found",
         noResultsDescription: "Try using different search keywords",

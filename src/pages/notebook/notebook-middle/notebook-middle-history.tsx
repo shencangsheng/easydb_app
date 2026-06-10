@@ -194,6 +194,9 @@ function QueryHistory({ setSql, isActive }: QueryHistoryProps) {
             e.currentTarget.style.backgroundColor = "";
           }}
         >
+          <td className="py-2 px-2 text-center text-gray-500 w-12 shrink-0">
+            {index + 1}
+          </td>
           <td className="py-2 px-4 text-left bg-gray-50 font-medium">
             {formatRelativeTime(value.created_at)}
           </td>
@@ -343,6 +346,22 @@ function QueryHistory({ setSql, isActive }: QueryHistoryProps) {
           )
         ) : (
           <table className="w-full border-collapse border border-gray-200">
+            <thead>
+              <tr className="border-b border-gray-200 bg-gray-100 text-sm text-gray-600">
+                <th className="py-2 px-2 text-center font-medium w-12">
+                  {t("notebook.history.indexLabel")}
+                </th>
+                <th className="py-2 px-4 text-left font-medium">
+                  {t("notebook.history.timeLabel")}
+                </th>
+                <th className="py-2 px-4 text-left font-medium">
+                  {t("notebook.history.statusLabel")}
+                </th>
+                <th className="py-2 px-4 text-left font-medium">
+                  {t("notebook.history.sqlLabel")}
+                </th>
+              </tr>
+            </thead>
             <tbody>{historyRows}</tbody>
           </table>
         )}
