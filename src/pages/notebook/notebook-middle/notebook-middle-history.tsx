@@ -102,6 +102,9 @@ function QueryHistory({ setSql, isActive }: QueryHistoryProps) {
   }, [isActive, searchText, limit, fetchHistory]);
 
   useEffect(() => {
+    if (!showDeleteMenu) {
+      return;
+    }
     const handleClickOutside = (event: MouseEvent) => {
       if (
         deleteMenuRef.current &&
@@ -112,7 +115,7 @@ function QueryHistory({ setSql, isActive }: QueryHistoryProps) {
     };
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
+  }, [showDeleteMenu]);
 
   const handleLimitChange = useCallback((value: number) => {
     setLimit(value);
@@ -194,18 +197,8 @@ function QueryHistory({ setSql, isActive }: QueryHistoryProps) {
       data.map((value, index) => (
         <tr
           key={`${value.created_at}-${index}`}
-          className="border-b border-gray-200"
+          className="border-b border-gray-200 hover:bg-gray-100 transition-colors duration-200 cursor-pointer"
           onClick={() => handleRowClick(value.sql)}
-          style={{
-            cursor: "pointer",
-            transition: "background-color 0.2s",
-          }}
-          onMouseOver={(e) => {
-            e.currentTarget.style.backgroundColor = "#f5f5f5";
-          }}
-          onMouseOut={(e) => {
-            e.currentTarget.style.backgroundColor = "";
-          }}
         >
           <td className="py-2 px-2 text-center text-gray-500 w-12 shrink-0">
             {index + 1}

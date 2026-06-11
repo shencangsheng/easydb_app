@@ -84,6 +84,8 @@ function NotebookMiddle({ sql, setSql, onQuerySaved }: NotebookMiddleProps) {
   const dropAreaRef = useRef<HTMLDivElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
   const executeIdRef = useRef(0);
+  const sqlRef = useRef(sql);
+  sqlRef.current = sql;
   const editorRef = useRef<AceEditorInstance | null>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
   const [isDropModalOpen, setIsDropModalOpen] = useState(false);
@@ -273,9 +275,9 @@ function NotebookMiddle({ sql, setSql, onQuerySaved }: NotebookMiddleProps) {
           return editorValue;
         }
       }
-      return sql;
+      return sqlRef.current;
     },
-    [sql],
+    [],
   );
 
   const executeQuery = useCallback(
@@ -381,13 +383,13 @@ function NotebookMiddle({ sql, setSql, onQuerySaved }: NotebookMiddleProps) {
         name: "saveQuery",
         bindKey: { win: "Ctrl-S", mac: "Cmd-S" },
         exec: () => {
-          if (sql.trim()) {
+          if (sqlRef.current.trim()) {
             openSaveModal();
           }
         },
       },
     ],
-    [executeQuery, formatSql, isRunning, openSaveModal, sql],
+    [executeQuery, formatSql, isRunning, openSaveModal],
   );
 
   // Cache clear data function with useCallback

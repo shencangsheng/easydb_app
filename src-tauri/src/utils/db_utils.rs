@@ -111,7 +111,10 @@ pub fn list_sql_history(
         "SELECT sql, status, created_at FROM sql_history WHERE (?1 IS NULL OR sql LIKE ?1) ORDER BY id DESC LIMIT ?2",
     )?;
     let rows = stmt.query_map(params![pattern, lim], |row| {
-        Ok((row.get(0)?, row.get(1)?, row.get(2)?))
+        let sql: String = row.get::<_, Option<String>>(0)?.unwrap_or_default();
+        let status: String = row.get::<_, Option<String>>(1)?.unwrap_or_default();
+        let created_at: String = row.get::<_, Option<String>>(2)?.unwrap_or_default();
+        Ok((sql, status, created_at))
     })?;
 
     Ok(rows.collect::<Result<Vec<_>, _>>()?)
@@ -126,8 +129,8 @@ pub fn delete_sql_history_before(app: &AppHandle, before: &str) -> AppResult<usi
 }
 
 pub fn delete_all_sql_history(app: &AppHandle) -> AppResult<usize> {
-    // WHERE clause disables SQLite's truncate optimization, which otherwise
-    // reports 0 affected rows for DELETE without a predicate.
-    let deleted = conn(app)?.execute("DELETE FROM sql_history WHERE 1=1", [])?;
-    Ok(deleted)
+    let conn = conn(app)?;
+    let count: usize = conn.query_row("SELECT COUNT(*) FROM sql_history", [], |r| r.get(0))?;
+    conn.execute("DELETE FROM sql_history", [])?;
+    Ok(count)
 }
