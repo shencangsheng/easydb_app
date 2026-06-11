@@ -90,3 +90,47 @@ pub fn delete_saved_query(app: &AppHandle, id: i64) -> AppResult<()> {
     conn(app)?.execute("DELETE FROM saved_queries WHERE id = ?1", params![id])?;
     Ok(())
 }
+
+pub fn list_sql_history(
+    app: &AppHandle,
+    limit: Option<i64>,
+    keyword: Option<&str>,
+) -> AppResult<Vec<(String, String, String)>> {
+    let conn = conn(app)?;
+    let lim = match limit.unwrap_or(50) {
+        l if l <= 0 => -1,
+        l => l,
+    };
+
+    let pattern = keyword
+        .map(|s| s.trim())
+        .filter(|s| !s.is_empty())
+        .map(|s| format!("%{}%", s));
+
+    let mut stmt = conn.prepare(
+        "SELECT sql, status, created_at FROM sql_history WHERE (?1 IS NULL OR sql LIKE ?1) ORDER BY id DESC LIMIT ?2",
+    )?;
+    let rows = stmt.query_map(params![pattern, lim], |row| {
+        let sql: String = row.get::<_, Option<String>>(0)?.unwrap_or_default();
+        let status: String = row.get::<_, Option<String>>(1)?.unwrap_or_default();
+        let created_at: String = row.get::<_, Option<String>>(2)?.unwrap_or_default();
+        Ok((sql, status, created_at))
+    })?;
+
+    Ok(rows.collect::<Result<Vec<_>, _>>()?)
+}
+
+pub fn delete_sql_history_before(app: &AppHandle, before: &str) -> AppResult<usize> {
+    let deleted = conn(app)?.execute(
+        "DELETE FROM sql_history WHERE created_at < ?1",
+        params![before],
+    )?;
+    Ok(deleted)
+}
+
+pub fn delete_all_sql_history(app: &AppHandle) -> AppResult<usize> {
+    let conn = conn(app)?;
+    let count: usize = conn.query_row("SELECT COUNT(*) FROM sql_history", [], |r| r.get(0))?;
+    conn.execute("DELETE FROM sql_history", [])?;
+    Ok(count)
+}

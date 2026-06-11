@@ -1,8 +1,8 @@
 import { Tabs, Tab } from "@heroui/react";
-import { memo, useState } from "react";
+import { useTranslation } from "@/i18n";
+import { memo, useEffect, useState } from "react";
 import DataTable from "./notebook-middle-table";
 import QueryHistory from "./notebook-middle-history";
-import { invoke } from "@tauri-apps/api/core";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faCheckCircle,
@@ -41,32 +41,15 @@ function NotebookMiddleBottom({
   hasMore = false,
   isLoadingMore = false,
 }: NotebookMiddleBottomProps) {
-  const [queryHistory, setQueryHistory] = useState<
-    { sql: string; created_at: string; status: string }[]
-  >([]);
-  const [isHistoryLoaded, setIsHistoryLoaded] = useState(false);
+  const { t } = useTranslation();
+  const [activeTab, setActiveTab] = useState("results");
 
-  const loadQueryHistory = async () => {
-    if (!isHistoryLoaded) {
-      try {
-        const history = (await invoke("sql_history", {})) as {
-          sql: string;
-          created_at: string;
-          status: string;
-        }[];
-        setQueryHistory(history);
-        setIsHistoryLoaded(true);
-      } catch (error) {
-        console.error("Failed to load query history:", error);
-      }
+  // Switch to results when a query starts so history-tab users see the output.
+  useEffect(() => {
+    if (isLoading) {
+      setActiveTab("results");
     }
-  };
-
-  const handleTabChange = async (key: string | number) => {
-    if (key === "history") {
-      await loadQueryHistory();
-    }
-  };
+  }, [isLoading]);
 
   // 判断查询状态
   const getQueryStatus = () => {
@@ -85,7 +68,7 @@ function NotebookMiddleBottom({
 
   const resultsTitle = (
     <span className="flex items-center gap-2">
-      Results
+      {t("notebook.resultsTab")}
       {queryStatus === "success" && (
         <FontAwesomeIcon
           icon={faCheckCircle}
@@ -103,26 +86,28 @@ function NotebookMiddleBottom({
     </span>
   );
 
-  const queryTimeTitle = (
-    <span className="text-gray-500 cursor-default">
-      Query Time (
-      <span className="text-green-600 font-medium">
-        {data.query_time ?? "-"}
-      </span>
-      )
-    </span>
-  );
+  const queryDuration = data.query_time?.trim();
+  const showDuration =
+    Boolean(queryDuration) && queryDuration !== "-" && !isLoading;
 
   return (
-    <div className="flex w-full flex-col">
+    <div className="relative flex w-full flex-col">
       <Tabs
         variant="underlined"
-        defaultSelectedKey="results"
-        onSelectionChange={handleTabChange}
+        selectedKey={activeTab}
+        onSelectionChange={(key) => setActiveTab(String(key))}
         destroyInactiveTabPanel={false}
+        shouldSelectOnPressUp={false}
+        classNames={{
+          base: "w-full",
+          tabList: showDuration ? "pr-28" : undefined,
+        }}
       >
-        <Tab key="history" title="Query History">
-          <QueryHistory setSql={setSql} data={queryHistory} />
+        <Tab key="history" title={t("notebook.history.title")}>
+          <QueryHistory
+            setSql={setSql}
+            isActive={activeTab === "history"}
+          />
         </Tab>
         <Tab key="results" title={resultsTitle}>
           <DataTable
@@ -135,17 +120,20 @@ function NotebookMiddleBottom({
             isLoadingMore={isLoadingMore}
           />
         </Tab>
-        <Tab
-          key="query_time"
-          title={queryTimeTitle}
-          disabled={true}
-          className={`pointer-events-none ${
-            data.query_time && data.query_time !== "-"
-              ? "opacity-100"
-              : "opacity-60"
-          }`}
-        />
       </Tabs>
+      {showDuration && (
+        <div
+          className="pointer-events-none absolute right-2 top-0 flex h-10 items-center"
+          aria-label={`${t("notebook.queryDuration")}: ${queryDuration}`}
+        >
+          <div className="pointer-events-auto flex items-center gap-1.5 whitespace-nowrap rounded-md border border-default-200 bg-default-50 px-2.5 py-1 text-xs dark:border-default-100 dark:bg-default-100/50">
+            <span className="text-default-500">{t("notebook.queryDuration")}</span>
+            <span className="font-mono text-sm font-medium text-success-600">
+              {queryDuration}
+            </span>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

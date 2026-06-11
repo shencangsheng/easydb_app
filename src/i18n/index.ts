@@ -25,6 +25,8 @@ export interface Translations {
     format: string;
     clear: string;
     shortcutHint: string;
+    resultsTab: string;
+    queryDuration: string;
     resultsEmptyTitle: string;
     resultsEmptyDescription: string;
     resultsEmptyShortcutRun: string;
@@ -40,9 +42,25 @@ export interface Translations {
         description: string;
       };
       clickToUse: string;
+      indexLabel: string;
+      timeLabel: string;
+      statusLabel: string;
+      sqlLabel: string;
       searchPlaceholder: string;
       noResults: string;
       noResultsDescription: string;
+      limitLabel: string;
+      limitAll: string;
+      searchAllHint: string;
+      deleteHistory: string;
+      deleteBefore7Days: string;
+      deleteBefore30Days: string;
+      deleteBefore90Days: string;
+      deleteAll: string;
+      deleteConfirmBefore: string;
+      deleteConfirmAll: string;
+      deleteSuccess: string;
+      loading: string;
     };
     savedQueries: {
       title: string;
@@ -248,6 +266,8 @@ const translations: Record<Language, Translations> = {
       format: "格式化",
       clear: "清空",
       shortcutHint: "快捷键: ⌘Enter/F5 执行查询, ⌘K 格式化SQL",
+      resultsTab: "结果",
+      queryDuration: "耗时",
       resultsEmptyTitle: "暂无查询结果",
       resultsEmptyDescription: "执行 SQL 查询以查看结果",
       resultsEmptyShortcutRun: "执行查询",
@@ -263,9 +283,25 @@ const translations: Record<Language, Translations> = {
           description: "执行查询后将显示历史记录",
         },
         clickToUse: "点击使用此查询",
+        indexLabel: "序号",
+        timeLabel: "时间",
+        statusLabel: "状态",
+        sqlLabel: "SQL",
         searchPlaceholder: "搜索查询历史...",
         noResults: "未找到匹配的查询",
         noResultsDescription: "请尝试使用其他关键词搜索",
+        limitLabel: "显示条数",
+        limitAll: "全部",
+        searchAllHint: "搜索全部历史记录",
+        deleteHistory: "清理历史",
+        deleteBefore7Days: "7 天前",
+        deleteBefore30Days: "30 天前",
+        deleteBefore90Days: "90 天前",
+        deleteAll: "全部清空",
+        deleteConfirmBefore: "确认删除 {{days}} 天前的历史记录？",
+        deleteConfirmAll: "确认清空全部查询历史？此操作不可恢复。",
+        deleteSuccess: "已删除 {{count}} 条记录",
+        loading: "加载中...",
       },
       savedQueries: {
         title: "查询",
@@ -481,6 +517,8 @@ const translations: Record<Language, Translations> = {
       format: "Format",
       clear: "Clear",
       shortcutHint: "Shortcuts: ⌘Enter/F5 Run Query, ⌘K Format SQL",
+      resultsTab: "Results",
+      queryDuration: "Duration",
       resultsEmptyTitle: "No Query Results",
       resultsEmptyDescription: "Run a SQL query to see results",
       resultsEmptyShortcutRun: "Run Query",
@@ -496,9 +534,25 @@ const translations: Record<Language, Translations> = {
           description: "Query history will appear after executing queries",
         },
         clickToUse: "Click to use this query",
+        indexLabel: "#",
+        timeLabel: "Time",
+        statusLabel: "Status",
+        sqlLabel: "SQL",
         searchPlaceholder: "Search query history...",
         noResults: "No matching queries found",
         noResultsDescription: "Try using different search keywords",
+        limitLabel: "Show",
+        limitAll: "All",
+        searchAllHint: "Search all history",
+        deleteHistory: "Clear history",
+        deleteBefore7Days: "Before 7 days",
+        deleteBefore30Days: "Before 30 days",
+        deleteBefore90Days: "Before 90 days",
+        deleteAll: "Clear all",
+        deleteConfirmBefore: "Delete history older than {{days}} days?",
+        deleteConfirmAll: "Clear all query history? This cannot be undone.",
+        deleteSuccess: "Deleted {{count}} record(s)",
+        loading: "Loading...",
       },
       savedQueries: {
         title: "Queries",

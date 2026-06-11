@@ -291,26 +291,44 @@ pub async fn delete_saved_query(app: AppHandle, id: i64) -> AppResult<()> {
 }
 
 #[command]
-pub async fn sql_history(app: AppHandle) -> AppResult<Vec<FetchHistory>> {
+pub async fn sql_history(
+    app: AppHandle,
+    limit: Option<i64>,
+    keyword: Option<String>,
+) -> AppResult<Vec<FetchHistory>> {
     run_blocking(move || {
-        let conn = db_utils::conn(&app)?;
-        let mut stmt = conn
-            .prepare("select sql, status, created_at from sql_history order by id desc limit 50")?;
-
-        let rows = stmt.query_map([], |row| {
-            Ok(FetchHistory {
-                sql: row.get(0)?,
-                status: row.get(1)?,
-                created_at: row.get(2)?,
+        let rows = db_utils::list_sql_history(&app, limit, keyword.as_deref())?;
+        Ok(rows
+            .into_iter()
+            .map(|(sql, status, created_at)| FetchHistory {
+                sql,
+                status,
+                created_at,
             })
-        })?;
+            .collect())
+    })
+    .await
+}
 
-        let mut results = Vec::with_capacity(30);
-
-        for row in rows {
-            results.push(row?);
+#[command]
+pub async fn delete_sql_history_before(
+    app: AppHandle,
+    days_ago: Option<i64>,
+) -> AppResult<usize> {
+    run_blocking(move || {
+        if let Some(days) = days_ago {
+            if days < 0 || days > 36500 {
+                return Err(AppError::BadRequest {
+                    message: "days_ago must be non-negative and within a reasonable range"
+                        .to_string(),
+                });
+            }
+            let before = chrono::Local::now() - chrono::TimeDelta::days(days);
+            let before_str = before.format("%Y-%m-%d %H:%M:%S").to_string();
+            db_utils::delete_sql_history_before(&app, &before_str)
+        } else {
+            db_utils::delete_all_sql_history(&app)
         }
-        Ok(results)
     })
     .await
 }

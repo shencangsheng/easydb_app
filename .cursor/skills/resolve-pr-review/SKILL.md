@@ -34,7 +34,8 @@ Copy and track progress:
 - [ ] 5. Run smoke checks (build / tests relevant to changed files)
 - [ ] 6. Commit and push code fixes (if any)
 - [ ] 7. Resolve all addressed review threads on GitHub
-- [ ] 8. Post a PR conversation reply summarizing what was done
+- [ ] 8. Post a PR conversation reply @-mentioning the reviewer bot (e.g. `@gemini-code-assist`)
+- [ ] 9. Request gemini-code-assist re-review via `/gemini review`
 ```
 
 ## Step 1 — PR state
@@ -168,21 +169,49 @@ gh api graphql -f query='...'  # same query as Step 2; confirm isResolved: true
 
 ## Step 8 — PR reply
 
-Post a concise summary on the PR conversation:
+Post a concise summary on the PR conversation. **Always @-mention the reviewer bot** that left the inline comments (e.g. `@gemini-code-assist`, `@copilot-pull-request-reviewer`). Detect the reviewer login from Step 2 thread data (`author.login`); if multiple bots reviewed, mention each one once at the top.
+
+**Standard format** (follow PR #15 as the template):
 
 ```bash
 gh pr comment {number} --repo {owner}/{repo} --body "$(cat <<'EOF'
-Addressed code review feedback:
+Thanks @gemini-code-assist for the review! All {N} inline comments have been addressed in commit `<sha>` (`<commit subject>`):
 
-- **[file]**: brief what changed
-- **[file]**: brief what changed
+1. **`file.ts`**: brief what changed
+2. **`other.rs`**: brief what changed
 
-All inline review threads have been resolved. Changes in commit `<sha>` (or: no additional commits — addressed in `<earlier-sha>`).
+All review threads are now marked as resolved.
+
+/gemini review
 EOF
 )"
 ```
 
-Use the user's language (Chinese or English) to match their message.
+Rules for the reply body:
+
+- **Opening line**: `Thanks @<reviewer-bot> for the review!` — required when the review came from a bot; use the exact GitHub login (e.g. `gemini-code-assist`, not the display name).
+- **Commit reference**: include short SHA and commit subject on the same line as the item count.
+- **Item list**: numbered, one entry per resolved thread; wrap file paths in backticks.
+- **Closing line**: `All review threads are now marked as resolved.`
+- **Re-review trigger**: append `/gemini review` on its own line at the end of the same comment (Step 9). This is the official slash command to request a fresh code review from gemini-code-assist after fixes are pushed.
+- Use the user's language (Chinese or English) for the change descriptions, but keep the `@mention`, `/gemini review`, and structural phrases consistent with the template above.
+
+## Step 9 — Request re-review
+
+After posting the Step 8 summary (which already includes `/gemini review` at the end), gemini-code-assist will automatically run a new review on the latest commit.
+
+- **When to include**: always, if the original review came from `gemini-code-assist`.
+- **When to skip**: only if the reviewer was a human or a different bot (e.g. Copilot) — use that bot's equivalent command instead, or omit if none exists.
+- **Prerequisite**: fixes must be committed and pushed before posting; `/gemini review` runs against the current PR head.
+- **Do not** post `/gemini review` before Step 7 (resolve threads) and Step 8 (summary) — the bot should see resolved threads and a clear changelog first.
+
+Other useful commands (only when explicitly requested by the user):
+
+| Command | Purpose |
+|---------|---------|
+| `/gemini review` | Full re-review of the PR (default after resolving feedback) |
+| `/gemini summary` | New high-level summary of changes |
+| `/gemini help` | List available commands |
 
 ## Decision rules
 
@@ -198,7 +227,21 @@ Use the user's language (Chinese or English) to match their message.
 
 User: `https://github.com/shencangsheng/easydb_app/pull/15#pullrequestreview-4433989260 把 review 都解决掉`
 
-Agent should: parse PR 15 → fetch gemini-code-assist threads → verify/fix → resolve threads → reply on PR.
+Agent should: parse PR 15 → fetch gemini-code-assist threads → verify/fix → resolve threads → reply on PR with `@gemini-code-assist` mention → append `/gemini review` to request re-review.
+
+**Reference reply** (PR #15):
+
+```
+Thanks @gemini-code-assist for the review! All 7 inline comments have been addressed in commit `4f9e8d1` (`refactor: enhance notebook components for saved queries`):
+
+1. **`db_utils.rs`** — `insert_saved_query` now opens a single DB connection and reuses it for `execute` + `last_insert_rowid`.
+2. **`notebook-left-saved-queries.tsx`** — Search filter uses HeroUI `Input` with `placeholder`, `size="sm"`, and `variant="bordered"`.
+...
+
+All review threads are now marked as resolved.
+
+/gemini review
+```
 
 ## Hard rules
 
@@ -207,3 +250,5 @@ Agent should: parse PR 15 → fetch gemini-code-assist threads → verify/fix �
 - Only commit when there are actual code changes (or the user explicitly asks to commit).
 - Resolve a thread only when the feedback is genuinely addressed in the PR head.
 - Keep replies and diffs scoped to review feedback — no drive-by refactors.
+- **Always @-mention the reviewing bot** in the PR summary comment (`@gemini-code-assist`, etc.); a reply without the mention is incomplete.
+- **Always append `/gemini review`** at the end of the summary comment when the original review came from gemini-code-assist; this triggers a fresh review on the fixed code.

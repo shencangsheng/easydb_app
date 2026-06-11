@@ -2,7 +2,7 @@ import AceEditor from "react-ace";
 import "ace-builds/src-noconflict/theme-sqlserver";
 import "ace-builds/src-noconflict/mode-sql";
 import "ace-builds/src-noconflict/snippets/sql";
-import { useEffect, useRef, useCallback } from "react";
+import { useEffect, useLayoutEffect, useRef, useCallback } from "react";
 import langTools from "ace-builds/src-noconflict/ext-language_tools";
 import { useTranslation } from "@/i18n";
 
@@ -76,6 +76,35 @@ function CustomAceEditor({
   // Track editor instance and previous command names for updates
   const editorRef = useRef<AceEditorInstance | null>(null);
   const prevCommandNamesRef = useRef<string[]>([]);
+  const isSilentSetRef = useRef(false);
+
+  // Keep Ace session in sync when SQL is set externally (e.g. query history).
+  // useLayoutEffect runs before paint so Run cannot read a stale session value.
+  useLayoutEffect(() => {
+    const editor = editorRef.current as (AceEditorInstance & {
+      clearSelection: () => void;
+    }) | null;
+    if (!editor) {
+      return;
+    }
+    const session = editor.getSession();
+    const currentValue = session.getValue();
+    if (currentValue !== value) {
+      isSilentSetRef.current = true;
+      session.setValue(value, -1);
+      editor.clearSelection();
+      isSilentSetRef.current = false;
+    }
+  }, [value]);
+
+  const handleChange = useCallback(
+    (nextValue: string) => {
+      if (!isSilentSetRef.current) {
+        onChange(nextValue);
+      }
+    },
+    [onChange],
+  );
 
   // Register custom Ace editor commands on load
   const handleLoad = useCallback(
@@ -114,7 +143,7 @@ function CustomAceEditor({
           session: unknown,
           pos: unknown,
           prefix: string,
-          callback: (error: unknown, results: unknown[]) => void
+          callback: (error: unknown, results: unknown[]) => void,
         ) => {
           const completions = [
             {
@@ -279,7 +308,7 @@ function CustomAceEditor({
       highlightActiveLine={highlightActiveLine}
       placeholder={placeholder}
       value={value}
-      onChange={onChange}
+      onChange={handleChange}
       onLoad={handleLoad}
       setOptions={{
         enableBasicAutocompletion,

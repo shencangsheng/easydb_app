@@ -1,7 +1,7 @@
 use crate::commands::app::restart_app;
 use crate::commands::query::{
-    delete_saved_query, fetch, fetch_column_types, fetch_page, list_saved_queries, save_query,
-    sql_history, writer,
+    delete_saved_query, delete_sql_history_before, fetch, fetch_column_types, fetch_page,
+    list_saved_queries, save_query, sql_history, writer,
 };
 use crate::commands::utils::open_url;
 use crate::utils::db_utils;
@@ -32,6 +32,7 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             delete_saved_query,
+            delete_sql_history_before,
             fetch,
             fetch_column_types,
             fetch_page,
