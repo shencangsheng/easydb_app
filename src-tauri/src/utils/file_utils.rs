@@ -9,6 +9,10 @@ fn has_glob_metacharacters(path: &str) -> bool {
 
 /// Ensure the path refers to at least one readable file (literal path or glob pattern).
 pub fn ensure_path_exists(path: &str) -> AppResult<()> {
+    // DataFusion supports remote URLs (HTTP/S3, etc.); skip local existence checks.
+    if path.contains("://") {
+        return Ok(());
+    }
     if has_glob_metacharacters(path) {
         find_files(path).map(|_| ())
     } else {

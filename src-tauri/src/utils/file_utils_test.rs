@@ -23,6 +23,12 @@ fn ensure_path_exists_accepts_existing_file() {
 }
 
 #[test]
+fn ensure_path_exists_skips_remote_url() {
+    ensure_path_exists("https://example.com/data.parquet").unwrap();
+    ensure_path_exists("s3://bucket/data.parquet").unwrap();
+}
+
+#[test]
 fn find_files_rejects_pattern_with_no_matches() {
     let err = find_files("/tmp/easydb_no_match_*.csv").unwrap_err();
     assert!(matches!(err, AppError::FileNotFound { .. }));
