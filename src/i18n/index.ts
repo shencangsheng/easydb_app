@@ -25,6 +25,8 @@ export interface Translations {
     format: string;
     clear: string;
     shortcutHint: string;
+    resultsTab: string;
+    queryDuration: string;
     resultsEmptyTitle: string;
     resultsEmptyDescription: string;
     resultsEmptyShortcutRun: string;
@@ -264,6 +266,8 @@ const translations: Record<Language, Translations> = {
       format: "格式化",
       clear: "清空",
       shortcutHint: "快捷键: ⌘Enter/F5 执行查询, ⌘K 格式化SQL",
+      resultsTab: "结果",
+      queryDuration: "耗时",
       resultsEmptyTitle: "暂无查询结果",
       resultsEmptyDescription: "执行 SQL 查询以查看结果",
       resultsEmptyShortcutRun: "执行查询",
@@ -513,6 +517,8 @@ const translations: Record<Language, Translations> = {
       format: "Format",
       clear: "Clear",
       shortcutHint: "Shortcuts: ⌘Enter/F5 Run Query, ⌘K Format SQL",
+      resultsTab: "Results",
+      queryDuration: "Duration",
       resultsEmptyTitle: "No Query Results",
       resultsEmptyDescription: "Run a SQL query to see results",
       resultsEmptyShortcutRun: "Run Query",

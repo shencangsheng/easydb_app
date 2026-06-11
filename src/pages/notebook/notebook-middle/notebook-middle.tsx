@@ -83,6 +83,7 @@ function NotebookMiddle({ sql, setSql, onQuerySaved }: NotebookMiddleProps) {
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const dropAreaRef = useRef<HTMLDivElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
+  const executeIdRef = useRef(0);
   const editorRef = useRef<AceEditorInstance | null>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
   const [isDropModalOpen, setIsDropModalOpen] = useState(false);
@@ -211,7 +212,13 @@ function NotebookMiddle({ sql, setSql, onQuerySaved }: NotebookMiddleProps) {
       setDroppedFilePath(null);
       setDroppedFileExtension(null);
     }
-  }, [droppedFilePath, droppedFileExtension, fileExtensionToReadFunction, sql, setSql]);
+  }, [
+    droppedFilePath,
+    droppedFileExtension,
+    fileExtensionToReadFunction,
+    sql,
+    setSql,
+  ]);
 
   // Generate option preview text
   const insertOptions = useMemo(() => {
@@ -251,21 +258,33 @@ function NotebookMiddle({ sql, setSql, onQuerySaved }: NotebookMiddleProps) {
   ]);
 
   // Cache query execution function with useCallback
-  const executeQuery = useCallback(
-    async (sqlToExecute?: string) => {
-      if (!sqlToExecute) {
-        if (editorRef.current) {
-          const selectedText = editorRef.current.getSelectedText();
-          sqlToExecute =
-            selectedText && selectedText.trim()
-              ? selectedText
-              : editorRef.current.getSession().getValue();
-        } else {
-          sqlToExecute = sql;
+  const resolveSqlToExecute = useCallback(
+    (override?: string) => {
+      if (override) {
+        return override;
+      }
+      if (editorRef.current) {
+        const selectedText = editorRef.current.getSelectedText();
+        if (selectedText && selectedText.trim()) {
+          return selectedText;
+        }
+        const editorValue = editorRef.current.getSession().getValue();
+        if (editorValue.trim()) {
+          return editorValue;
         }
       }
+      return sql;
+    },
+    [sql],
+  );
+
+  const executeQuery = useCallback(
+    async (sqlToExecute?: string) => {
+      sqlToExecute = resolveSqlToExecute(sqlToExecute);
 
       if (isRunning || !sqlToExecute.trim()) return;
+
+      const executeId = ++executeIdRef.current;
 
       setIsRunning(true);
       setIsLoading(true);
@@ -282,6 +301,10 @@ function NotebookMiddle({ sql, setSql, onQuerySaved }: NotebookMiddleProps) {
           limit: QUERY_PAGE_SIZE,
         });
 
+        if (executeId !== executeIdRef.current) {
+          return;
+        }
+
         // Check if cancelled
         if (abortController.signal.aborted) {
           setData({
@@ -297,6 +320,10 @@ function NotebookMiddle({ sql, setSql, onQuerySaved }: NotebookMiddleProps) {
         setLastExecutedSql(sqlToExecute);
         setHasMore(results.rows.length >= QUERY_PAGE_SIZE);
       } catch (error) {
+        if (executeId !== executeIdRef.current) {
+          return;
+        }
+
         // Check if it's a cancellation error
         if (abortController.signal.aborted) {
           setData({
@@ -319,7 +346,7 @@ function NotebookMiddle({ sql, setSql, onQuerySaved }: NotebookMiddleProps) {
         abortControllerRef.current = null;
       }
     },
-    [isRunning, sql],
+    [isRunning, resolveSqlToExecute],
   );
 
   // Cache cancel query function with useCallback

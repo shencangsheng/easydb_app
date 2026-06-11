@@ -2,6 +2,7 @@ use crate::commands::query::{arrow_type_to_sql_type, ColumnTypeInfo};
 use crate::context::error::AppError;
 use crate::context::schema::AppResult;
 use crate::reader::excel::ExcelReader;
+use crate::utils::file_utils::ensure_path_exists;
 use crate::sql::parse::{get_function_args, parse_statements};
 use async_recursion::async_recursion;
 use datafusion::arrow::record_batch::RecordBatch;
@@ -366,8 +367,22 @@ pub async fn register_table(
     if let TableFactor::Table { name, args, .. } = relation {
         let table_name = format!("table{}", table_count);
         let table_path = get_table_path(args)?;
+        let reader_name = name.to_string();
 
-        match name.to_string().as_str() {
+        if matches!(
+            reader_name.as_str(),
+            "read_csv"
+                | "read_tsv"
+                | "read_ndjson"
+                | "read_parquet"
+                | "read_text"
+                | "read_excel"
+                | "read_xlsx"
+        ) {
+            ensure_path_exists(&table_path)?;
+        }
+
+        match reader_name.as_str() {
             "read_csv" => {
                 ctx.register_csv(
                     &table_name,

@@ -2,7 +2,7 @@ import { formatRelativeTime } from "@/utils/date-util";
 import { useTranslation } from "@/i18n";
 import { invoke } from "@tauri-apps/api/core";
 import { ask, message } from "@tauri-apps/plugin-dialog";
-import { Spinner } from "@heroui/react";
+import { Select, SelectItem, Spinner } from "@heroui/react";
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 const HISTORY_LIMIT_STORAGE_KEY = "query-history-limit";
@@ -270,17 +270,33 @@ function QueryHistory({ setSql, isActive }: QueryHistoryProps) {
           />
           <div className="flex items-center gap-2 shrink-0 text-sm text-gray-600">
             <span>{t("notebook.history.limitLabel")}:</span>
-            <select
-              value={limit}
-              onChange={(e) => handleLimitChange(Number(e.target.value))}
-              className="px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            <Select
+              aria-label={t("notebook.history.limitLabel")}
+              selectedKeys={[String(limit)]}
+              onSelectionChange={(keys) => {
+                const selected = Array.from(keys)[0];
+                if (selected === undefined) {
+                  return;
+                }
+                handleLimitChange(Number(selected));
+              }}
+              size="sm"
+              variant="bordered"
+              disallowEmptySelection
+              className="w-24"
+              classNames={{
+                trigger:
+                  "min-h-8 h-8 px-2 border-gray-300 data-[hover=true]:border-gray-400",
+                value: "text-sm",
+                popoverContent: "min-w-[80px]",
+              }}
             >
               {HISTORY_LIMIT_OPTIONS.map((option) => (
-                <option key={option} value={option}>
+                <SelectItem key={String(option)} textValue={String(option)}>
                   {option === 0 ? t("notebook.history.limitAll") : option}
-                </option>
+                </SelectItem>
               ))}
-            </select>
+            </Select>
             <div className="relative" ref={deleteMenuRef}>
               <button
                 type="button"
