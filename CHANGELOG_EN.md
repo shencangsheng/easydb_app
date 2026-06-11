@@ -1,5 +1,15 @@
 # Changelog
 
+v2.10.0 - 2026-06-11
+
+- Added saved SQL queries: name and save queries, search and filter the list, delete entries, and load saved queries quickly from the left sidebar
+- Query history supports keyword search and configurable display limits (50 / 100 / 200 / 500 / all)
+- Query history supports cleanup by age (older than 7, 30, or 90 days, or clear all)
+- Improved query history table with index, time, status, and SQL column headers, plus better loading and search interactions
+- Automatically switch to the results tab when a query runs, and show query duration at the bottom
+- Improved editor synchronization with external SQL state, preventing stale content after switching history or loading saved queries
+- Fixed false "file not found" errors when registering remote file paths (HTTP / S3 URLs, etc.)
+
 v2.9.0 - 2026-05-29
 
 - Show Arrow column types in query result headers for better data structure recognition
