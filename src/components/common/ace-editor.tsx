@@ -10,8 +10,10 @@ export interface AceEditorInstance {
   getSelectedText: () => string;
   getCursorPosition: () => { row: number; column: number };
   insert: (text: string) => void;
+  clearSelection: () => void;
   getSession: () => {
     getValue: () => string;
+    setValue: (value: string, cursorPos?: number) => void;
   };
   commands: {
     addCommand: (command: AceEditorCommand) => void;
@@ -81,9 +83,7 @@ function CustomAceEditor({
   // Keep Ace session in sync when SQL is set externally (e.g. query history).
   // useLayoutEffect runs before paint so Run cannot read a stale session value.
   useLayoutEffect(() => {
-    const editor = editorRef.current as (AceEditorInstance & {
-      clearSelection: () => void;
-    }) | null;
+    const editor = editorRef.current;
     if (!editor) {
       return;
     }
