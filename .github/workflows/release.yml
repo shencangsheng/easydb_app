@@ -84,3 +84,88 @@ jobs:
             ./artifacts/**/*/*.exe
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  update-homebrew:
+    needs: create-release
+    runs-on: macos-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Resolve release version
+        run: echo "VERSION=${GITHUB_REF_NAME#v}" >> "$GITHUB_ENV"
+
+      - name: Download macOS build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: easydb-macos-*
+          merge-multiple: true
+          path: ./dmg-artifacts
+
+      - name: Locate DMG files
+        id: dmgs
+        run: |
+          ARM64_DMG="$(find ./dmg-artifacts -name '*aarch64*.dmg' | head -1)"
+          X64_DMG="$(find ./dmg-artifacts -name '*x64*.dmg' ! -name '*setup*' | head -1)"
+
+          if [[ -z "$ARM64_DMG" || -z "$X64_DMG" ]]; then
+            echo "Failed to locate macOS DMG artifacts"
+            find ./dmg-artifacts -type f
+            exit 1
+          fi
+
+          echo "arm64=$ARM64_DMG" >> "$GITHUB_OUTPUT"
+          echo "x64=$X64_DMG" >> "$GITHUB_OUTPUT"
+
+      - name: Generate Homebrew cask
+        run: |
+          ./scripts/generate-homebrew-cask.sh \
+            "$VERSION" \
+            "${{ steps.dmgs.outputs.arm64 }}" \
+            "${{ steps.dmgs.outputs.x64 }}" \
+            homebrew/Casks/easydb.rb
+
+      - name: Publish Homebrew checksums
+        run: |
+          SHA256_ARM64="$(shasum -a 256 "${{ steps.dmgs.outputs.arm64 }}" | awk '{print $1}')"
+          SHA256_X64="$(shasum -a 256 "${{ steps.dmgs.outputs.x64 }}" | awk '{print $1}')"
+          {
+            echo "## Homebrew cask checksums"
+            echo ""
+            echo "- version: \`$VERSION\`"
+            echo "- arm64: \`$SHA256_ARM64\`"
+            echo "- x64: \`$SHA256_X64\`"
+            echo ""
+            echo "Install (personal tap):"
+            echo "\`brew install --cask shencangsheng/easydb/easydb\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Update Homebrew tap
+        env:
+          HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+        run: |
+          if [ -z "$HOMEBREW_TAP_TOKEN" ]; then
+            echo "HOMEBREW_TAP_TOKEN not set, skipping Homebrew tap update"
+            exit 0
+          fi
+
+          git clone "https://x-access-token:${HOMEBREW_TAP_TOKEN}@github.com/shencangsheng/homebrew-easydb.git" tap
+          mkdir -p tap/Casks
+          cp homebrew/Casks/easydb.rb tap/Casks/easydb.rb
+
+          cd tap
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          if git diff --quiet; then
+            echo "Homebrew tap already up to date"
+            exit 0
+          fi
+
+          git add Casks/easydb.rb
+          git commit -m "Update easydb to ${VERSION}"
+          git push origin HEAD:main
