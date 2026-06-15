@@ -487,23 +487,10 @@ pub async fn generate_sql_content(
     empty_text_as_null: Option<bool>,
 ) -> AppResult<SqlContentResult> {
     run_blocking_async(move || async move {
-        // SQL identifiers (table/column names) cannot be bound as parameters, so we
-        // allow-list characters to prevent SQL injection via unescaped identifiers.
-        fn is_safe_sql_identifier(value: &str) -> bool {
-            value
-                .chars()
-                .all(|c| c.is_alphanumeric() || c == '_' || c == '.')
-        }
-
         let trimmed_table = table_name.trim();
         if trimmed_table.is_empty() {
             return Err(AppError::BadRequest {
                 message: "Table name is required for SQL export".to_string(),
-            });
-        }
-        if !is_safe_sql_identifier(trimmed_table) {
-            return Err(AppError::BadRequest {
-                message: "Table name contains invalid characters".to_string(),
             });
         }
 
@@ -547,11 +534,6 @@ pub async fn generate_sql_content(
                     .ok_or_else(|| AppError::BadRequest {
                         message: "WHERE column is required for UPDATE statements".to_string(),
                     })?;
-                if !is_safe_sql_identifier(where_column_value) {
-                    return Err(AppError::BadRequest {
-                        message: "WHERE column contains invalid characters".to_string(),
-                    });
-                }
                 generate_sql_update(
                     df,
                     trimmed_table,
