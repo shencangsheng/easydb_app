@@ -487,9 +487,23 @@ pub async fn generate_sql_content(
     empty_text_as_null: Option<bool>,
 ) -> AppResult<SqlContentResult> {
     run_blocking_async(move || async move {
-        if table_name.trim().is_empty() {
+        // SQL identifiers (table/column names) cannot be bound as parameters, so we
+        // allow-list characters to prevent SQL injection via unescaped identifiers.
+        fn is_safe_sql_identifier(value: &str) -> bool {
+            value
+                .chars()
+                .all(|c| c.is_alphanumeric() || c == '_' || c == '.')
+        }
+
+        let trimmed_table = table_name.trim();
+        if trimmed_table.is_empty() {
             return Err(AppError::BadRequest {
                 message: "Table name is required for SQL export".to_string(),
+            });
+        }
+        if !is_safe_sql_identifier(trimmed_table) {
+            return Err(AppError::BadRequest {
+                message: "Table name contains invalid characters".to_string(),
             });
         }
 
@@ -498,30 +512,6 @@ pub async fn generate_sql_content(
             .map(|s| s.to_uppercase())
             .unwrap_or_else(|| "INSERT".to_string());
 
-        match statement_type.as_str() {
-            "INSERT" => {
-                if max_values_per_insert.is_none() {
-                    return Err(AppError::BadRequest {
-                        message: "Max values per insert is required for INSERT statements"
-                            .to_string(),
-                    });
-                }
-            }
-            "UPDATE" => {
-                if where_column.as_deref().unwrap_or_default().trim().is_empty() {
-                    return Err(AppError::BadRequest {
-                        message: "WHERE column is required for UPDATE statements".to_string(),
-                    });
-                }
-            }
-            _ => {
-                return Err(AppError::BadRequest {
-                    message: "Invalid SQL statement type. Supported types: INSERT, UPDATE"
-                        .to_string(),
-                });
-            }
-        }
-
         let db_dialect = match dialect {
             Some(dialect) => Dialect::from_str(&dialect)?,
             None => Dialect::MySQL,
@@ -529,7 +519,8 @@ pub async fn generate_sql_content(
 
         let start = Utc::now();
         let mut context = get_sql_context();
-        let new_sql = register(&mut context, &sql, None, None).await?;
+        // Apply a safety limit to prevent OOM/UI freezes when copying huge datasets.
+        let new_sql = register(&mut context, &sql, Some(10000), None).await?;
         let df = get_data_frame(&mut context, &new_sql).await?;
         let empty_as_null = empty_text_as_null.unwrap_or(false);
 
@@ -540,7 +531,7 @@ pub async fn generate_sql_content(
                 })?;
                 generate_sql_inserts(
                     df,
-                    &table_name,
+                    trimmed_table,
                     max_values,
                     &db_dialect,
                     export_columns.as_deref(),
@@ -549,20 +540,34 @@ pub async fn generate_sql_content(
                 .await?
             }
             "UPDATE" => {
-                let where_column_value = where_column.ok_or_else(|| AppError::BadRequest {
-                    message: "WHERE column is required for UPDATE statements".to_string(),
-                })?;
+                let where_column_value = where_column
+                    .as_deref()
+                    .map(|s| s.trim())
+                    .filter(|s| !s.is_empty())
+                    .ok_or_else(|| AppError::BadRequest {
+                        message: "WHERE column is required for UPDATE statements".to_string(),
+                    })?;
+                if !is_safe_sql_identifier(where_column_value) {
+                    return Err(AppError::BadRequest {
+                        message: "WHERE column contains invalid characters".to_string(),
+                    });
+                }
                 generate_sql_update(
                     df,
-                    &table_name,
-                    &where_column_value,
+                    trimmed_table,
+                    where_column_value,
                     &db_dialect,
                     export_columns.as_deref(),
                     empty_as_null,
                 )
                 .await?
             }
-            _ => unreachable!(),
+            _ => {
+                return Err(AppError::BadRequest {
+                    message: "Invalid SQL statement type. Supported types: INSERT, UPDATE"
+                        .to_string(),
+                });
+            }
         };
 
         Ok(SqlContentResult {

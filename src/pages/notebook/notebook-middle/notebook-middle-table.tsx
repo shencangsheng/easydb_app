@@ -28,6 +28,7 @@ import {
   Checkbox,
 } from "@heroui/react";
 import { memo, useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import DataResult from "./notebook-middle-data-result";
 import { invoke } from "@tauri-apps/api/core";
 import { useTranslation } from "../../../i18n";
@@ -269,8 +270,8 @@ function DataTable({
     const textarea = document.createElement("textarea");
     textarea.value = text;
     textarea.style.position = "fixed";
-    textarea.style.opacity = "0";
-    textarea.style.pointerEvents = "none";
+    textarea.style.left = "-9999px";
+    textarea.style.top = "-9999px";
     document.body.appendChild(textarea);
     textarea.focus();
     textarea.select();
@@ -467,36 +468,43 @@ function DataTable({
           </button>
         </div>
       )}
-      {copyStatus && (
-        <div
-          style={{
-            ...TOAST_STYLE,
-            top: hasPrimaryToast ? "88px" : "10px",
-            backgroundColor: copyStatus === "success" ? "#f0fdf4" : "#fef2f2",
-            color: copyStatus === "success" ? "#166534" : "#b91c1c",
-            border:
-              copyStatus === "success"
-                ? "1px solid #bbf7d0"
-                : "1px solid #fecaca",
-          }}
-        >
-          <FontAwesomeIcon icon={faCheckCircle} />
-          <div style={{ flex: 1, fontWeight: 600 }}>
-            {copyStatus === "success"
-              ? translate("notebook.export.copySqlSuccess")
-              : translate("notebook.export.copySqlFailed")}
-          </div>
-          <button
-            onClick={() => setCopyStatus(null)}
+      {/* The copy toast can fire while the export modal (a body-level portal) is
+          open, so it must also be portaled to document.body with a z-index above
+          the modal — otherwise it is hidden behind the modal backdrop. */}
+      {copyStatus &&
+        createPortal(
+          <div
             style={{
-              ...CLOSE_BUTTON_STYLE,
+              ...TOAST_STYLE,
+              position: "fixed",
+              top: hasPrimaryToast ? "88px" : "10px",
+              zIndex: 99999,
+              backgroundColor: copyStatus === "success" ? "#f0fdf4" : "#fef2f2",
               color: copyStatus === "success" ? "#166534" : "#b91c1c",
+              border:
+                copyStatus === "success"
+                  ? "1px solid #bbf7d0"
+                  : "1px solid #fecaca",
             }}
           >
-            <FontAwesomeIcon icon={faTimes} size="sm" />
-          </button>
-        </div>
-      )}
+            <FontAwesomeIcon icon={faCheckCircle} />
+            <div style={{ flex: 1, fontWeight: 600 }}>
+              {copyStatus === "success"
+                ? translate("notebook.export.copySqlSuccess")
+                : translate("notebook.export.copySqlFailed")}
+            </div>
+            <button
+              onClick={() => setCopyStatus(null)}
+              style={{
+                ...CLOSE_BUTTON_STYLE,
+                color: copyStatus === "success" ? "#166534" : "#b91c1c",
+              }}
+            >
+              <FontAwesomeIcon icon={faTimes} size="sm" />
+            </button>
+          </div>,
+          document.body
+        )}
 
       {/* 左侧工具栏 */}
       <div style={TOOLBAR_STYLE}>
