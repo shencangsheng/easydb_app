@@ -49,6 +49,12 @@ pub struct WriterResult {
     pub file_name: String,
 }
 
+#[derive(Serialize)]
+pub struct SqlContentResult {
+    pub query_time: String,
+    pub sql_content: String,
+}
+
 #[derive(Serialize, Clone)]
 pub struct ColumnTypeInfo {
     pub column_name: String,
@@ -464,6 +470,104 @@ pub async fn writer(
         Ok(WriterResult {
             query_time: time_difference_from_now(start),
             file_name: fs::canonicalize(&downloads_dir)?.display().to_string(),
+        })
+    })
+    .await
+}
+
+#[command]
+pub async fn generate_sql_content(
+    sql: String,
+    table_name: String,
+    max_values_per_insert: Option<usize>,
+    sql_statement_type: Option<String>,
+    where_column: Option<String>,
+    dialect: Option<String>,
+    export_columns: Option<Vec<ExportColumnConfig>>,
+    empty_text_as_null: Option<bool>,
+) -> AppResult<SqlContentResult> {
+    run_blocking_async(move || async move {
+        if table_name.trim().is_empty() {
+            return Err(AppError::BadRequest {
+                message: "Table name is required for SQL export".to_string(),
+            });
+        }
+
+        let statement_type = sql_statement_type
+            .as_ref()
+            .map(|s| s.to_uppercase())
+            .unwrap_or_else(|| "INSERT".to_string());
+
+        match statement_type.as_str() {
+            "INSERT" => {
+                if max_values_per_insert.is_none() {
+                    return Err(AppError::BadRequest {
+                        message: "Max values per insert is required for INSERT statements"
+                            .to_string(),
+                    });
+                }
+            }
+            "UPDATE" => {
+                if where_column.as_deref().unwrap_or_default().trim().is_empty() {
+                    return Err(AppError::BadRequest {
+                        message: "WHERE column is required for UPDATE statements".to_string(),
+                    });
+                }
+            }
+            _ => {
+                return Err(AppError::BadRequest {
+                    message: "Invalid SQL statement type. Supported types: INSERT, UPDATE"
+                        .to_string(),
+                });
+            }
+        }
+
+        let db_dialect = match dialect {
+            Some(dialect) => Dialect::from_str(&dialect)?,
+            None => Dialect::MySQL,
+        };
+
+        let start = Utc::now();
+        let mut context = get_sql_context();
+        let new_sql = register(&mut context, &sql, None, None).await?;
+        let df = get_data_frame(&mut context, &new_sql).await?;
+        let empty_as_null = empty_text_as_null.unwrap_or(false);
+
+        let sql_content = match statement_type.as_str() {
+            "INSERT" => {
+                let max_values = max_values_per_insert.ok_or_else(|| AppError::BadRequest {
+                    message: "Max values per insert is required for INSERT statements".to_string(),
+                })?;
+                generate_sql_inserts(
+                    df,
+                    &table_name,
+                    max_values,
+                    &db_dialect,
+                    export_columns.as_deref(),
+                    empty_as_null,
+                )
+                .await?
+            }
+            "UPDATE" => {
+                let where_column_value = where_column.ok_or_else(|| AppError::BadRequest {
+                    message: "WHERE column is required for UPDATE statements".to_string(),
+                })?;
+                generate_sql_update(
+                    df,
+                    &table_name,
+                    &where_column_value,
+                    &db_dialect,
+                    export_columns.as_deref(),
+                    empty_as_null,
+                )
+                .await?
+            }
+            _ => unreachable!(),
+        };
+
+        Ok(SqlContentResult {
+            query_time: time_difference_from_now(start),
+            sql_content,
         })
     })
     .await

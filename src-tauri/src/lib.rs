@@ -1,7 +1,7 @@
 use crate::commands::app::restart_app;
 use crate::commands::query::{
     delete_saved_query, delete_sql_history_before, fetch, fetch_column_types, fetch_page,
-    list_saved_queries, save_query, sql_history, writer,
+    generate_sql_content, list_saved_queries, save_query, sql_history, writer,
 };
 use crate::commands::utils::open_url;
 use crate::utils::db_utils;
@@ -36,6 +36,7 @@ pub fn run() {
             fetch,
             fetch_column_types,
             fetch_page,
+            generate_sql_content,
             list_saved_queries,
             open_url,
             restart_app,
