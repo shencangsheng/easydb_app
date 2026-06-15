@@ -274,24 +274,35 @@ fn extract_headers_from_batches(batches: &[RecordBatch]) -> Vec<String> {
         .unwrap_or_default()
 }
 
-/// Generate SQL insert statements from DataFrame
-/// Splits large datasets into multiple INSERT statements for better performance
-pub async fn generate_sql_inserts(
-    df: DataFrame,
+/// Keep at most `max_rows` across one or more RecordBatches.
+pub fn truncate_record_batches(batches: Vec<RecordBatch>, max_rows: usize) -> Vec<RecordBatch> {
+    let mut remaining = max_rows;
+    let mut result = Vec::new();
+    for batch in batches {
+        if remaining == 0 {
+            break;
+        }
+        let rows = batch.num_rows();
+        if rows <= remaining {
+            result.push(batch);
+            remaining -= rows;
+        } else {
+            result.push(batch.slice(0, remaining));
+            break;
+        }
+    }
+    result
+}
+
+/// Generate SQL insert statements from collected RecordBatches.
+pub fn generate_sql_inserts_from_batches(
+    batches: Vec<RecordBatch>,
     table_name: &str,
     max_values_per_insert: usize,
     db_dialect: &Dialect,
     export_columns: Option<&[ExportColumnConfig]>,
     empty_text_as_null: bool,
 ) -> AppResult<String> {
-    // Collect RecordBatches from DataFrame
-    let batches = df
-        .collect()
-        .await
-        .map_err(|e| crate::context::error::AppError::BadRequest {
-            message: format!("Failed to collect DataFrame: {}", e),
-        })?;
-
     let headers = extract_headers_from_batches(&batches);
     if headers.is_empty() {
         return Ok(String::new());
@@ -353,24 +364,41 @@ pub async fn generate_sql_inserts(
     Ok(sql_statements)
 }
 
-/// Generate SQL UPDATE statements from DataFrame
-/// Creates UPDATE statements with WHERE conditions based on the specified column
-pub async fn generate_sql_update(
+/// Generate SQL insert statements from DataFrame
+/// Splits large datasets into multiple INSERT statements for better performance
+pub async fn generate_sql_inserts(
     df: DataFrame,
     table_name: &str,
-    where_column: &str,
+    max_values_per_insert: usize,
     db_dialect: &Dialect,
     export_columns: Option<&[ExportColumnConfig]>,
     empty_text_as_null: bool,
 ) -> AppResult<String> {
-    // Collect RecordBatches from DataFrame
     let batches = df
         .collect()
         .await
         .map_err(|e| crate::context::error::AppError::BadRequest {
             message: format!("Failed to collect DataFrame: {}", e),
         })?;
+    generate_sql_inserts_from_batches(
+        batches,
+        table_name,
+        max_values_per_insert,
+        db_dialect,
+        export_columns,
+        empty_text_as_null,
+    )
+}
 
+/// Generate SQL UPDATE statements from collected RecordBatches.
+pub fn generate_sql_update_from_batches(
+    batches: Vec<RecordBatch>,
+    table_name: &str,
+    where_column: &str,
+    db_dialect: &Dialect,
+    export_columns: Option<&[ExportColumnConfig]>,
+    empty_text_as_null: bool,
+) -> AppResult<String> {
     let headers = extract_headers_from_batches(&batches);
 
     if headers.is_empty() {
@@ -469,4 +497,30 @@ pub async fn generate_sql_update(
     })?;
 
     Ok(sql_statements)
+}
+
+/// Generate SQL UPDATE statements from DataFrame
+/// Creates UPDATE statements with WHERE conditions based on the specified column
+pub async fn generate_sql_update(
+    df: DataFrame,
+    table_name: &str,
+    where_column: &str,
+    db_dialect: &Dialect,
+    export_columns: Option<&[ExportColumnConfig]>,
+    empty_text_as_null: bool,
+) -> AppResult<String> {
+    let batches = df
+        .collect()
+        .await
+        .map_err(|e| crate::context::error::AppError::BadRequest {
+            message: format!("Failed to collect DataFrame: {}", e),
+        })?;
+    generate_sql_update_from_batches(
+        batches,
+        table_name,
+        where_column,
+        db_dialect,
+        export_columns,
+        empty_text_as_null,
+    )
 }

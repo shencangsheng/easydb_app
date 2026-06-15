@@ -3,7 +3,8 @@ use crate::context::context::{collect, get_data_frame, get_sql_context, register
 use crate::context::error::AppError;
 use crate::context::schema::AppResult;
 use crate::sql::generator::{
-    generate_sql_inserts, generate_sql_update, ExportColumnConfig,
+    generate_sql_inserts, generate_sql_inserts_from_batches, generate_sql_update,
+    generate_sql_update_from_batches, truncate_record_batches, ExportColumnConfig,
 };
 use crate::utils::date_utils::time_difference_from_now;
 use crate::utils::db_utils;
@@ -48,6 +49,15 @@ pub struct WriterResult {
     pub query_time: String,
     pub file_name: String,
 }
+
+#[derive(Serialize)]
+pub struct SqlContentResult {
+    pub query_time: String,
+    pub sql_content: String,
+    pub truncated: bool,
+}
+
+const SQL_COPY_ROW_LIMIT: usize = 10_000;
 
 #[derive(Serialize, Clone)]
 pub struct ColumnTypeInfo {
@@ -464,6 +474,108 @@ pub async fn writer(
         Ok(WriterResult {
             query_time: time_difference_from_now(start),
             file_name: fs::canonicalize(&downloads_dir)?.display().to_string(),
+        })
+    })
+    .await
+}
+
+#[command]
+pub async fn generate_sql_content(
+    sql: String,
+    table_name: String,
+    max_values_per_insert: Option<usize>,
+    sql_statement_type: Option<String>,
+    where_column: Option<String>,
+    dialect: Option<String>,
+    export_columns: Option<Vec<ExportColumnConfig>>,
+    empty_text_as_null: Option<bool>,
+) -> AppResult<SqlContentResult> {
+    run_blocking_async(move || async move {
+        let trimmed_table = table_name.trim();
+        if trimmed_table.is_empty() {
+            return Err(AppError::BadRequest {
+                message: "Table name is required for SQL export".to_string(),
+            });
+        }
+
+        let statement_type = sql_statement_type
+            .as_ref()
+            .map(|s| s.to_uppercase())
+            .unwrap_or_else(|| "INSERT".to_string());
+
+        let db_dialect = match dialect {
+            Some(dialect) => Dialect::from_str(&dialect)?,
+            None => Dialect::MySQL,
+        };
+
+        let start = Utc::now();
+        let mut context = get_sql_context();
+        let new_sql = register(
+            &mut context,
+            &sql,
+            Some(SQL_COPY_ROW_LIMIT + 1),
+            None,
+        )
+        .await?;
+        let df = get_data_frame(&mut context, &new_sql).await?;
+        let batches = df
+            .collect()
+            .await
+            .map_err(|e| AppError::BadRequest {
+                message: e.to_string(),
+            })?;
+        let total_rows: usize = batches.iter().map(|batch| batch.num_rows()).sum();
+        let truncated = total_rows > SQL_COPY_ROW_LIMIT;
+        let batches = if truncated {
+            truncate_record_batches(batches, SQL_COPY_ROW_LIMIT)
+        } else {
+            batches
+        };
+        let empty_as_null = empty_text_as_null.unwrap_or(false);
+
+        let sql_content = match statement_type.as_str() {
+            "INSERT" => {
+                let max_values = max_values_per_insert.ok_or_else(|| AppError::BadRequest {
+                    message: "Max values per insert is required for INSERT statements".to_string(),
+                })?;
+                generate_sql_inserts_from_batches(
+                    batches,
+                    trimmed_table,
+                    max_values,
+                    &db_dialect,
+                    export_columns.as_deref(),
+                    empty_as_null,
+                )?
+            }
+            "UPDATE" => {
+                let where_column_value = where_column
+                    .as_deref()
+                    .map(|s| s.trim())
+                    .filter(|s| !s.is_empty())
+                    .ok_or_else(|| AppError::BadRequest {
+                        message: "WHERE column is required for UPDATE statements".to_string(),
+                    })?;
+                generate_sql_update_from_batches(
+                    batches,
+                    trimmed_table,
+                    where_column_value,
+                    &db_dialect,
+                    export_columns.as_deref(),
+                    empty_as_null,
+                )?
+            }
+            _ => {
+                return Err(AppError::BadRequest {
+                    message: "Invalid SQL statement type. Supported types: INSERT, UPDATE"
+                        .to_string(),
+                });
+            }
+        };
+
+        Ok(SqlContentResult {
+            query_time: time_difference_from_now(start),
+            sql_content,
+            truncated,
         })
     })
     .await

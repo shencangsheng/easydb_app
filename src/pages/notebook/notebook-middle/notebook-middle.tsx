@@ -606,9 +606,13 @@ function NotebookMiddle({ sql, setSql, onQuerySaved }: NotebookMiddleProps) {
               ref={popoverRef}
               style={{
                 position: "absolute",
-                left: "50%",
-                top: "50%",
-                transform: "translate(-50%, -50%)",
+                left: "0",
+                right: "0",
+                top: "0",
+                bottom: "0",
+                width: "fit-content",
+                height: "fit-content",
+                margin: "auto",
                 zIndex: 9999,
                 background: "#fff",
                 borderRadius: "8px",

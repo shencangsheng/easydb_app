@@ -78,7 +78,9 @@ export interface Translations {
     };
     export: {
       export: string;
+      inProgress: string;
       completed: string;
+      failed: string;
       queryTime: string;
       fileName: string;
       sqlExportSettings: string;
@@ -99,6 +101,10 @@ export interface Translations {
       mysql: string;
       postgresql: string;
       cancel: string;
+      copySqlStatement: string;
+      copySqlSuccess: string;
+      copySqlTruncated: string;
+      copySqlFailed: string;
       confirmExport: string;
       columnTypes: string;
       columnTypesDescription: string;
@@ -319,7 +325,9 @@ const translations: Record<Language, Translations> = {
       },
       export: {
         export: "导出",
+        inProgress: "正在导出，请稍候...",
         completed: "下载完成",
+        failed: "导出失败，请重试",
         queryTime: "查询时间",
         fileName: "文件名",
         sqlExportSettings: "SQL 导出设置",
@@ -340,6 +348,10 @@ const translations: Record<Language, Translations> = {
         mysql: "MySQL",
         postgresql: "PostgreSQL",
         cancel: "取消",
+        copySqlStatement: "复制 SQL 语句",
+        copySqlSuccess: "SQL 语句已复制到剪贴板",
+        copySqlTruncated: "SQL 已复制（因数据量过大，仅复制前 10,000 条）",
+        copySqlFailed: "复制失败，请重试",
         confirmExport: "确认导出",
         columnTypes: "导出列类型",
         columnTypesDescription:
@@ -571,7 +583,9 @@ const translations: Record<Language, Translations> = {
       },
       export: {
         export: "Export",
+        inProgress: "Exporting, please wait...",
         completed: "Download Completed",
+        failed: "Export failed, please try again",
         queryTime: "Query Time",
         fileName: "File Name",
         sqlExportSettings: "SQL Export Settings",
@@ -594,6 +608,11 @@ const translations: Record<Language, Translations> = {
         mysql: "MySQL",
         postgresql: "PostgreSQL",
         cancel: "Cancel",
+        copySqlStatement: "Copy SQL Statement",
+        copySqlSuccess: "SQL statement copied to clipboard",
+        copySqlTruncated:
+          "SQL copied (truncated to first 10,000 rows due to size limit)",
+        copySqlFailed: "Copy failed, please try again",
         confirmExport: "Confirm Export",
         columnTypes: "Export Column Types",
         columnTypesDescription:

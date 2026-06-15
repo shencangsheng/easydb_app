@@ -3,6 +3,7 @@ import {
   faFileCsv,
   faSpinner,
   faCheckCircle,
+  faCircleExclamation,
   faTimes,
   faFileCode,
   faTrash,
@@ -27,6 +28,7 @@ import {
   Checkbox,
 } from "@heroui/react";
 import { memo, useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import DataResult from "./notebook-middle-data-result";
 import { invoke } from "@tauri-apps/api/core";
 import { useTranslation } from "../../../i18n";
@@ -54,6 +56,12 @@ interface TableProps {
 interface ExportResult {
   query_time: string;
   file_name: string;
+}
+
+interface SqlContentResult {
+  query_time: string;
+  sql_content: string;
+  truncated: boolean;
 }
 
 interface ExportColumnConfig {
@@ -86,8 +94,10 @@ const TOOLBAR_STYLE = {
 const TOAST_STYLE = {
   position: "absolute" as const,
   top: "10px",
-  left: "50%",
-  transform: "translateX(-50%)",
+  left: "0",
+  right: "0",
+  width: "fit-content",
+  margin: "0 auto",
   zIndex: 1000,
   padding: "12px 16px",
   borderRadius: "8px",
@@ -116,6 +126,8 @@ const CLOSE_BUTTON_STYLE = {
 } as const;
 
 const ICON_MARGIN_STYLE = { marginRight: "5px" };
+const waitForNextPaint = () =>
+  new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
 
 function DataTable({
   data,
@@ -138,6 +150,11 @@ function DataTable({
   const [exportColumns, setExportColumns] = useState<ExportColumnConfig[]>([]);
   const [isLoadingColumnTypes, setIsLoadingColumnTypes] = useState(false);
   const [emptyTextAsNull, setEmptyTextAsNull] = useState(false);
+  const [isCopyingSql, setIsCopyingSql] = useState(false);
+  const [copyStatus, setCopyStatus] = useState<
+    "success" | "warning" | "error" | null
+  >(null);
+  const [exportError, setExportError] = useState<string | null>(null);
   const { translate } = useTranslation();
 
   // 自动隐藏提示
@@ -149,6 +166,39 @@ function DataTable({
       return () => clearTimeout(timer);
     }
   }, [exportResult]);
+
+  useEffect(() => {
+    if (copyStatus) {
+      const timer = setTimeout(() => {
+        setCopyStatus(null);
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [copyStatus]);
+
+  useEffect(() => {
+    if (exportError) {
+      const timer = setTimeout(() => {
+        setExportError(null);
+      }, 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [exportError]);
+
+  function emitExportStatus(
+    status: "started" | "completed" | "failed",
+    detail?: Record<string, unknown>
+  ) {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    window.dispatchEvent(
+      new CustomEvent("easydb:export-status", {
+        detail: { status, ...detail },
+      })
+    );
+  }
 
   async function exportResults(
     fileType: string,
@@ -163,6 +213,10 @@ function DataTable({
     try {
       setIsDownloading(true);
       setExportResult(null);
+      setExportError(null);
+      emitExportStatus("started", { fileType });
+      // Let React paint the loading state before invoking heavy export work.
+      await waitForNextPaint();
 
       const result = await invoke<ExportResult>("writer", {
         sql,
@@ -176,10 +230,60 @@ function DataTable({
         emptyTextAsNull: fileType === "SQL" ? emptyTextAsNull : undefined,
       });
       setExportResult(result);
+      emitExportStatus("completed", { fileType, result });
     } catch (error) {
       console.error("Export failed:", error);
+      setExportError(translate("notebook.export.failed"));
+      emitExportStatus("failed", {
+        fileType,
+        error: error instanceof Error ? error.message : String(error),
+      });
     } finally {
       setIsDownloading(false);
+    }
+  }
+
+  async function generateSqlContent(
+    tableName: string,
+    maxValuesPerInsert: number,
+    sqlStatementType: string,
+    whereColumn: string,
+    dialect: string,
+    exportColumns: ExportColumnConfig[],
+    emptyTextAsNull: boolean
+  ) {
+    return await invoke<SqlContentResult>("generate_sql_content", {
+      sql,
+      tableName,
+      maxValuesPerInsert,
+      sqlStatementType,
+      whereColumn,
+      dialect,
+      exportColumns,
+      emptyTextAsNull,
+    });
+  }
+
+  async function copyTextToClipboard(text: string) {
+    if (navigator.clipboard && window.isSecureContext) {
+      await navigator.clipboard.writeText(text);
+      return;
+    }
+
+    const textarea = document.createElement("textarea");
+    textarea.value = text;
+    textarea.style.position = "fixed";
+    textarea.style.left = "-9999px";
+    textarea.style.top = "-9999px";
+    document.body.appendChild(textarea);
+    textarea.focus();
+    textarea.select();
+
+    const copied = document.execCommand("copy");
+    document.body.removeChild(textarea);
+
+    if (!copied) {
+      throw new Error("Failed to copy SQL content");
     }
   }
 
@@ -192,6 +296,7 @@ function DataTable({
     setColumnTypes([]);
     setExportColumns([]);
     setEmptyTextAsNull(false);
+    setCopyStatus(null);
     setIsTableNameModalOpen(true);
 
     const applyColumnTypes = (columns: ColumnTypeInfo[]) => {
@@ -249,6 +354,29 @@ function DataTable({
     );
   }
 
+  async function copySqlStatement() {
+    try {
+      setIsCopyingSql(true);
+      setCopyStatus(null);
+      const result = await generateSqlContent(
+        tableName,
+        maxValuesPerInsert,
+        sqlStatementType,
+        whereColumn,
+        databaseDialect,
+        exportColumns,
+        emptyTextAsNull
+      );
+      await copyTextToClipboard(result.sql_content);
+      setCopyStatus(result.truncated ? "warning" : "success");
+    } catch (error) {
+      console.error("Copy SQL failed:", error);
+      setCopyStatus("error");
+    } finally {
+      setIsCopyingSql(false);
+    }
+  }
+
   function updateExportColumn(
     sourceColumnName: string,
     patch: Partial<Pick<ExportColumnConfig, "export_column_name" | "sql_type">>
@@ -277,10 +405,20 @@ function DataTable({
     !hasValidExportColumns ||
     (sqlStatementType === "INSERT" && maxValuesPerInsert < 1) ||
     (sqlStatementType === "UPDATE" && !whereColumn.trim());
+  const hasPrimaryToast =
+    isDownloading || Boolean(exportResult) || Boolean(exportError);
 
   return (
     <div style={CONTAINER_STYLE}>
-      {/* 下载完成提示 */}
+      {/* 导出状态提示 */}
+      {isDownloading && (
+        <div style={TOAST_STYLE}>
+          <FontAwesomeIcon icon={faSpinner} spin />
+          <div style={{ flex: 1, fontWeight: 600 }}>
+            {translate("notebook.export.inProgress")}
+          </div>
+        </div>
+      )}
       {exportResult && (
         <div style={TOAST_STYLE}>
           <FontAwesomeIcon icon={faCheckCircle} />
@@ -311,6 +449,88 @@ function DataTable({
           </button>
         </div>
       )}
+      {exportError && (
+        <div
+          style={{
+            ...TOAST_STYLE,
+            backgroundColor: "#fef2f2",
+            color: "#b91c1c",
+            border: "1px solid #fecaca",
+          }}
+        >
+          <FontAwesomeIcon icon={faCircleExclamation} />
+          <div style={{ flex: 1, fontWeight: 600 }}>{exportError}</div>
+          <button
+            onClick={() => setExportError(null)}
+            style={{
+              ...CLOSE_BUTTON_STYLE,
+              color: "#b91c1c",
+            }}
+          >
+            <FontAwesomeIcon icon={faTimes} size="sm" />
+          </button>
+        </div>
+      )}
+      {/* The copy toast can fire while the export modal (a body-level portal) is
+          open, so it must also be portaled to document.body with a z-index above
+          the modal — otherwise it is hidden behind the modal backdrop. */}
+      {copyStatus &&
+        createPortal(
+          <div
+            style={{
+              ...TOAST_STYLE,
+              position: "fixed",
+              top: hasPrimaryToast ? "88px" : "10px",
+              zIndex: 99999,
+              backgroundColor:
+                copyStatus === "success"
+                  ? "#f0fdf4"
+                  : copyStatus === "warning"
+                    ? "#fffbeb"
+                    : "#fef2f2",
+              color:
+                copyStatus === "success"
+                  ? "#166534"
+                  : copyStatus === "warning"
+                    ? "#b45309"
+                    : "#b91c1c",
+              border:
+                copyStatus === "success"
+                  ? "1px solid #bbf7d0"
+                  : copyStatus === "warning"
+                    ? "1px solid #fef3c7"
+                    : "1px solid #fecaca",
+            }}
+          >
+            <FontAwesomeIcon
+              icon={
+                copyStatus === "success" ? faCheckCircle : faCircleExclamation
+              }
+            />
+            <div style={{ flex: 1, fontWeight: 600 }}>
+              {copyStatus === "success"
+                ? translate("notebook.export.copySqlSuccess")
+                : copyStatus === "warning"
+                  ? translate("notebook.export.copySqlTruncated")
+                  : translate("notebook.export.copySqlFailed")}
+            </div>
+            <button
+              onClick={() => setCopyStatus(null)}
+              style={{
+                ...CLOSE_BUTTON_STYLE,
+                color:
+                  copyStatus === "success"
+                    ? "#166534"
+                    : copyStatus === "warning"
+                      ? "#b45309"
+                      : "#b91c1c",
+              }}
+            >
+              <FontAwesomeIcon icon={faTimes} size="sm" />
+            </button>
+          </div>,
+          document.body
+        )}
 
       {/* 左侧工具栏 */}
       <div style={TOOLBAR_STYLE}>
@@ -746,28 +966,46 @@ function DataTable({
                 </div>
               </ModalBody>
 
-              <ModalFooter className="gap-4 pt-6 pb-3 border-t border-default-200/60 shrink-0">
+              <ModalFooter className="justify-between pt-6 pb-3 border-t border-default-200/60 shrink-0">
                 <Button
                   color="default"
-                  variant="light"
+                  variant="bordered"
                   onPress={onClose}
                   size="lg"
-                  className="font-medium"
+                  startContent={
+                    <FontAwesomeIcon icon={faTimes} className="text-sm opacity-70" />
+                  }
+                  classNames={{
+                    base: "font-medium min-w-[108px] border-default-300 text-default-600 hover:bg-default-100 hover:border-default-400",
+                  }}
                 >
                   {translate("notebook.export.cancel")}
                 </Button>
-                <Button
-                  color="primary"
-                  onPress={() => {
-                    confirmSqlExport();
-                    onClose();
-                  }}
-                  isDisabled={isConfirmDisabled}
-                  size="lg"
-                  className="font-medium"
-                >
-                  {translate("notebook.export.confirmExport")}
-                </Button>
+                <div className="flex gap-4">
+                  <Button
+                    color="secondary"
+                    variant="flat"
+                    onPress={copySqlStatement}
+                    isDisabled={isConfirmDisabled || isCopyingSql}
+                    isLoading={isCopyingSql}
+                    size="lg"
+                    className="font-medium"
+                  >
+                    {translate("notebook.export.copySqlStatement")}
+                  </Button>
+                  <Button
+                    color="primary"
+                    onPress={() => {
+                      confirmSqlExport();
+                      onClose();
+                    }}
+                    isDisabled={isConfirmDisabled}
+                    size="lg"
+                    className="font-medium"
+                  >
+                    {translate("notebook.export.confirmExport")}
+                  </Button>
+                </div>
               </ModalFooter>
             </>
           )}
