@@ -53,7 +53,10 @@ pub struct WriterResult {
 pub struct SqlContentResult {
     pub query_time: String,
     pub sql_content: String,
+    pub truncated: bool,
 }
+
+const SQL_COPY_ROW_LIMIT: usize = 10_000;
 
 #[derive(Serialize, Clone)]
 pub struct ColumnTypeInfo {
@@ -506,9 +509,31 @@ pub async fn generate_sql_content(
 
         let start = Utc::now();
         let mut context = get_sql_context();
-        // Apply a safety limit to prevent OOM/UI freezes when copying huge datasets.
-        let new_sql = register(&mut context, &sql, Some(10000), None).await?;
+        let new_sql = register(&mut context, &sql, None, None).await?;
         let df = get_data_frame(&mut context, &new_sql).await?;
+
+        // Peek past the safety limit without materializing the full dataset.
+        let truncated = df
+            .clone()
+            .limit(SQL_COPY_ROW_LIMIT, Some(1))
+            .map_err(|e| AppError::BadRequest {
+                message: e.to_string(),
+            })?
+            .collect()
+            .await
+            .map_err(|e| AppError::BadRequest {
+                message: e.to_string(),
+            })?
+            .iter()
+            .map(|batch| batch.num_rows())
+            .sum::<usize>()
+            > 0;
+
+        let df_limited = df
+            .limit(0, Some(SQL_COPY_ROW_LIMIT))
+            .map_err(|e| AppError::BadRequest {
+                message: e.to_string(),
+            })?;
         let empty_as_null = empty_text_as_null.unwrap_or(false);
 
         let sql_content = match statement_type.as_str() {
@@ -517,7 +542,7 @@ pub async fn generate_sql_content(
                     message: "Max values per insert is required for INSERT statements".to_string(),
                 })?;
                 generate_sql_inserts(
-                    df,
+                    df_limited,
                     trimmed_table,
                     max_values,
                     &db_dialect,
@@ -535,7 +560,7 @@ pub async fn generate_sql_content(
                         message: "WHERE column is required for UPDATE statements".to_string(),
                     })?;
                 generate_sql_update(
-                    df,
+                    df_limited,
                     trimmed_table,
                     where_column_value,
                     &db_dialect,
@@ -555,6 +580,7 @@ pub async fn generate_sql_content(
         Ok(SqlContentResult {
             query_time: time_difference_from_now(start),
             sql_content,
+            truncated,
         })
     })
     .await

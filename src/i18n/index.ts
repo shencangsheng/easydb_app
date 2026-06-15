@@ -103,6 +103,7 @@ export interface Translations {
       cancel: string;
       copySqlStatement: string;
       copySqlSuccess: string;
+      copySqlTruncated: string;
       copySqlFailed: string;
       confirmExport: string;
       columnTypes: string;
@@ -349,6 +350,7 @@ const translations: Record<Language, Translations> = {
         cancel: "取消",
         copySqlStatement: "复制 SQL 语句",
         copySqlSuccess: "SQL 语句已复制到剪贴板",
+        copySqlTruncated: "SQL 已复制（因数据量过大，仅复制前 10,000 条）",
         copySqlFailed: "复制失败，请重试",
         confirmExport: "确认导出",
         columnTypes: "导出列类型",
@@ -608,6 +610,8 @@ const translations: Record<Language, Translations> = {
         cancel: "Cancel",
         copySqlStatement: "Copy SQL Statement",
         copySqlSuccess: "SQL statement copied to clipboard",
+        copySqlTruncated:
+          "SQL copied (truncated to first 10,000 rows due to size limit)",
         copySqlFailed: "Copy failed, please try again",
         confirmExport: "Confirm Export",
         columnTypes: "Export Column Types",

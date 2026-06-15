@@ -61,6 +61,7 @@ interface ExportResult {
 interface SqlContentResult {
   query_time: string;
   sql_content: string;
+  truncated: boolean;
 }
 
 interface ExportColumnConfig {
@@ -150,7 +151,9 @@ function DataTable({
   const [isLoadingColumnTypes, setIsLoadingColumnTypes] = useState(false);
   const [emptyTextAsNull, setEmptyTextAsNull] = useState(false);
   const [isCopyingSql, setIsCopyingSql] = useState(false);
-  const [copyStatus, setCopyStatus] = useState<"success" | "error" | null>(null);
+  const [copyStatus, setCopyStatus] = useState<
+    "success" | "warning" | "error" | null
+  >(null);
   const [exportError, setExportError] = useState<string | null>(null);
   const { translate } = useTranslation();
 
@@ -365,7 +368,7 @@ function DataTable({
         emptyTextAsNull
       );
       await copyTextToClipboard(result.sql_content);
-      setCopyStatus("success");
+      setCopyStatus(result.truncated ? "warning" : "success");
     } catch (error) {
       console.error("Copy SQL failed:", error);
       setCopyStatus("error");
@@ -479,25 +482,48 @@ function DataTable({
               position: "fixed",
               top: hasPrimaryToast ? "88px" : "10px",
               zIndex: 99999,
-              backgroundColor: copyStatus === "success" ? "#f0fdf4" : "#fef2f2",
-              color: copyStatus === "success" ? "#166534" : "#b91c1c",
+              backgroundColor:
+                copyStatus === "success"
+                  ? "#f0fdf4"
+                  : copyStatus === "warning"
+                    ? "#fffbeb"
+                    : "#fef2f2",
+              color:
+                copyStatus === "success"
+                  ? "#166534"
+                  : copyStatus === "warning"
+                    ? "#b45309"
+                    : "#b91c1c",
               border:
                 copyStatus === "success"
                   ? "1px solid #bbf7d0"
-                  : "1px solid #fecaca",
+                  : copyStatus === "warning"
+                    ? "1px solid #fef3c7"
+                    : "1px solid #fecaca",
             }}
           >
-            <FontAwesomeIcon icon={faCheckCircle} />
+            <FontAwesomeIcon
+              icon={
+                copyStatus === "success" ? faCheckCircle : faCircleExclamation
+              }
+            />
             <div style={{ flex: 1, fontWeight: 600 }}>
               {copyStatus === "success"
                 ? translate("notebook.export.copySqlSuccess")
-                : translate("notebook.export.copySqlFailed")}
+                : copyStatus === "warning"
+                  ? translate("notebook.export.copySqlTruncated")
+                  : translate("notebook.export.copySqlFailed")}
             </div>
             <button
               onClick={() => setCopyStatus(null)}
               style={{
                 ...CLOSE_BUTTON_STYLE,
-                color: copyStatus === "success" ? "#166534" : "#b91c1c",
+                color:
+                  copyStatus === "success"
+                    ? "#166534"
+                    : copyStatus === "warning"
+                      ? "#b45309"
+                      : "#b91c1c",
               }}
             >
               <FontAwesomeIcon icon={faTimes} size="sm" />
