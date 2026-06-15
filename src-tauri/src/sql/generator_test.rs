@@ -1,7 +1,12 @@
 use super::generator::{
     format_bool_for_sql, format_cell_for_sql, format_value_for_sql, parse_sql_type,
-    resolve_export_specs, strip_float_zero_suffix, ExportColumnConfig, SqlType,
+    resolve_export_specs, strip_float_zero_suffix, truncate_record_batches, ExportColumnConfig,
+    SqlType,
 };
+use datafusion::arrow::array::Int32Array;
+use datafusion::arrow::datatypes::{DataType, Field, Schema};
+use datafusion::arrow::record_batch::RecordBatch;
+use std::sync::Arc;
 
 // ═══════════════════════════════════════════════════════════════════════
 // Stability Tests
@@ -515,4 +520,39 @@ fn test_format_cell_empty_text_as_null_no_effect_on_non_text_types() {
 fn test_format_cell_null_value_ignores_empty_text_as_null() {
     assert_eq!(format_cell_for_sql("NULL", SqlType::Text, true), "NULL");
     assert_eq!(format_cell_for_sql("NULL", SqlType::Text, false), "NULL");
+}
+
+// ─── truncate_record_batches ──────────────────────────────────────────
+
+fn make_int_batch(row_count: i32) -> RecordBatch {
+    let schema = Schema::new(vec![Field::new("id", DataType::Int32, false)]);
+    let values: Vec<i32> = (0..row_count).collect();
+    let array = Int32Array::from(values);
+    RecordBatch::try_new(Arc::new(schema), vec![Arc::new(array)]).expect("test batch")
+}
+
+#[test]
+fn test_truncate_record_batches_keeps_all_when_under_limit() {
+    let batches = vec![make_int_batch(3), make_int_batch(2)];
+    let truncated = truncate_record_batches(batches, 5);
+    assert_eq!(truncated.len(), 2);
+    assert_eq!(truncated[0].num_rows(), 3);
+    assert_eq!(truncated[1].num_rows(), 2);
+}
+
+#[test]
+fn test_truncate_record_batches_slices_within_single_batch() {
+    let batches = vec![make_int_batch(5)];
+    let truncated = truncate_record_batches(batches, 3);
+    assert_eq!(truncated.len(), 1);
+    assert_eq!(truncated[0].num_rows(), 3);
+}
+
+#[test]
+fn test_truncate_record_batches_slices_across_batches() {
+    let batches = vec![make_int_batch(3), make_int_batch(4)];
+    let truncated = truncate_record_batches(batches, 5);
+    assert_eq!(truncated.len(), 2);
+    assert_eq!(truncated[0].num_rows(), 3);
+    assert_eq!(truncated[1].num_rows(), 2);
 }

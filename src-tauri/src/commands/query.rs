@@ -3,7 +3,8 @@ use crate::context::context::{collect, get_data_frame, get_sql_context, register
 use crate::context::error::AppError;
 use crate::context::schema::AppResult;
 use crate::sql::generator::{
-    generate_sql_inserts, generate_sql_update, ExportColumnConfig,
+    generate_sql_inserts, generate_sql_inserts_from_batches, generate_sql_update,
+    generate_sql_update_from_batches, truncate_record_batches, ExportColumnConfig,
 };
 use crate::utils::date_utils::time_difference_from_now;
 use crate::utils::db_utils;
@@ -509,31 +510,27 @@ pub async fn generate_sql_content(
 
         let start = Utc::now();
         let mut context = get_sql_context();
-        let new_sql = register(&mut context, &sql, None, None).await?;
+        let new_sql = register(
+            &mut context,
+            &sql,
+            Some(SQL_COPY_ROW_LIMIT + 1),
+            None,
+        )
+        .await?;
         let df = get_data_frame(&mut context, &new_sql).await?;
-
-        // Peek past the safety limit without materializing the full dataset.
-        let truncated = df
-            .clone()
-            .limit(SQL_COPY_ROW_LIMIT, Some(1))
-            .map_err(|e| AppError::BadRequest {
-                message: e.to_string(),
-            })?
+        let batches = df
             .collect()
             .await
             .map_err(|e| AppError::BadRequest {
                 message: e.to_string(),
-            })?
-            .iter()
-            .map(|batch| batch.num_rows())
-            .sum::<usize>()
-            > 0;
-
-        let df_limited = df
-            .limit(0, Some(SQL_COPY_ROW_LIMIT))
-            .map_err(|e| AppError::BadRequest {
-                message: e.to_string(),
             })?;
+        let total_rows: usize = batches.iter().map(|batch| batch.num_rows()).sum();
+        let truncated = total_rows > SQL_COPY_ROW_LIMIT;
+        let batches = if truncated {
+            truncate_record_batches(batches, SQL_COPY_ROW_LIMIT)
+        } else {
+            batches
+        };
         let empty_as_null = empty_text_as_null.unwrap_or(false);
 
         let sql_content = match statement_type.as_str() {
@@ -541,15 +538,14 @@ pub async fn generate_sql_content(
                 let max_values = max_values_per_insert.ok_or_else(|| AppError::BadRequest {
                     message: "Max values per insert is required for INSERT statements".to_string(),
                 })?;
-                generate_sql_inserts(
-                    df_limited,
+                generate_sql_inserts_from_batches(
+                    batches,
                     trimmed_table,
                     max_values,
                     &db_dialect,
                     export_columns.as_deref(),
                     empty_as_null,
-                )
-                .await?
+                )?
             }
             "UPDATE" => {
                 let where_column_value = where_column
@@ -559,15 +555,14 @@ pub async fn generate_sql_content(
                     .ok_or_else(|| AppError::BadRequest {
                         message: "WHERE column is required for UPDATE statements".to_string(),
                     })?;
-                generate_sql_update(
-                    df_limited,
+                generate_sql_update_from_batches(
+                    batches,
                     trimmed_table,
                     where_column_value,
                     &db_dialect,
                     export_columns.as_deref(),
                     empty_as_null,
-                )
-                .await?
+                )?
             }
             _ => {
                 return Err(AppError::BadRequest {
