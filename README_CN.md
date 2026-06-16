@@ -21,7 +21,7 @@
 
 EasyDB 是一个轻量级桌面数据查询工具，基于 Rust 与 Tauri 构建，内置 Apache DataFusion 查询引擎，无需安装数据库或其他依赖即可使用 SQL 直接查询本地文件。
 
-将文件视为数据库表，支持 CSV、TSV、Text、NdJson、Excel、Parquet、MySQL 以及 PostgreSQL 等多种数据源，支持复杂的多表 JOIN、子查询、窗口函数等高级 SQL 特性。轻松处理数百 MB 乃至数 GB 的数据文件，仅需少量硬件资源。
+将文件视为数据库表，支持 CSV、TSV、Text、JSON、NdJson、Excel、Parquet、MySQL 以及 PostgreSQL 等多种数据源，支持复杂的多表 JOIN、子查询、窗口函数等高级 SQL 特性。轻松处理数百 MB 乃至数 GB 的数据文件，仅需少量硬件资源。
 
 ![demo.gif](assets/demo.gif)
 
@@ -29,7 +29,7 @@ EasyDB 是一个轻量级桌面数据查询工具，基于 Rust 与 Tauri 构建
 
 - **高性能** — 基于 Rust 和 DataFusion 引擎，处理大型文件游刃有余
 - **低内存占用** — 仅需少量硬件资源即可运行
-- **多格式支持** — CSV、TSV、Text、NdJson、Excel、Parquet、MySQL、PostgreSQL
+- **多格式支持** — CSV、TSV、Text、JSON、NdJson、Excel、Parquet、MySQL、PostgreSQL
 - **开箱即用** — 无需文件转换，直接查询本地文件
 - **跨平台** — 支持 macOS 和 Windows
 - **完整 SQL 支持** — 多表 JOIN、子查询、窗口函数、正则匹配等
@@ -52,8 +52,8 @@ EasyDB 是一个轻量级桌面数据查询工具，基于 Rust 与 Tauri 构建
 - [x] `read_csv()` — 读取 CSV 文件，支持自定义分隔符、表头、Schema 推断
 - [x] `read_tsv()` — 读取 TSV 文件
 - [x] `read_text()` — 读取文本文件，支持自定义分隔符
-- [x] `read_ndjson()` — 读取 NDJSON 文件
-- [ ] `read_json()` — 读取 JSON 文件（v2.0 暂时移除，后续重新实现）
+- [x] `read_json()` — 读取 JSON 文件，支持标准 JSON 数组与 NDJSON（自动检测格式）
+- [x] `read_ndjson()` — 读取 NDJSON 文件（每行一个 JSON 对象）
 - [x] `read_excel()` / `read_xlsx()` — 读取 Excel 文件，支持指定工作表
 - [x] `read_parquet()` — 读取 Parquet 列式存储文件
 - [x] `read_mysql()` — 读取 MySQL 数据库表
@@ -135,9 +135,14 @@ SELECT *
 FROM read_excel('/path/to/file.xlsx', sheet_name => 'Sheet2')
 WHERE "age" > 30;
 
+-- 查询 JSON 文件（标准 JSON 数组或 NDJSON，自动检测）
+SELECT *
+FROM read_json('/path/to/file.json')
+WHERE "status" = 'active';
+
 -- 查询 NDJSON 文件
 SELECT *
-FROM read_ndjson('/path/to/file.json')
+FROM read_ndjson('/path/to/file.ndjson')
 WHERE "status" = 'active';
 
 -- 查询 Parquet 文件
@@ -176,6 +181,7 @@ WHERE REGEXP_LIKE("Distance", '^([0-9]+)\.([0-9]+)?$');
 | TSV        | `read_tsv()`                   | Tab 分隔文件                        |
 | Text       | `read_text()`                  | 通用文本文件，支持自定义分隔符      |
 | Excel      | `read_excel()` / `read_xlsx()` | 支持 `.xlsx`，可选工作表            |
+| JSON       | `read_json()`                  | 标准 JSON 数组与 NDJSON，自动检测格式 |
 | NdJson     | `read_ndjson()`                | 每行一个 JSON 对象                  |
 | Parquet    | `read_parquet()`               | 列式存储格式                        |
 | MySQL      | `read_mysql()`                 | 直连 MySQL 数据库表                 |
@@ -225,6 +231,26 @@ WHERE REGEXP_LIKE("Distance", '^([0-9]+)\.([0-9]+)?$');
 | `pass`     | string | 可选      | PostgreSQL 密码       |
 | `port`     | string | `5432`    | PostgreSQL 端口号     |
 | `sslmode`  | string | `disable` | SSL 模式              |
+
+</details>
+
+<details>
+<summary><code>read_json()</code> 参数</summary>
+
+| 参数             | 类型   | 默认值   | 说明                                                                 |
+| ---------------- | ------ | -------- | -------------------------------------------------------------------- |
+| `file_extension` | string | 路径扩展名 | 文件扩展名，用于覆盖路径中的扩展名（如 NDJSON 内容存储在 `.json` 文件中） |
+
+`read_json()` 会根据文件内容自动判断格式：以 `[` 开头解析为标准 JSON 数组，以 `{` 开头解析为 NDJSON。`.json` 与 `.ndjson` 文件均可使用。
+
+</details>
+
+<details>
+<summary><code>read_ndjson()</code> 参数</summary>
+
+| 参数             | 类型   | 默认值   | 说明         |
+| ---------------- | ------ | -------- | ------------ |
+| `file_extension` | string | `.ndjson` | 文件扩展名   |
 
 </details>
 
