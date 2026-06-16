@@ -171,12 +171,6 @@ function CustomAceEditor({
               value: "read_json",
             },
             {
-              caption: translate("functions.readNdjson.name"),
-              snippet: "read_ndjson(${1:'path'})",
-              meta: translate("functions.readNdjson.description"),
-              value: "read_ndjson",
-            },
-            {
               caption: translate("functions.readExcel.name"),
               snippet: "read_excel(${1:'path'})",
               meta: translate("functions.readExcel.description"),

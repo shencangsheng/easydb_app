@@ -160,11 +160,6 @@ export interface Translations {
       name: string;
       description: string;
     };
-    readNdjson: {
-      name: string;
-      description: string;
-      inferSchema: string;
-    };
     readExcel: {
       name: string;
       description: string;
@@ -409,13 +404,7 @@ const translations: Record<Language, Translations> = {
       },
       readJson: {
         name: "read_json",
-        description: "读取 JSON 文件为表。",
-      },
-      readNdjson: {
-        name: "read_ndjson",
-        description: "读取 NDJSON 文件为表。",
-        inferSchema:
-          "是否自动推断数据类型。为 true 时，将根据前 100 行进行推断。",
+        description: "读取 JSON 文件为表，支持标准 JSON 数组与 NDJSON。",
       },
       readExcel: {
         name: "read_excel",
@@ -673,13 +662,7 @@ const translations: Record<Language, Translations> = {
       },
       readJson: {
         name: "read_json",
-        description: "Read JSON file as table.",
-      },
-      readNdjson: {
-        name: "read_ndjson",
-        description: "Read NDJSON file as table.",
-        inferSchema:
-          "Whether to automatically infer data types. If true, the first 100 rows are used for inference.",
+        description: "Read JSON file as table (standard JSON array and NDJSON).",
       },
       readExcel: {
         name: "read_excel",

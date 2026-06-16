@@ -2,12 +2,12 @@ use crate::commands::query::{arrow_type_to_sql_type, ColumnTypeInfo};
 use crate::context::error::AppError;
 use crate::context::schema::AppResult;
 use crate::reader::excel::ExcelReader;
-use crate::utils::file_utils::ensure_path_exists;
 use crate::sql::parse::{get_function_args, parse_statements};
+use crate::utils::file_utils::ensure_path_exists;
 use async_recursion::async_recursion;
 use datafusion::arrow::record_batch::RecordBatch;
 use datafusion::dataframe::DataFrame;
-use datafusion::prelude::{CsvReadOptions, NdJsonReadOptions, ParquetReadOptions, SessionContext};
+use datafusion::prelude::{CsvReadOptions, JsonReadOptions, ParquetReadOptions, SessionContext};
 use datafusion::sql::TableReference;
 use datafusion_table_providers::{
     mysql::MySQLTableFactory,
@@ -119,6 +119,102 @@ pub fn get_csv_read_options<'a>(
                             options.delimiter = parse_delimiter(&value)?;
                         }
                     }
+                    "file_extension" => {
+                        if let FunctionArgExpr::Expr(Expr::Value(Value::SingleQuotedString(
+                            value,
+                        ))) = arg
+                        {
+                            options.file_extension = value;
+                        }
+                    }
+                    _ => {}
+                }
+            }
+        }
+    }
+
+    Ok(options)
+}
+
+/// Extract the leading-dot file extension (e.g. `.json`, `.ndjson`) from a
+/// path or glob pattern. Returns `None` for directories or paths without an
+/// extension.
+///
+/// DataFusion filters listed objects by `file_extension` even when a single
+/// file is targeted (see `ListingTableUrl::list_prefixed_files`). Deriving the
+/// extension from the actual path means a reader works regardless of the
+/// conventional extension — e.g. `read_ndjson('data.json')` and
+/// `read_ndjson('data.ndjson')` both match.
+pub(crate) fn path_file_extension(path: &str) -> Option<String> {
+    std::path::Path::new(path)
+        .extension()
+        .and_then(|ext| ext.to_str())
+        .map(|ext| format!(".{}", ext))
+}
+
+/// Decide whether a JSON source should be parsed as newline-delimited JSON
+/// (one object per line) or as a standard JSON array (`[{...}, {...}]`).
+///
+/// `read_json` accepts both shapes. Detection prefers sniffing the actual file
+/// content — the first non-whitespace byte is `[` for an array and `{` for
+/// NDJSON / a single object — which is reliable regardless of the file's
+/// extension. When the path can't be opened as a single file (globs,
+/// directories, remote URLs) it falls back to the extension: only an explicit
+/// `.ndjson` is treated as newline-delimited.
+///
+/// Returns `true` for newline-delimited (NDJSON) and `false` for a JSON array.
+pub(crate) fn detect_json_newline_delimited(path: &str) -> bool {
+    use std::io::{BufRead, Read};
+
+    if let Ok(file) = std::fs::File::open(path) {
+        let mut reader = std::io::BufReader::new(file);
+
+        // Skip a leading UTF-8 BOM (0xEF, 0xBB, 0xBF) if present, otherwise it
+        // would be misread as the first content byte and classified as NDJSON.
+        if let Ok(buf) = reader.fill_buf() {
+            if buf.starts_with(&[0xEF, 0xBB, 0xBF]) {
+                reader.consume(3);
+            }
+        }
+
+        let mut byte = [0u8; 1];
+        while let Ok(1) = reader.read(&mut byte) {
+            match byte[0] {
+                b' ' | b'\t' | b'\r' | b'\n' => continue,
+                // A JSON array starts with '[' -> not newline-delimited.
+                b'[' => return false,
+                // '{' (NDJSON/single object) or anything else -> treat as NDJSON.
+                _ => return true,
+            }
+        }
+    }
+
+    // Fallback for paths we can't sniff (globs, directories, URLs):
+    // only treat an explicit `.ndjson` extension as newline-delimited.
+    path.to_ascii_lowercase().ends_with(".ndjson")
+}
+
+/// Build [`JsonReadOptions`] for `read_json` / `read_ndjson`.
+///
+/// The caller passes a base set of options that already encodes the format
+/// difference between the two readers:
+/// - `read_ndjson` -> `newline_delimited = true` (one JSON object per line)
+/// - `read_json`   -> `newline_delimited = false` (a single JSON array,
+///   supported natively since DataFusion 53)
+///
+/// This helper then applies any user-supplied named arguments. Only
+/// `file_extension` is currently honored, which lets callers point a reader at
+/// files that don't use the conventional extension (e.g. NDJSON stored in a
+/// `.json` file).
+pub fn get_json_read_options<'a>(
+    args: &'a mut Option<TableFunctionArgs>,
+    mut options: JsonReadOptions<'a>,
+) -> AppResult<JsonReadOptions<'a>> {
+    let args = get_function_args(args);
+    if let Some(args) = args {
+        for arg in args {
+            if let FunctionArg::Named { name, arg, .. } = arg {
+                match name.value.as_str() {
                     "file_extension" => {
                         if let FunctionArgExpr::Expr(Expr::Value(Value::SingleQuotedString(
                             value,
@@ -373,6 +469,7 @@ pub async fn register_table(
             reader_name.as_str(),
             "read_csv"
                 | "read_tsv"
+                | "read_json"
                 | "read_ndjson"
                 | "read_parquet"
                 | "read_text"
@@ -402,8 +499,30 @@ pub async fn register_table(
                 )
                 .await?
             }
+            "read_json" => {
+                // Accepts both a standard JSON array `[{...}, {...}]` (parsed
+                // natively since DataFusion 53) and newline-delimited JSON.
+                // The format is auto-detected from the file content, so a
+                // `.ndjson` file works through `read_json` too.
+                let json_ext = path_file_extension(&table_path);
+                let newline_delimited = detect_json_newline_delimited(&table_path);
+                let mut options = JsonReadOptions::default().newline_delimited(newline_delimited);
+                if let Some(ext) = json_ext.as_deref() {
+                    options.file_extension = ext;
+                }
+                ctx.register_json(&table_name, &table_path, get_json_read_options(args, options)?)
+                    .await?
+            }
             "read_ndjson" => {
-                ctx.register_json(&table_name, &table_path, NdJsonReadOptions::default())
+                // Newline-delimited JSON: one JSON object per line.
+                let json_ext = path_file_extension(&table_path);
+                let mut options = JsonReadOptions::default()
+                    .file_extension(".ndjson")
+                    .newline_delimited(true);
+                if let Some(ext) = json_ext.as_deref() {
+                    options.file_extension = ext;
+                }
+                ctx.register_json(&table_name, &table_path, get_json_read_options(args, options)?)
                     .await?
             }
             "read_parquet" => {
