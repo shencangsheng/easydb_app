@@ -1,10 +1,14 @@
 use super::generator::{
-    format_bool_for_sql, format_cell_for_sql, format_value_for_sql, parse_sql_type,
+    format_bool_for_sql, format_cell_for_sql, format_value_for_sql,
+    generate_sql_inserts_from_batches, generate_sql_update_from_batches, parse_sql_type,
     resolve_export_specs, strip_float_zero_suffix, truncate_record_batches, ExportColumnConfig,
     SqlType,
 };
-use datafusion::arrow::array::Int32Array;
-use datafusion::arrow::datatypes::{DataType, Field, Schema};
+use crate::commands::query::Dialect;
+use datafusion::arrow::array::{
+    BooleanArray, Float64Array, Int32Array, Int64Array, StringArray, TimestampNanosecondArray,
+};
+use datafusion::arrow::datatypes::{DataType, Field, Schema, TimeUnit};
 use datafusion::arrow::record_batch::RecordBatch;
 use std::sync::Arc;
 
@@ -555,4 +559,475 @@ fn test_truncate_record_batches_slices_across_batches() {
     assert_eq!(truncated.len(), 2);
     assert_eq!(truncated[0].num_rows(), 3);
     assert_eq!(truncated[1].num_rows(), 2);
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// End-to-end batch -> SQL pipeline (arrow 58 ArrayFormatter contract)
+//
+// These lock the SQL literal output produced by the upgraded arrow/datafusion
+// formatting code, which was previously asserted nowhere.
+// ═══════════════════════════════════════════════════════════════════════
+
+/// 2026-05-26 19:41:00 UTC expressed in nanoseconds since the epoch.
+/// Built from chrono so the magic value stays self-documenting.
+fn sample_ts_nanos() -> i64 {
+    use chrono::{DateTime, NaiveDate, Utc};
+    let dt = NaiveDate::from_ymd_opt(2026, 5, 26)
+        .expect("valid date")
+        .and_hms_opt(19, 41, 0)
+        .expect("valid time");
+    DateTime::<Utc>::from_naive_utc_and_offset(dt, Utc)
+        .timestamp_nanos_opt()
+        .expect("timestamp fits in i64")
+}
+
+/// The arrow-58 `ArrayFormatter` rendering of `sample_ts_nanos()` for a
+/// `Timestamp(Nanosecond, None)` column. Locks the display contract.
+const TS_DISPLAY: &str = "2026-05-26T19:41:00";
+
+/// Build a multi-type RecordBatch exercising every arrow array kind the SQL
+/// generator can encounter: Int64, Float64, Utf8, Boolean, Timestamp(ns).
+/// Row layout (3 rows, with NULLs scattered across columns):
+///   id    price  name        active  ts
+///   1     9.87   alice       true    <ts>
+///   2     NULL   o'brien     false   NULL
+///   NULL  2.5    NULL        NULL    <ts>
+fn make_multitype_batch() -> RecordBatch {
+    let schema = Schema::new(vec![
+        Field::new("id", DataType::Int64, true),
+        Field::new("price", DataType::Float64, true),
+        Field::new("name", DataType::Utf8, true),
+        Field::new("active", DataType::Boolean, true),
+        Field::new("ts", DataType::Timestamp(TimeUnit::Nanosecond, None), true),
+    ]);
+    let ts = sample_ts_nanos();
+    let id = Int64Array::from(vec![Some(1_i64), Some(2), None]);
+    let price = Float64Array::from(vec![Some(9.87_f64), None, Some(2.5)]);
+    let name = StringArray::from(vec![Some("alice"), Some("o'brien"), None]);
+    let active = BooleanArray::from(vec![Some(true), Some(false), None]);
+    let ts_arr = TimestampNanosecondArray::from(vec![Some(ts), None, Some(ts)]);
+    RecordBatch::try_new(
+        Arc::new(schema),
+        vec![
+            Arc::new(id),
+            Arc::new(price),
+            Arc::new(name),
+            Arc::new(active),
+            Arc::new(ts_arr),
+        ],
+    )
+    .expect("test batch")
+}
+
+fn typed_columns() -> Vec<ExportColumnConfig> {
+    vec![
+        ExportColumnConfig {
+            source_column_name: "id".to_string(),
+            export_column_name: "id".to_string(),
+            sql_type: "BIGINT".to_string(),
+        },
+        ExportColumnConfig {
+            source_column_name: "price".to_string(),
+            export_column_name: "price".to_string(),
+            sql_type: "DOUBLE".to_string(),
+        },
+        ExportColumnConfig {
+            source_column_name: "name".to_string(),
+            export_column_name: "name".to_string(),
+            sql_type: "TEXT".to_string(),
+        },
+        ExportColumnConfig {
+            source_column_name: "active".to_string(),
+            export_column_name: "active".to_string(),
+            sql_type: "BOOL".to_string(),
+        },
+    ]
+}
+
+// ─── generate_sql_inserts_from_batches ────────────────────────────────
+
+#[test]
+fn test_inserts_empty_batches_returns_empty_string() {
+    let sql = generate_sql_inserts_from_batches(
+        Vec::new(),
+        "t",
+        1000,
+        &Dialect::MySQL,
+        None,
+        false,
+    )
+    .expect("ok");
+    assert_eq!(sql, "");
+}
+
+#[test]
+fn test_inserts_single_row_mysql() {
+    let schema = Schema::new(vec![
+        Field::new("id", DataType::Int64, true),
+        Field::new("name", DataType::Utf8, true),
+    ]);
+    let batch = RecordBatch::try_new(
+        Arc::new(schema),
+        vec![
+            Arc::new(Int64Array::from(vec![Some(7_i64)])),
+            Arc::new(StringArray::from(vec![Some("bob")])),
+        ],
+    )
+    .expect("batch");
+
+    let sql =
+        generate_sql_inserts_from_batches(vec![batch], "users", 1000, &Dialect::MySQL, None, false)
+            .expect("ok");
+    assert_eq!(
+        sql,
+        "INSERT INTO `users` (`id`, `name`) VALUES\n(7, 'bob');"
+    );
+}
+
+#[test]
+fn test_inserts_multitype_mysql_backticks_nulls_and_escaping() {
+    let sql = generate_sql_inserts_from_batches(
+        vec![make_multitype_batch()],
+        "t",
+        1000,
+        &Dialect::MySQL,
+        Some(&typed_columns()),
+        false,
+    )
+    .expect("ok");
+
+    let expected = "INSERT INTO `t` (`id`, `price`, `name`, `active`) VALUES\n\
+         (1, 9.87, 'alice', true),\n\
+         (2, NULL, 'o''brien', false),\n\
+         (NULL, 2.5, NULL, NULL);";
+    assert_eq!(sql, expected);
+}
+
+#[test]
+fn test_inserts_multitype_postgres_double_quotes() {
+    let sql = generate_sql_inserts_from_batches(
+        vec![make_multitype_batch()],
+        "t",
+        1000,
+        &Dialect::PostgreSQL,
+        Some(&typed_columns()),
+        false,
+    )
+    .expect("ok");
+
+    let expected = "INSERT INTO \"t\" (\"id\", \"price\", \"name\", \"active\") VALUES\n\
+         (1, 9.87, 'alice', true),\n\
+         (2, NULL, 'o''brien', false),\n\
+         (NULL, 2.5, NULL, NULL);";
+    assert_eq!(sql, expected);
+}
+
+#[test]
+fn test_inserts_timestamp_literal_contract() {
+    // No export config => Unknown type => timestamp rendered as quoted string.
+    // Locks the arrow-58 timestamp display format.
+    let schema = Schema::new(vec![Field::new(
+        "ts",
+        DataType::Timestamp(TimeUnit::Nanosecond, None),
+        true,
+    )]);
+    let batch = RecordBatch::try_new(
+        Arc::new(schema),
+        vec![Arc::new(TimestampNanosecondArray::from(vec![Some(
+            sample_ts_nanos(),
+        )]))],
+    )
+    .expect("batch");
+
+    let sql =
+        generate_sql_inserts_from_batches(vec![batch], "t", 1000, &Dialect::MySQL, None, false)
+            .expect("ok");
+    assert_eq!(
+        sql,
+        format!("INSERT INTO `t` (`ts`) VALUES\n('{}');", TS_DISPLAY)
+    );
+}
+
+// ─── max_values_per_insert batching ───────────────────────────────────
+
+#[test]
+fn test_inserts_batching_splits_into_multiple_statements() {
+    // 5 rows, limit 2 => 3 INSERT statements (2 + 2 + 1).
+    let schema = Schema::new(vec![Field::new("id", DataType::Int64, true)]);
+    let batch = RecordBatch::try_new(
+        Arc::new(schema),
+        vec![Arc::new(Int64Array::from(vec![1_i64, 2, 3, 4, 5]))],
+    )
+    .expect("batch");
+
+    let sql =
+        generate_sql_inserts_from_batches(vec![batch], "t", 2, &Dialect::MySQL, None, false)
+            .expect("ok");
+
+    let statement_count = sql.matches("INSERT INTO").count();
+    assert_eq!(statement_count, 3, "expected 3 statements, got: {}", sql);
+    assert_eq!(
+        sql,
+        "INSERT INTO `t` (`id`) VALUES\n(1),\n(2);\n\
+         INSERT INTO `t` (`id`) VALUES\n(3),\n(4);\n\
+         INSERT INTO `t` (`id`) VALUES\n(5);"
+    );
+}
+
+#[test]
+fn test_inserts_batching_limit_zero_floors_to_one() {
+    let schema = Schema::new(vec![Field::new("id", DataType::Int64, true)]);
+    let batch = RecordBatch::try_new(
+        Arc::new(schema),
+        vec![Arc::new(Int64Array::from(vec![1_i64, 2]))],
+    )
+    .expect("batch");
+
+    let sql =
+        generate_sql_inserts_from_batches(vec![batch], "t", 0, &Dialect::MySQL, None, false)
+            .expect("ok");
+    // limit 0 floors to 1 => one statement per row
+    assert_eq!(sql.matches("INSERT INTO").count(), 2);
+    assert_eq!(
+        sql,
+        "INSERT INTO `t` (`id`) VALUES\n(1);\nINSERT INTO `t` (`id`) VALUES\n(2);"
+    );
+}
+
+// ─── export column subset + rename ────────────────────────────────────
+
+#[test]
+fn test_inserts_column_subset_and_rename() {
+    let config = vec![
+        ExportColumnConfig {
+            source_column_name: "name".to_string(),
+            export_column_name: "full_name".to_string(),
+            sql_type: "TEXT".to_string(),
+        },
+        ExportColumnConfig {
+            source_column_name: "id".to_string(),
+            export_column_name: "user_id".to_string(),
+            sql_type: "BIGINT".to_string(),
+        },
+    ];
+    let sql = generate_sql_inserts_from_batches(
+        vec![make_multitype_batch()],
+        "t",
+        1000,
+        &Dialect::MySQL,
+        Some(&config),
+        false,
+    )
+    .expect("ok");
+
+    // Only the two selected columns appear, in config order, with renamed headers.
+    let expected = "INSERT INTO `t` (`full_name`, `user_id`) VALUES\n\
+         ('alice', 1),\n\
+         ('o''brien', 2),\n\
+         (NULL, NULL);";
+    assert_eq!(sql, expected);
+}
+
+// ─── empty_text_as_null through the full batch pipeline ───────────────
+
+#[test]
+fn test_inserts_empty_text_as_null_toggle() {
+    let schema = Schema::new(vec![Field::new("note", DataType::Utf8, true)]);
+    let batch = RecordBatch::try_new(
+        Arc::new(schema),
+        vec![Arc::new(StringArray::from(vec![Some(""), Some("hi")]))],
+    )
+    .expect("batch");
+    let config = vec![ExportColumnConfig {
+        source_column_name: "note".to_string(),
+        export_column_name: "note".to_string(),
+        sql_type: "TEXT".to_string(),
+    }];
+
+    let sql_null = generate_sql_inserts_from_batches(
+        vec![batch.clone()],
+        "t",
+        1000,
+        &Dialect::MySQL,
+        Some(&config),
+        true,
+    )
+    .expect("ok");
+    assert_eq!(
+        sql_null,
+        "INSERT INTO `t` (`note`) VALUES\n(NULL),\n('hi');"
+    );
+
+    let sql_keep = generate_sql_inserts_from_batches(
+        vec![batch],
+        "t",
+        1000,
+        &Dialect::MySQL,
+        Some(&config),
+        false,
+    )
+    .expect("ok");
+    assert_eq!(sql_keep, "INSERT INTO `t` (`note`) VALUES\n(''),\n('hi');");
+}
+
+// ─── generate_sql_update_from_batches ─────────────────────────────────
+
+#[test]
+fn test_update_empty_batches_returns_empty_string() {
+    let sql =
+        generate_sql_update_from_batches(Vec::new(), "t", "id", &Dialect::MySQL, None, false)
+            .expect("ok");
+    assert_eq!(sql, "");
+}
+
+#[test]
+fn test_update_one_statement_per_row_set_excludes_where() {
+    let sql = generate_sql_update_from_batches(
+        vec![make_multitype_batch()],
+        "t",
+        "id",
+        &Dialect::MySQL,
+        Some(&typed_columns()),
+        false,
+    )
+    .expect("ok");
+
+    // One UPDATE per row; SET lists the non-WHERE exported columns; WHERE uses id.
+    let expected = "UPDATE `t` SET `price` = 9.87, `name` = 'alice', `active` = true WHERE `id` = 1;\n\
+         UPDATE `t` SET `price` = NULL, `name` = 'o''brien', `active` = false WHERE `id` = 2;\n\
+         UPDATE `t` SET `price` = 2.5, `name` = NULL, `active` = NULL WHERE `id` = NULL;\n";
+    assert_eq!(sql, expected);
+    assert_eq!(sql.matches("UPDATE `t`").count(), 3);
+}
+
+#[test]
+fn test_update_postgres_dialect() {
+    let schema = Schema::new(vec![
+        Field::new("id", DataType::Int64, true),
+        Field::new("name", DataType::Utf8, true),
+    ]);
+    let batch = RecordBatch::try_new(
+        Arc::new(schema),
+        vec![
+            Arc::new(Int64Array::from(vec![Some(1_i64)])),
+            Arc::new(StringArray::from(vec![Some("alice")])),
+        ],
+    )
+    .expect("batch");
+
+    let sql = generate_sql_update_from_batches(
+        vec![batch],
+        "t",
+        "id",
+        &Dialect::PostgreSQL,
+        None,
+        false,
+    )
+    .expect("ok");
+    assert_eq!(sql, "UPDATE \"t\" SET \"name\" = 'alice' WHERE \"id\" = 1;\n");
+}
+
+#[test]
+fn test_update_where_column_renamed() {
+    let config = vec![
+        ExportColumnConfig {
+            source_column_name: "id".to_string(),
+            export_column_name: "user_id".to_string(),
+            sql_type: "BIGINT".to_string(),
+        },
+        ExportColumnConfig {
+            source_column_name: "name".to_string(),
+            export_column_name: "full_name".to_string(),
+            sql_type: "TEXT".to_string(),
+        },
+    ];
+    let schema = Schema::new(vec![
+        Field::new("id", DataType::Int64, true),
+        Field::new("name", DataType::Utf8, true),
+    ]);
+    let batch = RecordBatch::try_new(
+        Arc::new(schema),
+        vec![
+            Arc::new(Int64Array::from(vec![Some(1_i64)])),
+            Arc::new(StringArray::from(vec![Some("alice")])),
+        ],
+    )
+    .expect("batch");
+
+    let sql = generate_sql_update_from_batches(
+        vec![batch],
+        "t",
+        "id",
+        &Dialect::MySQL,
+        Some(&config),
+        false,
+    )
+    .expect("ok");
+    // WHERE uses the renamed export name; SET excludes the WHERE column.
+    assert_eq!(
+        sql,
+        "UPDATE `t` SET `full_name` = 'alice' WHERE `user_id` = 1;\n"
+    );
+}
+
+#[test]
+fn test_update_where_column_not_in_export_used_for_value_only() {
+    // Export only `name`; WHERE on `id` which is not in the export subset.
+    // `id` must still be available for the WHERE clause but not appear in SET.
+    let config = vec![ExportColumnConfig {
+        source_column_name: "name".to_string(),
+        export_column_name: "name".to_string(),
+        sql_type: "TEXT".to_string(),
+    }];
+    let schema = Schema::new(vec![
+        Field::new("id", DataType::Int64, true),
+        Field::new("name", DataType::Utf8, true),
+    ]);
+    let batch = RecordBatch::try_new(
+        Arc::new(schema),
+        vec![
+            Arc::new(Int64Array::from(vec![Some(9_i64)])),
+            Arc::new(StringArray::from(vec![Some("zoe")])),
+        ],
+    )
+    .expect("batch");
+
+    let sql = generate_sql_update_from_batches(
+        vec![batch],
+        "t",
+        "id",
+        &Dialect::MySQL,
+        Some(&config),
+        false,
+    )
+    .expect("ok");
+    // The WHERE column is absent from the export config, so its SQL type defaults
+    // to Text (`unwrap_or(SqlType::Text)`); the numeric key is therefore quoted.
+    assert_eq!(sql, "UPDATE `t` SET `name` = 'zoe' WHERE `id` = '9';\n");
+}
+
+#[test]
+fn test_update_missing_where_column_errors() {
+    let schema = Schema::new(vec![Field::new("id", DataType::Int64, true)]);
+    let batch = RecordBatch::try_new(
+        Arc::new(schema),
+        vec![Arc::new(Int64Array::from(vec![Some(1_i64)]))],
+    )
+    .expect("batch");
+
+    let result = generate_sql_update_from_batches(
+        vec![batch],
+        "t",
+        "nonexistent",
+        &Dialect::MySQL,
+        None,
+        false,
+    );
+    assert!(result.is_err());
+    let msg = format!("{:?}", result.unwrap_err());
+    assert!(
+        msg.contains("WHERE column"),
+        "expected WHERE column error, got: {}",
+        msg
+    );
 }

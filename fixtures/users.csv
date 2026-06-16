@@ -1,0 +1,6 @@
+id,name,age,active,score
+1,alice,30,true,9.5
+2,bob,25,false,7.25
+3,carol,41,true,8.8
+4,dan,38,false,5.0
+5,eve,29,true,9.99

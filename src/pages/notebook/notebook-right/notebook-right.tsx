@@ -139,36 +139,12 @@ const createMethods = (t: (key: string) => string) => [
     ],
     example: `select * from read_tsv('data.tsv', infer_schema => false)`,
   },
-  // {
-  //   name: "read_json",
-  //   description: t("functions.readJson.description"),
-  //   type: "table-valued" as FunctionType,
-  //   params: [
-  //     {
-  //       name: "infer_schema",
-  //       type: "boolean",
-  //       default: true,
-  //       desc: "",
-  //       example: "false",
-  //     },
-  //   ],
-  //   example: `select * from read_json("data.json")`,
-  // },
   {
-    name: "read_ndjson",
-    description: t("functions.readNdjson.description"),
+    name: "read_json",
+    description: t("functions.readJson.description"),
     type: "table-valued" as FunctionType,
-    params: [
-      {
-        name: "infer_schema",
-        type: "boolean",
-        default: true,
-        desc: t("functions.readNdjson.inferSchema"),
-        example: "false",
-        required: false,
-      },
-    ],
-    example: `select * from read_ndjson('data.ndjson')`,
+    params: [],
+    example: `select * from read_json('data.json')`,
   },
   {
     name: "read_parquet",

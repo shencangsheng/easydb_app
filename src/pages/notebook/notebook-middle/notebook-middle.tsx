@@ -145,9 +145,8 @@ function NotebookMiddle({ sql, setSql, onQuerySaved }: NotebookMiddleProps) {
     () => ({
       csv: (filePath: string) => `SELECT * FROM read_csv('${filePath}');`,
       xlsx: (filePath: string) => `SELECT * FROM read_excel('${filePath}');`,
-      json: (filePath: string) => `SELECT * FROM read_ndjson('${filePath}');`,
-      // ndjson: (filePath: string) =>
-      //   `SELECT * FROM read_ndjson('${filePath}') LIMIT 100;`,
+      json: (filePath: string) => `SELECT * FROM read_json('${filePath}');`,
+      ndjson: (filePath: string) => `SELECT * FROM read_json('${filePath}');`,
       parquet: (filePath: string) =>
         `SELECT * FROM read_parquet('${filePath}');`,
       tsv: (filePath: string) => `SELECT * FROM read_tsv('${filePath}');`,
@@ -161,8 +160,8 @@ function NotebookMiddle({ sql, setSql, onQuerySaved }: NotebookMiddleProps) {
     () => ({
       csv: "read_csv",
       xlsx: "read_excel",
-      json: "read_ndjson",
-      // ndjson: "read_ndjson",
+      json: "read_json",
+      ndjson: "read_json",
       parquet: "read_parquet",
       tsv: "read_tsv",
       text: "read_text",
