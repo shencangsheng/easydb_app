@@ -1,5 +1,18 @@
 # Changelog
 
+v2.11.0 - 2026-06-16
+
+- Added "Copy SQL Statement" in the SQL export dialog to copy generated INSERT/UPDATE statements directly to the clipboard
+- Export and copy operations now show in-progress, success, and failure status toasts, with improved loading indicators and error feedback
+- SQL copy is automatically truncated at 10,000 rows, with an amber warning toast when truncation occurs
+- Optimized SQL generation performance using RecordBatch batch processing to reduce memory usage
+- Restored read_json() function, supporting standard JSON array format queries
+- read_json() auto-detects JSON arrays vs NDJSON (content sniffing with extension fallback when sniffing is unavailable)
+- Editor and drag-and-drop templates now uniformly use read_json() for JSON/NDJSON files
+- Fixed JSON arrays with a UTF-8 BOM being misclassified as NDJSON
+- Optimized Excel date-time parsing to support space-separated date-time strings
+- DataFusion upgraded to 53.1.0
+
 v2.10.0 - 2026-06-11
 
 - Added saved SQL queries: name and save queries, search and filter the list, delete entries, and load saved queries quickly from the left sidebar
