@@ -164,10 +164,19 @@ pub(crate) fn path_file_extension(path: &str) -> Option<String> {
 ///
 /// Returns `true` for newline-delimited (NDJSON) and `false` for a JSON array.
 pub(crate) fn detect_json_newline_delimited(path: &str) -> bool {
-    use std::io::Read;
+    use std::io::{BufRead, Read};
 
     if let Ok(file) = std::fs::File::open(path) {
         let mut reader = std::io::BufReader::new(file);
+
+        // Skip a leading UTF-8 BOM (0xEF, 0xBB, 0xBF) if present, otherwise it
+        // would be misread as the first content byte and classified as NDJSON.
+        if let Ok(buf) = reader.fill_buf() {
+            if buf.starts_with(&[0xEF, 0xBB, 0xBF]) {
+                reader.consume(3);
+            }
+        }
+
         let mut byte = [0u8; 1];
         while let Ok(1) = reader.read(&mut byte) {
             match byte[0] {
@@ -507,7 +516,9 @@ pub async fn register_table(
             "read_ndjson" => {
                 // Newline-delimited JSON: one JSON object per line.
                 let json_ext = path_file_extension(&table_path);
-                let mut options = JsonReadOptions::default().file_extension(".ndjson");
+                let mut options = JsonReadOptions::default()
+                    .file_extension(".ndjson")
+                    .newline_delimited(true);
                 if let Some(ext) = json_ext.as_deref() {
                     options.file_extension = ext;
                 }

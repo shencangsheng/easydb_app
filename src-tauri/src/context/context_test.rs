@@ -152,6 +152,16 @@ fn test_detect_json_newline_delimited_sniffs_ndjson_content() -> AppResult<()> {
 }
 
 #[test]
+fn test_detect_json_newline_delimited_skips_utf8_bom() -> AppResult<()> {
+    // A UTF-8 BOM before a `[` must not be mistaken for NDJSON content.
+    let path = write_temp("detect_bom_array.json", "\u{feff}[ {\"a\":1} ]")?;
+    let result = detect_json_newline_delimited(&path.to_string_lossy());
+    let _ = std::fs::remove_file(&path);
+    assert!(!result, "BOM-prefixed array should not be newline-delimited");
+    Ok(())
+}
+
+#[test]
 fn test_detect_json_newline_delimited_falls_back_to_extension() {
     // Unreadable paths (e.g. globs) fall back to the extension.
     assert!(detect_json_newline_delimited("missing/dir/*.ndjson"));
