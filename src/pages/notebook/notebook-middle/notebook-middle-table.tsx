@@ -975,9 +975,7 @@ function DataTable({
                   startContent={
                     <FontAwesomeIcon icon={faTimes} className="text-sm opacity-70" />
                   }
-                  classNames={{
-                    base: "font-medium min-w-[108px] border-default-300 text-default-600 hover:bg-default-100 hover:border-default-400",
-                  }}
+                  className="font-medium min-w-[108px] border-default-300 text-default-600 hover:bg-default-100 hover:border-default-400"
                 >
                   {translate("notebook.export.cancel")}
                 </Button>
