@@ -875,7 +875,7 @@ fn test_inserts_empty_text_as_null_toggle() {
 #[test]
 fn test_update_empty_batches_returns_empty_string() {
     let sql =
-        generate_sql_update_from_batches(Vec::new(), "t", "id", &Dialect::MySQL, None, false)
+        generate_sql_update_from_batches(Vec::new(), "t", &["id"], &Dialect::MySQL, None, false)
             .expect("ok");
     assert_eq!(sql, "");
 }
@@ -885,7 +885,7 @@ fn test_update_one_statement_per_row_set_excludes_where() {
     let sql = generate_sql_update_from_batches(
         vec![make_multitype_batch()],
         "t",
-        "id",
+        &["id"],
         &Dialect::MySQL,
         Some(&typed_columns()),
         false,
@@ -918,7 +918,7 @@ fn test_update_postgres_dialect() {
     let sql = generate_sql_update_from_batches(
         vec![batch],
         "t",
-        "id",
+        &["id"],
         &Dialect::PostgreSQL,
         None,
         false,
@@ -957,7 +957,7 @@ fn test_update_where_column_renamed() {
     let sql = generate_sql_update_from_batches(
         vec![batch],
         "t",
-        "id",
+        &["id"],
         &Dialect::MySQL,
         Some(&config),
         false,
@@ -995,7 +995,7 @@ fn test_update_where_column_not_in_export_used_for_value_only() {
     let sql = generate_sql_update_from_batches(
         vec![batch],
         "t",
-        "id",
+        &["id"],
         &Dialect::MySQL,
         Some(&config),
         false,
@@ -1018,7 +1018,7 @@ fn test_update_missing_where_column_errors() {
     let result = generate_sql_update_from_batches(
         vec![batch],
         "t",
-        "nonexistent",
+        &["nonexistent"],
         &Dialect::MySQL,
         None,
         false,
@@ -1028,6 +1028,103 @@ fn test_update_missing_where_column_errors() {
     assert!(
         msg.contains("WHERE column"),
         "expected WHERE column error, got: {}",
+        msg
+    );
+}
+
+#[test]
+fn test_update_multiple_where_columns_and_joined() {
+    let schema = Schema::new(vec![
+        Field::new("tenant_id", DataType::Int64, true),
+        Field::new("user_id", DataType::Int64, true),
+        Field::new("name", DataType::Utf8, true),
+    ]);
+    let batch = RecordBatch::try_new(
+        Arc::new(schema),
+        vec![
+            Arc::new(Int64Array::from(vec![Some(1_i64)])),
+            Arc::new(Int64Array::from(vec![Some(42_i64)])),
+            Arc::new(StringArray::from(vec![Some("alice")])),
+        ],
+    )
+    .expect("batch");
+
+    let sql = generate_sql_update_from_batches(
+        vec![batch],
+        "t",
+        &["tenant_id", "user_id"],
+        &Dialect::MySQL,
+        None,
+        false,
+    )
+    .expect("ok");
+    assert_eq!(
+        sql,
+        "UPDATE `t` SET `name` = 'alice' WHERE `tenant_id` = 1 AND `user_id` = 42;\n"
+    );
+}
+
+#[test]
+fn test_update_multiple_where_columns_excluded_from_set() {
+    let sql = generate_sql_update_from_batches(
+        vec![make_multitype_batch()],
+        "t",
+        &["id", "name"],
+        &Dialect::MySQL,
+        Some(&typed_columns()),
+        false,
+    )
+    .expect("ok");
+    assert_eq!(
+        sql,
+        "UPDATE `t` SET `price` = 9.87, `active` = true WHERE `id` = 1 AND `name` = 'alice';\n\
+         UPDATE `t` SET `price` = NULL, `active` = false WHERE `id` = 2 AND `name` = 'o''brien';\n\
+         UPDATE `t` SET `price` = 2.5, `active` = NULL WHERE `id` = NULL AND `name` = NULL;\n"
+    );
+}
+
+#[test]
+fn test_update_empty_where_columns_errors() {
+    let schema = Schema::new(vec![Field::new("id", DataType::Int64, true)]);
+    let batch = RecordBatch::try_new(
+        Arc::new(schema),
+        vec![Arc::new(Int64Array::from(vec![Some(1_i64)]))],
+    )
+    .expect("batch");
+
+    let result = generate_sql_update_from_batches(
+        vec![batch],
+        "t",
+        &[],
+        &Dialect::MySQL,
+        None,
+        false,
+    );
+    assert!(result.is_err());
+}
+
+#[test]
+fn test_update_duplicate_where_columns_errors() {
+    let schema = Schema::new(vec![Field::new("id", DataType::Int64, true)]);
+    let batch = RecordBatch::try_new(
+        Arc::new(schema),
+        vec![Arc::new(Int64Array::from(vec![Some(1_i64)]))],
+    )
+    .expect("batch");
+
+    let result = generate_sql_update_from_batches(
+        vec![batch],
+        "t",
+        &["id", "id"],
+        &Dialect::MySQL,
+        None,
+        false,
+    );
+    assert!(result.is_err());
+    let msg = format!("{:?}", result.unwrap_err());
+    assert!(
+        msg.contains("Duplicate WHERE column"),
+        "expected duplicate WHERE column error, got: {}",
         msg
     );
 }

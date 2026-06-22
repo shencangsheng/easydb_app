@@ -331,7 +331,7 @@ const translations: Record<Language, Translations> = {
         insertDescription: "配置 INSERT 语句的导出参数",
         updateDescription: "配置 UPDATE 语句的导出参数",
         whereColumn: "WHERE 字段",
-        whereColumnPlaceholder: "请选择 WHERE 字段",
+        whereColumnPlaceholder: "请选择 WHERE 字段（可多选，以 AND 连接）",
         whereColumnDisabledHint: "INSERT 语句不需要 WHERE 条件",
         tableName: "表名",
         tableNamePlaceholder: "请输入表名",
@@ -583,7 +583,8 @@ const translations: Record<Language, Translations> = {
         insertDescription: "Configure export parameters for INSERT statements",
         updateDescription: "Configure export parameters for UPDATE statements",
         whereColumn: "WHERE Column",
-        whereColumnPlaceholder: "Please select WHERE column",
+        whereColumnPlaceholder:
+          "Select WHERE columns (multiple, joined with AND)",
         whereColumnDisabledHint:
           "INSERT statements do not require WHERE conditions",
         tableName: "Table Name",
