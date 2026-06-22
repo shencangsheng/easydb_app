@@ -690,7 +690,7 @@ function DataTable({
                         placeholder={translate(
                           "notebook.export.whereColumnPlaceholder"
                         )}
-                        selectedKeys={whereColumns}
+                        selectedKeys={new Set(whereColumns)}
                         onSelectionChange={(keys) => {
                           if (keys === "all") {
                             setWhereColumns([...data.header]);

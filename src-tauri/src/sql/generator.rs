@@ -418,17 +418,11 @@ fn resolve_where_column_specs(
             });
         }
 
-        if !headers.contains(&where_column.to_string()) {
-            return Err(crate::context::error::AppError::BadRequest {
-                message: format!("WHERE column '{}' not found in data", where_column),
-            });
-        }
-
         let source_index = headers
             .iter()
             .position(|h| h == where_column)
             .ok_or_else(|| crate::context::error::AppError::BadRequest {
-                message: format!("WHERE column '{}' not found", where_column),
+                message: format!("WHERE column '{}' not found in data", where_column),
             })?;
 
         let sql_type = export_columns
