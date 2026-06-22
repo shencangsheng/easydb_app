@@ -1,5 +1,11 @@
 # Changelog
 
+v2.12.0 - 2026-06-22
+
+- Added multi-select WHERE columns for SQL UPDATE export; generated statements join multiple conditions with AND
+- Selected WHERE columns are automatically excluded from the SET clause to avoid redundant updates
+- Added validation and error messages for duplicate or empty WHERE columns
+
 v2.11.0 - 2026-06-16
 
 - Added "Copy SQL Statement" in the SQL export dialog to copy generated INSERT/UPDATE statements directly to the clipboard
