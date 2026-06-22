@@ -1,4 +1,4 @@
-name: Rust Tests
+name: PR Checks
 
 on:
   pull_request:
@@ -8,6 +8,25 @@ permissions:
   pull-requests: write
 
 jobs:
+  frontend-typecheck:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "yarn"
+
+      - name: Install frontend dependencies
+        run: yarn install --frozen-lockfile
+
+      - name: TypeScript compile check
+        run: yarn tsc -b
+
   test:
     runs-on: macos-latest
 

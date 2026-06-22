@@ -390,11 +390,76 @@ pub async fn generate_sql_inserts(
     )
 }
 
+struct WhereColumnSpec {
+    source_index: usize,
+    export_name: String,
+    sql_type: SqlType,
+}
+
+fn resolve_where_column_specs(
+    headers: &[String],
+    export_specs: &[ColumnExportSpec],
+    export_columns: Option<&[ExportColumnConfig]>,
+    where_columns: &[&str],
+) -> AppResult<Vec<WhereColumnSpec>> {
+    if where_columns.is_empty() {
+        return Err(crate::context::error::AppError::BadRequest {
+            message: "At least one WHERE column is required for UPDATE statements".to_string(),
+        });
+    }
+
+    let mut seen = std::collections::HashSet::new();
+    let mut specs = Vec::with_capacity(where_columns.len());
+
+    for where_column in where_columns {
+        if !seen.insert(*where_column) {
+            return Err(crate::context::error::AppError::BadRequest {
+                message: format!("Duplicate WHERE column '{}'", where_column),
+            });
+        }
+
+        if !headers.contains(&where_column.to_string()) {
+            return Err(crate::context::error::AppError::BadRequest {
+                message: format!("WHERE column '{}' not found in data", where_column),
+            });
+        }
+
+        let source_index = headers
+            .iter()
+            .position(|h| h == where_column)
+            .ok_or_else(|| crate::context::error::AppError::BadRequest {
+                message: format!("WHERE column '{}' not found", where_column),
+            })?;
+
+        let sql_type = export_columns
+            .and_then(|cols| {
+                cols.iter()
+                    .find(|c| c.source_column_name == *where_column)
+                    .map(|c| parse_sql_type(&c.sql_type))
+            })
+            .unwrap_or(SqlType::Text);
+
+        let export_name = export_specs
+            .iter()
+            .find(|spec| spec.source_index == source_index)
+            .map(|spec| spec.export_name.clone())
+            .unwrap_or_else(|| where_column.to_string());
+
+        specs.push(WhereColumnSpec {
+            source_index,
+            export_name,
+            sql_type,
+        });
+    }
+
+    Ok(specs)
+}
+
 /// Generate SQL UPDATE statements from collected RecordBatches.
 pub fn generate_sql_update_from_batches(
     batches: Vec<RecordBatch>,
     table_name: &str,
-    where_column: &str,
+    where_columns: &[&str],
     db_dialect: &Dialect,
     export_columns: Option<&[ExportColumnConfig]>,
     empty_text_as_null: bool,
@@ -405,46 +470,29 @@ pub fn generate_sql_update_from_batches(
         return Ok(String::new());
     }
 
-    // Validate that the WHERE column exists
-    if !headers.contains(&where_column.to_string()) {
-        return Err(crate::context::error::AppError::BadRequest {
-            message: format!("WHERE column '{}' not found in data", where_column),
-        });
-    }
-
-    let where_column_index = headers
-        .iter()
-        .position(|h| h == where_column)
-        .ok_or_else(|| crate::context::error::AppError::BadRequest {
-            message: format!("WHERE column '{}' not found", where_column),
-        })?;
-
     let export_specs = resolve_export_specs(&headers, export_columns)?;
+    let where_specs = resolve_where_column_specs(
+        &headers,
+        &export_specs,
+        export_columns,
+        where_columns,
+    )?;
 
-    let where_sql_type = export_columns
-        .and_then(|cols| {
-            cols.iter()
-                .find(|c| c.source_column_name == where_column)
-                .map(|c| parse_sql_type(&c.sql_type))
-        })
-        .unwrap_or(SqlType::Text);
-
-    let where_export_name = export_specs
-        .iter()
-        .find(|spec| spec.source_index == where_column_index)
-        .map(|spec| spec.export_name.clone())
-        .unwrap_or_else(|| where_column.to_string());
+    let where_source_indices: std::collections::HashSet<usize> =
+        where_specs.iter().map(|spec| spec.source_index).collect();
 
     let mut extract_specs = export_specs.clone();
-    if !extract_specs
-        .iter()
-        .any(|s| s.source_index == where_column_index)
-    {
-        extract_specs.push(ColumnExportSpec {
-            source_index: where_column_index,
-            export_name: where_export_name.clone(),
-            sql_type: where_sql_type,
-        });
+    for where_spec in &where_specs {
+        if !extract_specs
+            .iter()
+            .any(|s| s.source_index == where_spec.source_index)
+        {
+            extract_specs.push(ColumnExportSpec {
+                source_index: where_spec.source_index,
+                export_name: where_spec.export_name.clone(),
+                sql_type: where_spec.sql_type,
+            });
+        }
     }
 
     let exported_source_indices: std::collections::HashSet<usize> =
@@ -454,12 +502,13 @@ pub fn generate_sql_update_from_batches(
 
     extract_rows_from_batches(batches, &extract_specs, empty_text_as_null, |row| {
         let mut set_clauses = Vec::new();
-        let mut where_value: Option<String> = None;
+        let mut values_by_index = std::collections::HashMap::new();
 
         for (spec, value) in extract_specs.iter().zip(row.iter()) {
-            if spec.source_index == where_column_index {
-                where_value = Some(value.clone());
-            } else if exported_source_indices.contains(&spec.source_index) {
+            values_by_index.insert(spec.source_index, value.clone());
+            if exported_source_indices.contains(&spec.source_index)
+                && !where_source_indices.contains(&spec.source_index)
+            {
                 let export_name = &spec.export_name;
                 set_clauses.push(match db_dialect {
                     Dialect::MySQL => format!("`{}` = {}", export_name, value),
@@ -468,30 +517,37 @@ pub fn generate_sql_update_from_batches(
             }
         }
 
-        if !set_clauses.is_empty() {
-            let Some(where_value) = where_value else {
+        if set_clauses.is_empty() {
+            return Ok(());
+        }
+
+        let mut where_clauses = Vec::with_capacity(where_specs.len());
+        for where_spec in &where_specs {
+            let Some(value) = values_by_index.get(&where_spec.source_index) else {
                 return Ok(());
             };
-            let where_clause = match db_dialect {
-                Dialect::MySQL => format!("`{}` = {}", where_export_name, where_value),
-                Dialect::PostgreSQL => format!("\"{}\" = {}", where_export_name, where_value),
-            };
-            let update_statement = match db_dialect {
-                Dialect::MySQL => format!(
-                    "UPDATE `{}` SET {} WHERE {};\n",
-                    table_name,
-                    set_clauses.join(", "),
-                    where_clause
-                ),
-                Dialect::PostgreSQL => format!(
-                    "UPDATE \"{}\" SET {} WHERE {};\n",
-                    table_name,
-                    set_clauses.join(", "),
-                    where_clause
-                ),
-            };
-            sql_statements.push_str(&update_statement);
+            where_clauses.push(match db_dialect {
+                Dialect::MySQL => format!("`{}` = {}", where_spec.export_name, value),
+                Dialect::PostgreSQL => format!("\"{}\" = {}", where_spec.export_name, value),
+            });
         }
+
+        let where_clause = where_clauses.join(" AND ");
+        let update_statement = match db_dialect {
+            Dialect::MySQL => format!(
+                "UPDATE `{}` SET {} WHERE {};\n",
+                table_name,
+                set_clauses.join(", "),
+                where_clause
+            ),
+            Dialect::PostgreSQL => format!(
+                "UPDATE \"{}\" SET {} WHERE {};\n",
+                table_name,
+                set_clauses.join(", "),
+                where_clause
+            ),
+        };
+        sql_statements.push_str(&update_statement);
 
         Ok(())
     })?;
@@ -500,11 +556,11 @@ pub fn generate_sql_update_from_batches(
 }
 
 /// Generate SQL UPDATE statements from DataFrame
-/// Creates UPDATE statements with WHERE conditions based on the specified column
+/// Creates UPDATE statements with WHERE conditions based on the specified columns
 pub async fn generate_sql_update(
     df: DataFrame,
     table_name: &str,
-    where_column: &str,
+    where_columns: &[&str],
     db_dialect: &Dialect,
     export_columns: Option<&[ExportColumnConfig]>,
     empty_text_as_null: bool,
@@ -518,7 +574,7 @@ pub async fn generate_sql_update(
     generate_sql_update_from_batches(
         batches,
         table_name,
-        where_column,
+        where_columns,
         db_dialect,
         export_columns,
         empty_text_as_null,

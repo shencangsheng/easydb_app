@@ -144,7 +144,7 @@ function DataTable({
   const [tableName, setTableName] = useState("table_name");
   const [maxValuesPerInsert, setMaxValuesPerInsert] = useState(1000);
   const [sqlStatementType, setSqlStatementType] = useState("INSERT");
-  const [whereColumn, setWhereColumn] = useState("");
+  const [whereColumns, setWhereColumns] = useState<string[]>([]);
   const [databaseDialect, setDatabaseDialect] = useState("MySQL");
   const [columnTypes, setColumnTypes] = useState<ColumnTypeInfo[]>([]);
   const [exportColumns, setExportColumns] = useState<ExportColumnConfig[]>([]);
@@ -205,7 +205,7 @@ function DataTable({
     tableName?: string,
     maxValuesPerInsert?: number,
     sqlStatementType?: string,
-    whereColumn?: string,
+    whereColumns?: string[],
     dialect?: string,
     exportColumns?: ExportColumnConfig[],
     emptyTextAsNull?: boolean
@@ -224,7 +224,7 @@ function DataTable({
         tableName: fileType === "SQL" ? tableName : undefined,
         maxValuesPerInsert: fileType === "SQL" ? maxValuesPerInsert : undefined,
         sqlStatementType: fileType === "SQL" ? sqlStatementType : undefined,
-        whereColumn: fileType === "SQL" ? whereColumn : undefined,
+        whereColumns: fileType === "SQL" ? whereColumns : undefined,
         dialect: fileType === "SQL" ? dialect : undefined,
         exportColumns: fileType === "SQL" ? exportColumns : undefined,
         emptyTextAsNull: fileType === "SQL" ? emptyTextAsNull : undefined,
@@ -247,7 +247,7 @@ function DataTable({
     tableName: string,
     maxValuesPerInsert: number,
     sqlStatementType: string,
-    whereColumn: string,
+    whereColumns: string[],
     dialect: string,
     exportColumns: ExportColumnConfig[],
     emptyTextAsNull: boolean
@@ -257,7 +257,7 @@ function DataTable({
       tableName,
       maxValuesPerInsert,
       sqlStatementType,
-      whereColumn,
+      whereColumns,
       dialect,
       exportColumns,
       emptyTextAsNull,
@@ -291,7 +291,7 @@ function DataTable({
     setSqlStatementType("INSERT");
     setTableName("table_name");
     setMaxValuesPerInsert(1000);
-    setWhereColumn("");
+    setWhereColumns([]);
     setDatabaseDialect("MySQL");
     setColumnTypes([]);
     setExportColumns([]);
@@ -347,7 +347,7 @@ function DataTable({
       tableName,
       maxValuesPerInsert,
       sqlStatementType,
-      whereColumn,
+      whereColumns,
       databaseDialect,
       exportColumns,
       emptyTextAsNull
@@ -362,7 +362,7 @@ function DataTable({
         tableName,
         maxValuesPerInsert,
         sqlStatementType,
-        whereColumn,
+        whereColumns,
         databaseDialect,
         exportColumns,
         emptyTextAsNull
@@ -404,7 +404,7 @@ function DataTable({
     !tableName.trim() ||
     !hasValidExportColumns ||
     (sqlStatementType === "INSERT" && maxValuesPerInsert < 1) ||
-    (sqlStatementType === "UPDATE" && !whereColumn.trim());
+    (sqlStatementType === "UPDATE" && whereColumns.length === 0);
   const hasPrimaryToast =
     isDownloading || Boolean(exportResult) || Boolean(exportError);
 
@@ -690,11 +690,15 @@ function DataTable({
                         placeholder={translate(
                           "notebook.export.whereColumnPlaceholder"
                         )}
-                        selectedKeys={whereColumn ? [whereColumn] : []}
+                        selectedKeys={whereColumns}
                         onSelectionChange={(keys) => {
-                          const selectedKey = Array.from(keys)[0] as string;
-                          setWhereColumn(selectedKey || "");
+                          if (keys === "all") {
+                            setWhereColumns([...data.header]);
+                            return;
+                          }
+                          setWhereColumns(Array.from(keys) as string[]);
                         }}
+                        selectionMode="multiple"
                         size="lg"
                         variant="bordered"
                         labelPlacement="outside"

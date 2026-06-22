@@ -351,7 +351,7 @@ pub async fn writer(
     table_name: Option<String>,
     max_values_per_insert: Option<usize>,
     sql_statement_type: Option<String>,
-    where_column: Option<String>,
+    where_columns: Option<Vec<String>>,
     dialect: Option<String>,
     export_columns: Option<Vec<ExportColumnConfig>>,
     empty_text_as_null: Option<bool>,
@@ -390,9 +390,13 @@ pub async fn writer(
                     }
                 }
                 "UPDATE" => {
-                    if where_column.is_none() {
+                    let has_where_columns = where_columns
+                        .as_ref()
+                        .is_some_and(|cols| cols.iter().any(|c| !c.trim().is_empty()));
+                    if !has_where_columns {
                         return Err(AppError::BadRequest {
-                            message: "WHERE column is required for UPDATE statements".to_string(),
+                            message: "At least one WHERE column is required for UPDATE statements"
+                                .to_string(),
                         });
                     }
                 }
@@ -454,9 +458,21 @@ pub async fn writer(
                         generate_sql_inserts(df, &table_name_value, max_values, &db_dialect, export_columns.as_deref(), empty_as_null).await?
                     }
                     "UPDATE" => {
-                        let where_column_value = where_column.unwrap();
-                        generate_sql_update(df, &table_name_value, &where_column_value, &db_dialect, export_columns.as_deref(), empty_as_null)
-                            .await?
+                        let where_column_values = where_columns.unwrap_or_default();
+                        let where_column_refs: Vec<&str> = where_column_values
+                            .iter()
+                            .map(|s| s.trim())
+                            .filter(|s| !s.is_empty())
+                            .collect();
+                        generate_sql_update(
+                            df,
+                            &table_name_value,
+                            &where_column_refs,
+                            &db_dialect,
+                            export_columns.as_deref(),
+                            empty_as_null,
+                        )
+                        .await?
                     }
                     _ => {
                         return Err(AppError::BadRequest {
@@ -485,7 +501,7 @@ pub async fn generate_sql_content(
     table_name: String,
     max_values_per_insert: Option<usize>,
     sql_statement_type: Option<String>,
-    where_column: Option<String>,
+    where_columns: Option<Vec<String>>,
     dialect: Option<String>,
     export_columns: Option<Vec<ExportColumnConfig>>,
     empty_text_as_null: Option<bool>,
@@ -548,17 +564,22 @@ pub async fn generate_sql_content(
                 )?
             }
             "UPDATE" => {
-                let where_column_value = where_column
-                    .as_deref()
+                let where_column_values = where_columns.unwrap_or_default();
+                let where_column_refs: Vec<&str> = where_column_values
+                    .iter()
                     .map(|s| s.trim())
                     .filter(|s| !s.is_empty())
-                    .ok_or_else(|| AppError::BadRequest {
-                        message: "WHERE column is required for UPDATE statements".to_string(),
-                    })?;
+                    .collect();
+                if where_column_refs.is_empty() {
+                    return Err(AppError::BadRequest {
+                        message: "At least one WHERE column is required for UPDATE statements"
+                            .to_string(),
+                    });
+                }
                 generate_sql_update_from_batches(
                     batches,
                     trimmed_table,
-                    where_column_value,
+                    &where_column_refs,
                     &db_dialect,
                     export_columns.as_deref(),
                     empty_as_null,
