@@ -48,6 +48,8 @@ See [CHANGELOG_EN.md](CHANGELOG_EN.md)
 
 ## Features & Roadmap
 
+See **[docs/ROADMAP.md](docs/ROADMAP.md)** for the full product and technical plan (milestones, priorities, implementation notes). Summary below.
+
 ### File Reader Functions
 
 - [x] `read_csv()` — Read CSV files with custom delimiter, header, and schema inference options
@@ -80,13 +82,13 @@ See [CHANGELOG_EN.md](CHANGELOG_EN.md)
 
 ### Planned
 
-- [ ] Excel lazy loading performance optimization
-- [ ] Excel enhanced data type compatibility
-- [ ] Multi-session window support
-- [ ] Directory browsing
-- [ ] S3 remote file support
-- [ ] Direct querying of server files
-- [ ] Data visualization
+See [docs/ROADMAP.md](docs/ROADMAP.md). Current priorities:
+
+- [ ] **v2.13** Excel performance and type improvements (P0)
+- [ ] **v2.14** Database connection profiles, directory browsing, recent files (P1)
+- [ ] **v2.15** Multi-session / multi-tab support (P2)
+- [ ] **v2.16+** S3 / HTTP remote files, EasyDB Server integration (P3)
+- [ ] Data visualization (demand-driven)
 
 ## Technical Architecture
 

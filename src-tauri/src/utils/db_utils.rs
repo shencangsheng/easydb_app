@@ -33,6 +33,86 @@ pub fn init(app: &AppHandle) {
         [],
     )
     .expect("Failed to create saved_queries");
+
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS app_settings (
+                  key TEXT PRIMARY KEY,
+                  value TEXT NOT NULL
+                  )",
+        [],
+    )
+    .expect("Failed to create app_settings");
+
+    seed_default_settings(&conn);
+}
+
+fn seed_default_settings(conn: &Connection) {
+    let defaults = [
+        ("excel_auto_index_enabled", "true"),
+        ("excel_auto_index_threshold_mb", "10"),
+    ];
+    for (key, value) in defaults {
+        let _ = conn.execute(
+            "INSERT OR IGNORE INTO app_settings (key, value) VALUES (?1, ?2)",
+            params![key, value],
+        );
+    }
+}
+
+pub fn get_setting(app: &AppHandle, key: &str) -> AppResult<Option<String>> {
+    let conn = conn(app)?;
+    let mut stmt = conn.prepare("SELECT value FROM app_settings WHERE key = ?1")?;
+    let mut rows = stmt.query_map(params![key], |row| row.get::<_, String>(0))?;
+    if let Some(row) = rows.next() {
+        return Ok(Some(row?));
+    }
+    Ok(None)
+}
+
+pub fn set_setting(app: &AppHandle, key: &str, value: &str) -> AppResult<()> {
+    conn(app)?.execute(
+        "INSERT INTO app_settings (key, value) VALUES (?1, ?2)
+         ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+        params![key, value],
+    )?;
+    Ok(())
+}
+
+#[derive(Debug, Clone)]
+pub struct ExcelIndexSettings {
+    pub enabled: bool,
+    pub threshold_mb: u64,
+}
+
+pub fn get_excel_index_settings(app: &AppHandle) -> AppResult<ExcelIndexSettings> {
+    let enabled = get_setting(app, "excel_auto_index_enabled")?
+        .map(|v| v == "true")
+        .unwrap_or(true);
+    let threshold_mb = get_setting(app, "excel_auto_index_threshold_mb")?
+        .and_then(|v| v.parse::<u64>().ok())
+        .unwrap_or(10);
+    Ok(ExcelIndexSettings {
+        enabled,
+        threshold_mb,
+    })
+}
+
+pub fn set_excel_index_settings(
+    app: &AppHandle,
+    enabled: bool,
+    threshold_mb: u64,
+) -> AppResult<()> {
+    set_setting(
+        app,
+        "excel_auto_index_enabled",
+        if enabled { "true" } else { "false" },
+    )?;
+    set_setting(
+        app,
+        "excel_auto_index_threshold_mb",
+        &threshold_mb.to_string(),
+    )?;
+    Ok(())
 }
 
 pub fn insert_query_history(app: &AppHandle, sql: &str, status: &str) -> AppResult<()> {

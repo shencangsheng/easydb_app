@@ -105,6 +105,16 @@ fn test_non_datetime_cells_return_none() {
 // ─── infer_cell_data_type ─────────────────────────────────────────────
 
 #[test]
+fn test_infers_boolean_columns() {
+    assert_eq!(infer_cell_data_type(&Data::Bool(true)), DataType::Boolean);
+    assert_eq!(
+        infer_cell_data_type(&Data::String("TRUE".to_string())),
+        DataType::Boolean
+    );
+    assert_eq!(infer_cell_data_type(&Data::Int(7)), DataType::Int64);
+}
+
+#[test]
 fn test_infers_datetime_columns_as_timestamp() {
     let serial = to_excel_serial(
         NaiveDate::from_ymd_opt(2026, 5, 26)
@@ -137,6 +147,20 @@ fn test_infers_scalar_columns() {
 }
 
 // ─── infer_field_schema ───────────────────────────────────────────────
+
+#[test]
+fn test_infer_field_schema_bool_only_column() {
+    let mut range: Range<Data> = Range::new((0, 0), (2, 0));
+    range.set_value((0, 0), Data::String("active".to_string()));
+    range.set_value((1, 0), Data::Int(1));
+    range.set_value((2, 0), Data::Int(0));
+
+    let schema = infer_field_schema(&range, 3).expect("schema");
+    assert_eq!(
+        schema.field(0).data_type(),
+        &DataType::Boolean
+    );
+}
 
 #[test]
 fn test_infer_field_schema_resolves_column_types() {

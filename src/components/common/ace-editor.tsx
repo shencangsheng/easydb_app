@@ -172,7 +172,8 @@ function CustomAceEditor({
             },
             {
               caption: translate("functions.readExcel.name"),
-              snippet: "read_excel(${1:'path'})",
+              snippet:
+                "read_excel(${1:'path'}, build_index => ${2:true})",
               meta: translate("functions.readExcel.description"),
               value: "read_excel",
             },

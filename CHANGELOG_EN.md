@@ -1,5 +1,13 @@
 # Changelog
 
+v2.13.0 - 2026-06-24
+
+- Excel large-file performance: first query converts (auto or `build_index => true`) to Parquet cache under AppData; subsequent queries use `register_parquet` for faster paging and repeat access
+- Added `build_index => true/false` parameter to `read_excel` / `read_xlsx` for explicit cache control
+- Settings: new Excel section with auto-index toggle, threshold (1/5/10/20/50 MB), cache usage display, and one-click clear
+- Improved Excel type inference: boolean columns (TRUE/FALSE, 0/1, column-wide bool-like detection), Error cell string fallback
+- Added `excel_cache` module with regression tests
+
 v2.12.0 - 2026-06-22
 
 - Added multi-select WHERE columns for SQL UPDATE export; generated statements join multiple conditions with AND

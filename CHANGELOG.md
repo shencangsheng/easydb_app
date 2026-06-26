@@ -1,5 +1,13 @@
 # 更新日志
 
+v2.13.0 - 2026-06-24
+
+- Excel 大文件性能：首次查询自动（或 `build_index => true`）转为 AppData 下 Parquet 缓存，后续查询走 `register_parquet`，显著加速分页与重复查询
+- 新增 `read_excel` / `read_xlsx` 参数 `build_index => true/false`，可显式控制是否使用缓存
+- 设置页新增 Excel 分类：大文件自动索引开关、阈值（1/5/10/20/50 MB）、缓存占用展示与一键清空
+- Excel 类型推断改进：支持布尔列（TRUE/FALSE、0/1 及整列 bool-like 检测）、Error 单元格字符串 fallback
+- 新增 `excel_cache` 模块与回归测试
+
 v2.12.0 - 2026-06-22
 
 - 新增 SQL 导出 UPDATE 语句支持多选 WHERE 字段，生成的语句以 AND 连接多个条件

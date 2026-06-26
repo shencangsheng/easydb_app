@@ -165,6 +165,7 @@ export interface Translations {
       description: string;
       inferSchema: string;
       sheetName: string;
+      buildIndex: string;
     };
     readParquet: {
       name: string;
@@ -200,6 +201,25 @@ export interface Translations {
     fontSize: string;
     displaySettings: string;
     generalSettings: string;
+    excel: {
+      category: string;
+      title: string;
+      autoIndex: string;
+      autoIndexHint: string;
+      threshold: string;
+      cacheTitle: string;
+      cacheEntries: string;
+      cacheSize: string;
+      clearCache: string;
+      clearConfirm: string;
+      clearSuccess: string;
+      clearFailed: string;
+      saveSuccess: string;
+      saveFailed: string;
+      loadFailed: string;
+      showEntries: string;
+      hideEntries: string;
+    };
   };
   languages: {
     "zh-CN": string;
@@ -412,6 +432,8 @@ const translations: Record<Language, Translations> = {
         inferSchema:
           "是否自动推断数据类型。为 true 时，将根据前 100 行进行推断。",
         sheetName: "要读取的工作表名称，默认读取第一个 sheet。",
+        buildIndex:
+          "是否将 Excel 转为本地 Parquet 缓存以加速后续查询。未指定时，可在设置中按文件大小自动开启。",
       },
       readParquet: {
         name: "read_parquet",
@@ -447,6 +469,25 @@ const translations: Record<Language, Translations> = {
       fontSize: "字体大小",
       displaySettings: "显示设置",
       generalSettings: "常规设置",
+      excel: {
+        category: "Excel",
+        title: "Excel 索引",
+        autoIndex: "大文件自动索引",
+        autoIndexHint: "文件超过阈值时自动转为 Parquet 缓存，加速分页与重复查询",
+        threshold: "自动索引阈值",
+        cacheTitle: "本地缓存",
+        cacheEntries: "缓存条目",
+        cacheSize: "占用空间",
+        clearCache: "清空缓存",
+        clearConfirm: "确定清空所有 Excel Parquet 缓存吗？此操作不可撤销。",
+        clearSuccess: "缓存已清空",
+        clearFailed: "清空缓存失败",
+        saveSuccess: "Excel 设置已保存",
+        saveFailed: "保存 Excel 设置失败",
+        loadFailed: "加载 Excel 设置失败",
+        showEntries: "展开缓存列表",
+        hideEntries: "收起缓存列表",
+      },
     },
     languages: {
       "zh-CN": "简体中文",
@@ -671,6 +712,8 @@ const translations: Record<Language, Translations> = {
         inferSchema:
           "Whether to automatically infer data types. If true, the first 100 rows are used for inference.",
         sheetName: "Name of the sheet to read, defaults first sheet.",
+        buildIndex:
+          "Whether to cache Excel as local Parquet for faster repeat queries. When omitted, auto-index may apply based on file size in Settings.",
       },
       readParquet: {
         name: "read_parquet",
@@ -706,6 +749,27 @@ const translations: Record<Language, Translations> = {
       fontSize: "Font Size",
       displaySettings: "Display Settings",
       generalSettings: "General Settings",
+      excel: {
+        category: "Excel",
+        title: "Excel Indexing",
+        autoIndex: "Auto-index large files",
+        autoIndexHint:
+          "Convert files above the threshold to Parquet cache for faster paging and repeat queries",
+        threshold: "Auto-index threshold",
+        cacheTitle: "Local cache",
+        cacheEntries: "Cached entries",
+        cacheSize: "Disk usage",
+        clearCache: "Clear cache",
+        clearConfirm:
+          "Clear all Excel Parquet cache files? This cannot be undone.",
+        clearSuccess: "Cache cleared",
+        clearFailed: "Failed to clear cache",
+        saveSuccess: "Excel settings saved",
+        saveFailed: "Failed to save Excel settings",
+        loadFailed: "Failed to load Excel settings",
+        showEntries: "Show cache entries",
+        hideEntries: "Hide cache entries",
+      },
     },
     languages: {
       "zh-CN": "简体中文",

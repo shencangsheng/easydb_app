@@ -3,6 +3,8 @@ use crate::context::error::AppError;
 use crate::context::schema::AppResult;
 use crate::reader::excel::ExcelReader;
 use crate::sql::parse::{get_function_args, parse_statements};
+use crate::utils::db_utils::{self, ExcelIndexSettings};
+use crate::utils::excel_cache::{self, ExcelCacheKey};
 use crate::utils::file_utils::ensure_path_exists;
 use async_recursion::async_recursion;
 use datafusion::arrow::record_batch::RecordBatch;
@@ -23,7 +25,9 @@ use sqlparser::ast::{
     TableFunctionArgs, Value,
 };
 use std::collections::HashMap;
+use std::path::Path;
 use std::sync::Arc;
+use tauri::AppHandle;
 
 pub fn get_sql_context() -> SessionContext {
     SessionContext::new()
@@ -284,13 +288,23 @@ pub fn get_path(args: &mut Option<TableFunctionArgs>) -> AppResult<String> {
     }
 }
 
-pub fn read_excel(
-    mut reader: ExcelReader,
-    args: &mut Option<TableFunctionArgs>,
-) -> AppResult<RecordBatch> {
-    let args = get_function_args(args);
+#[derive(Debug, Clone)]
+pub struct ExcelRegisterOptions {
+    pub sheet_name: Option<String>,
+    pub infer_schema: bool,
+    pub build_index: Option<bool>,
+}
 
-    if let Some(args) = args {
+const DEFAULT_SHEET_CACHE_KEY: &str = "__default__";
+
+pub fn parse_excel_args(args: &mut Option<TableFunctionArgs>) -> AppResult<ExcelRegisterOptions> {
+    let mut options = ExcelRegisterOptions {
+        sheet_name: None,
+        infer_schema: true,
+        build_index: None,
+    };
+
+    if let Some(args) = get_function_args(args) {
         for arg in args {
             if let FunctionArg::Named { name, arg, .. } = arg {
                 match name.value.as_str() {
@@ -299,14 +313,17 @@ pub fn read_excel(
                             value,
                         ))) = arg
                         {
-                            reader = reader.with_sheet_name(value.to_string());
+                            options.sheet_name = Some(value.to_string());
                         }
                     }
                     "infer_schema" => {
                         if let FunctionArgExpr::Expr(Expr::Value(Value::Boolean(value))) = arg {
-                            if !value {
-                                reader = reader.with_infer_schema_length(0);
-                            }
+                            options.infer_schema = *value;
+                        }
+                    }
+                    "build_index" => {
+                        if let FunctionArgExpr::Expr(Expr::Value(Value::Boolean(value))) = arg {
+                            options.build_index = Some(*value);
                         }
                     }
                     _ => {}
@@ -315,7 +332,146 @@ pub fn read_excel(
         }
     }
 
+    Ok(options)
+}
+
+pub fn read_excel_with_options(
+    mut reader: ExcelReader,
+    options: &ExcelRegisterOptions,
+) -> AppResult<RecordBatch> {
+    if let Some(ref sheet_name) = options.sheet_name {
+        reader = reader.with_sheet_name(sheet_name.clone());
+    }
+    if !options.infer_schema {
+        reader = reader.with_infer_schema_length(0);
+    }
     reader.finish().map_err(|e| e.into())
+}
+
+pub fn read_excel(
+    reader: ExcelReader,
+    args: &mut Option<TableFunctionArgs>,
+) -> AppResult<RecordBatch> {
+    let options = parse_excel_args(args)?;
+    read_excel_with_options(reader, &options)
+}
+
+fn is_excel_indexable_path(path: &str) -> bool {
+    if path.contains("://") {
+        return false;
+    }
+    if path.contains('*') || path.contains('?') || path.contains('[') {
+        return false;
+    }
+    let p = Path::new(path);
+    p.is_file()
+}
+
+fn should_build_excel_index(
+    options: &ExcelRegisterOptions,
+    settings: &ExcelIndexSettings,
+    file_size_bytes: u64,
+    indexable: bool,
+) -> bool {
+    if !indexable {
+        return false;
+    }
+    match options.build_index {
+        Some(false) => false,
+        Some(true) => true,
+        None => {
+            settings.enabled
+                && file_size_bytes >= settings.threshold_mb.saturating_mul(1024 * 1024)
+        }
+    }
+}
+
+fn sheet_name_for_cache_key(options: &ExcelRegisterOptions) -> &str {
+    options
+        .sheet_name
+        .as_deref()
+        .unwrap_or(DEFAULT_SHEET_CACHE_KEY)
+}
+
+async fn register_excel(
+    ctx: &mut SessionContext,
+    table_name: &str,
+    table_path: &str,
+    args: &mut Option<TableFunctionArgs>,
+    app: Option<&AppHandle>,
+) -> AppResult<()> {
+    let options = parse_excel_args(args)?;
+    let indexable = is_excel_indexable_path(table_path);
+
+    let use_cache = if let Some(app) = app {
+        let settings = db_utils::get_excel_index_settings(app)?;
+        let file_size = if indexable {
+            std::fs::metadata(table_path)
+                .map(|m| m.len())
+                .unwrap_or(0)
+        } else {
+            0
+        };
+        should_build_excel_index(&options, &settings, file_size, indexable)
+    } else {
+        false
+    };
+
+    if !indexable && options.build_index == Some(true) {
+        log::debug!(
+            "Skipping Excel cache for non-indexable path (glob/multi-file/remote): {}",
+            table_path
+        );
+    }
+
+    if use_cache {
+        if let Some(app) = app {
+            match try_register_excel_cached(ctx, table_name, table_path, &options, app).await {
+                Ok(()) => return Ok(()),
+                Err(err) => {
+                    log::warn!(
+                        "Excel cache failed for {}, falling back to register_batch: {}",
+                        table_path,
+                        err
+                    );
+                }
+            }
+        }
+    }
+
+    ctx.register_batch(
+        table_name,
+        read_excel_with_options(ExcelReader::new(table_path.to_string()), &options)?,
+    )?;
+    Ok(())
+}
+
+async fn try_register_excel_cached(
+    ctx: &mut SessionContext,
+    table_name: &str,
+    table_path: &str,
+    options: &ExcelRegisterOptions,
+    app: &AppHandle,
+) -> AppResult<()> {
+    let cache_key = ExcelCacheKey::from_source(
+        table_path,
+        sheet_name_for_cache_key(options),
+        options.infer_schema,
+    )?;
+
+    if let Some(cached_path) = excel_cache::lookup(app, &cache_key)? {
+        let path_str = cached_path.to_string_lossy().to_string();
+        ctx.register_parquet(table_name, &path_str, ParquetReadOptions::default())
+            .await?;
+        return Ok(());
+    }
+
+    let batch = read_excel_with_options(ExcelReader::new(table_path.to_string()), options)?;
+    let parquet_path = excel_cache::write_batch(app, &cache_key, &batch)?;
+    let path_str = parquet_path.to_string_lossy().to_string();
+    ctx.register_parquet(table_name, &path_str, ParquetReadOptions::default())
+        .await?;
+    Ok(())
 }
 
 pub async fn register_mysql(
@@ -459,6 +615,7 @@ pub async fn register_table(
     ctx: &mut SessionContext,
     relation: &mut TableFactor,
     table_count: i32,
+    app: Option<&AppHandle>,
 ) -> AppResult<i32> {
     if let TableFactor::Table { name, args, .. } = relation {
         let table_name = format!("table{}", table_count);
@@ -530,7 +687,7 @@ pub async fn register_table(
                     .await?
             }
             "read_excel" | "read_xlsx" => {
-                ctx.register_batch(&table_name, read_excel(ExcelReader::new(table_path), args)?)?;
+                register_excel(ctx, &table_name, &table_path, args, app).await?;
             }
             "read_mysql" => {
                 register_mysql(ctx, &table_name, &table_path, args).await?;
@@ -568,24 +725,26 @@ pub async fn convert_table_name(
     ctx: &mut SessionContext,
     query: &mut Box<Query>,
     mut table_count: i32,
+    app: Option<&AppHandle>,
 ) -> AppResult<i32> {
     if let Select(select) = &mut *query.body {
         for table_with_joins in &mut select.from {
             match &mut table_with_joins.relation {
                 TableFactor::Derived { subquery, .. } => {
-                    table_count = convert_table_name(ctx, subquery, table_count).await?;
+                    table_count = convert_table_name(ctx, subquery, table_count, app).await?;
                 }
                 relation => {
-                    table_count = register_table(ctx, relation, table_count).await?;
+                    table_count = register_table(ctx, relation, table_count, app).await?;
                 }
             }
             for join in &mut table_with_joins.joins {
                 match &mut join.relation {
                     TableFactor::Derived { subquery, .. } => {
-                        table_count = convert_table_name(ctx, subquery, table_count).await?;
+                        table_count = convert_table_name(ctx, subquery, table_count, app).await?;
                     }
-                    relation => {
-                        table_count = register_table(ctx, &mut join.relation, table_count).await?;
+                    _relation => {
+                        table_count =
+                            register_table(ctx, &mut join.relation, table_count, app).await?;
                     }
                 }
             }
@@ -600,6 +759,7 @@ pub async fn register(
     sql: &str,
     limit: Option<usize>,
     offset: Option<usize>,
+    app: Option<&AppHandle>,
 ) -> AppResult<String> {
     let mut ast = parse_statements(sql)?;
 
@@ -608,7 +768,7 @@ pub async fn register(
     })?;
 
     if let Statement::Query(query) = statement {
-        convert_table_name(ctx, query, 0).await?;
+        convert_table_name(ctx, query, 0, app).await?;
         if limit.is_some() && query.limit.is_none() {
             query.limit = Some(Expr::Value(Value::Number(limit.unwrap().to_string(), true)));
         }

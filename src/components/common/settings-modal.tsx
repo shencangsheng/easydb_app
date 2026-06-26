@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Select,
   SelectItem,
   Slider,
   Button,
+  Switch,
   Modal,
   ModalContent,
   ModalHeader,
@@ -14,6 +15,7 @@ import { useTranslation } from "@/i18n";
 import { useFontSize } from "../../hooks/useFontSize";
 import { useLanguage } from "../../hooks/useLanguage";
 import { open, ask } from "@tauri-apps/plugin-dialog";
+import { invoke } from "@tauri-apps/api/core";
 
 // 设置分类定义
 const SETTING_CATEGORIES = [
@@ -27,7 +29,39 @@ const SETTING_CATEGORIES = [
     label: "权限管理",
     icon: "🔐",
   },
+  {
+    key: "excel",
+    label: "Excel",
+    icon: "📊",
+  },
 ];
+
+const EXCEL_THRESHOLD_OPTIONS = ["1", "5", "10", "20", "50"];
+
+interface ExcelCacheEntry {
+  hash: string;
+  source_path: string;
+  sheet_name: string;
+  infer_schema: boolean;
+  created_at: string;
+  parquet_bytes: number;
+}
+
+interface ExcelCacheStats {
+  entry_count: number;
+  total_bytes: number;
+  entries: ExcelCacheEntry[];
+}
+
+function formatBytes(bytes: number): string {
+  if (bytes >= 1024 * 1024) {
+    return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
+  }
+  if (bytes >= 1024) {
+    return `${(bytes / 1024).toFixed(1)} KB`;
+  }
+  return `${bytes} B`;
+}
 
 // 语言选项
 const LANGUAGES = [
@@ -51,6 +85,75 @@ function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
   // 使用全局上下文
   const { fontSize, setFontSize } = useFontSize();
   const { language, setLanguage } = useLanguage();
+
+  const [excelAutoIndex, setExcelAutoIndex] = useState(true);
+  const [excelThresholdMb, setExcelThresholdMb] = useState("10");
+  const [excelCacheStats, setExcelCacheStats] = useState<ExcelCacheStats | null>(
+    null
+  );
+  const [excelSettingsLoading, setExcelSettingsLoading] = useState(false);
+  const [showCacheEntries, setShowCacheEntries] = useState(false);
+
+  const loadExcelSettings = async () => {
+    setExcelSettingsLoading(true);
+    try {
+      const settings = await invoke<{ enabled: boolean; threshold_mb: number }>(
+        "get_excel_index_settings"
+      );
+      setExcelAutoIndex(settings.enabled);
+      setExcelThresholdMb(String(settings.threshold_mb));
+
+      const stats = await invoke<ExcelCacheStats>("get_excel_cache_stats");
+      setExcelCacheStats(stats);
+    } catch (error) {
+      console.error("Failed to load Excel settings:", error);
+      showFeedback("error", translate("settings.excel.loadFailed"));
+    } finally {
+      setExcelSettingsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (isOpen && selectedCategory === "excel") {
+      void loadExcelSettings();
+    }
+  }, [isOpen, selectedCategory]);
+
+  const saveExcelIndexSettings = async (enabled: boolean, thresholdMb: string) => {
+    try {
+      await invoke("set_excel_index_settings", {
+        enabled,
+        thresholdMb: Number(thresholdMb),
+      });
+      showFeedback("success", translate("settings.excel.saveSuccess"));
+    } catch (error) {
+      console.error("Failed to save Excel settings:", error);
+      showFeedback("error", translate("settings.excel.saveFailed"));
+    }
+  };
+
+  const handleClearExcelCache = async () => {
+    const confirmed = await ask(translate("settings.excel.clearConfirm"), {
+      title: translate("settings.excel.clearCache"),
+      kind: "warning",
+    });
+    if (!confirmed) {
+      return;
+    }
+    try {
+      const result = await invoke<{ deleted_count: number; freed_bytes: number }>(
+        "clear_excel_cache"
+      );
+      await loadExcelSettings();
+      showFeedback(
+        "success",
+        `${translate("settings.excel.clearSuccess")} (${result.deleted_count}, ${formatBytes(result.freed_bytes)})`
+      );
+    } catch (error) {
+      console.error("Failed to clear Excel cache:", error);
+      showFeedback("error", translate("settings.excel.clearFailed"));
+    }
+  };
 
   const handleSettingChange = async (key: string, value: string | number) => {
     if (key === "fontSize") {
@@ -198,6 +301,192 @@ function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
     </div>
   );
 
+  // 渲染 Excel 设置内容
+  const renderExcelSettings = () => (
+    <div style={{ padding: "16px 0" }}>
+      <div style={{ marginBottom: "24px" }}>
+        <h3
+          style={{
+            fontSize: "16px",
+            fontWeight: 600,
+            marginBottom: "16px",
+            color: "#333",
+          }}
+        >
+          {translate("settings.excel.title")}
+        </h3>
+
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            marginBottom: "20px",
+            maxWidth: "420px",
+          }}
+        >
+          <div>
+            <label style={{ fontWeight: 500, color: "#333", display: "block" }}>
+              {translate("settings.excel.autoIndex")}
+            </label>
+            <p style={{ fontSize: "13px", color: "#666", marginTop: "4px" }}>
+              {translate("settings.excel.autoIndexHint")}
+            </p>
+          </div>
+          <Switch
+            isSelected={excelAutoIndex}
+            isDisabled={excelSettingsLoading}
+            onValueChange={async (value) => {
+              setExcelAutoIndex(value);
+              await saveExcelIndexSettings(value, excelThresholdMb);
+            }}
+          />
+        </div>
+
+        <div style={{ marginBottom: "20px" }}>
+          <label
+            style={{
+              display: "block",
+              marginBottom: "8px",
+              fontWeight: 500,
+              color: "#333",
+            }}
+          >
+            {translate("settings.excel.threshold")}
+          </label>
+          <Select
+            selectedKeys={[excelThresholdMb]}
+            isDisabled={excelSettingsLoading || !excelAutoIndex}
+            onSelectionChange={async (keys) => {
+              const val = Array.from(keys)[0];
+              if (typeof val === "string") {
+                setExcelThresholdMb(val);
+                await saveExcelIndexSettings(excelAutoIndex, val);
+              }
+            }}
+            style={{ width: "200px" }}
+          >
+            {EXCEL_THRESHOLD_OPTIONS.map((mb) => (
+              <SelectItem key={mb}>{`${mb} MB`}</SelectItem>
+            ))}
+          </Select>
+        </div>
+      </div>
+
+      <div style={{ marginBottom: "24px" }}>
+        <h3
+          style={{
+            fontSize: "16px",
+            fontWeight: 600,
+            marginBottom: "16px",
+            color: "#333",
+          }}
+        >
+          {translate("settings.excel.cacheTitle")}
+        </h3>
+
+        {excelCacheStats && (
+          <div style={{ marginBottom: "16px", fontSize: "14px", color: "#555" }}>
+            <p>
+              {translate("settings.excel.cacheEntries")}: {excelCacheStats.entry_count}
+            </p>
+            <p>
+              {translate("settings.excel.cacheSize")}:{" "}
+              {formatBytes(excelCacheStats.total_bytes)}
+            </p>
+          </div>
+        )}
+
+        {excelCacheStats && excelCacheStats.entries.length > 0 && (
+          <div style={{ marginBottom: "16px" }}>
+            <Button
+              size="sm"
+              variant="light"
+              onPress={() => setShowCacheEntries(!showCacheEntries)}
+            >
+              {showCacheEntries
+                ? translate("settings.excel.hideEntries")
+                : translate("settings.excel.showEntries")}
+            </Button>
+            {showCacheEntries && (
+              <ul
+                style={{
+                  marginTop: "12px",
+                  paddingLeft: "0",
+                  listStyle: "none",
+                  fontSize: "13px",
+                  color: "#666",
+                  maxHeight: "200px",
+                  overflowY: "auto",
+                }}
+              >
+                {excelCacheStats.entries.map((entry) => (
+                  <li
+                    key={entry.hash}
+                    style={{
+                      padding: "8px 0",
+                      borderBottom: "1px solid #eee",
+                    }}
+                  >
+                    <div style={{ fontWeight: 500, color: "#333" }}>
+                      {entry.source_path}
+                    </div>
+                    <div>
+                      {entry.sheet_name} · {formatBytes(entry.parquet_bytes)} ·{" "}
+                      {entry.created_at}
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        )}
+
+        <Button
+          color="danger"
+          variant="flat"
+          isDisabled={excelSettingsLoading || !excelCacheStats?.entry_count}
+          onPress={handleClearExcelCache}
+        >
+          {translate("settings.excel.clearCache")}
+        </Button>
+      </div>
+
+      {feedbackMessage && selectedCategory === "excel" && (
+        <div
+          style={{
+            marginTop: "16px",
+            padding: "12px 16px",
+            borderRadius: "8px",
+            fontSize: "14px",
+            fontWeight: 500,
+            backgroundColor:
+              feedbackMessage.type === "success"
+                ? "#f0f9ff"
+                : feedbackMessage.type === "error"
+                ? "#fef2f2"
+                : "#f8fafc",
+            color:
+              feedbackMessage.type === "success"
+                ? "#1e40af"
+                : feedbackMessage.type === "error"
+                ? "#dc2626"
+                : "#475569",
+            border: `1px solid ${
+              feedbackMessage.type === "success"
+                ? "#bfdbfe"
+                : feedbackMessage.type === "error"
+                ? "#fecaca"
+                : "#e2e8f0"
+            }`,
+          }}
+        >
+          {feedbackMessage.message}
+        </div>
+      )}
+    </div>
+  );
+
   // 渲染授权管理内容
   const renderAuthorizationSettings = () => (
     <div style={{ padding: "16px 0" }}>
@@ -326,6 +615,8 @@ function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
         return renderGeneralSettings();
       case "authorization":
         return renderAuthorizationSettings();
+      case "excel":
+        return renderExcelSettings();
       default:
         return renderGeneralSettings();
     }
@@ -374,6 +665,8 @@ function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                         <span className="text-sm font-medium">
                           {category.key === "general"
                             ? translate("common.general")
+                            : category.key === "excel"
+                            ? translate("settings.excel.category")
                             : category.label}
                         </span>
                       </div>

@@ -172,3 +172,21 @@ impl From<Box<dyn std::error::Error + Send + Sync>> for AppError {
         }
     }
 }
+
+impl From<serde_json::Error> for AppError {
+    fn from(error: serde_json::Error) -> Self {
+        AppError::log_backtrace();
+        BadRequest {
+            message: error.to_string(),
+        }
+    }
+}
+
+impl From<parquet::errors::ParquetError> for AppError {
+    fn from(error: parquet::errors::ParquetError) -> Self {
+        AppError::log_backtrace();
+        InternalServer {
+            message: error.to_string(),
+        }
+    }
+}

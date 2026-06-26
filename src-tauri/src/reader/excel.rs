@@ -4,7 +4,7 @@ use crate::utils::file_utils::find_files;
 use calamine::{open_workbook, Data, HeaderRow, Range, Reader, Xlsx};
 use chrono::{DateTime, NaiveDate, NaiveDateTime, Utc};
 use datafusion::arrow::array::{
-    Array, Float64Array, Int64Array, StringArray, TimestampNanosecondArray,
+    Array, BooleanArray, Float64Array, Int64Array, StringArray, TimestampNanosecondArray,
 };
 use datafusion::arrow::datatypes::{DataType, Field, Schema, TimeUnit};
 use datafusion::arrow::record_batch::RecordBatch;
@@ -48,6 +48,7 @@ impl ExcelReader {
         let mut int64_data: Vec<Vec<Option<i64>>> = Vec::new();
         let mut float64_data: Vec<Vec<Option<f64>>> = Vec::new();
         let mut timestamp_data: Vec<Vec<Option<i64>>> = Vec::new();
+        let mut bool_data: Vec<Vec<Option<bool>>> = Vec::new();
 
         let default_sheet = "Sheet1".to_string();
         let files = find_files(&self.path)?;
@@ -68,6 +69,7 @@ impl ExcelReader {
                 int64_data = vec![Vec::new(); num_columns];
                 float64_data = vec![Vec::new(); num_columns];
                 timestamp_data = vec![Vec::new(); num_columns];
+                bool_data = vec![Vec::new(); num_columns];
                 schema = Some(inferred);
             }
 
@@ -96,11 +98,15 @@ impl ExcelReader {
                                     let value = excel_cell_to_timestamp_nanos(cell);
                                     timestamp_data[i].push(value);
                                 }
+                                DataType::Boolean => {
+                                    bool_data[i].push(parse_bool_cell(cell));
+                                }
                                 _ => {
                                     let value = match cell {
                                         Data::Empty => None,
                                         Data::String(s) => Some(s.clone()),
-                                        _ => Some(cell.to_string()),
+                                        Data::Error(_) => Some(cell_to_display_string(cell)),
+                                        _ => Some(cell_to_display_string(cell)),
                                     };
                                     string_data[i].push(value);
                                 }
@@ -119,6 +125,7 @@ impl ExcelReader {
                     .or_else(|| int64_data.first().map(|v| v.len()))
                     .or_else(|| float64_data.first().map(|v| v.len()))
                     .or_else(|| timestamp_data.first().map(|v| v.len()))
+                    .or_else(|| bool_data.first().map(|v| v.len()))
                     .unwrap_or(0);
 
                 let mut arrays = Vec::new();
@@ -128,6 +135,9 @@ impl ExcelReader {
                         DataType::Float64 => Arc::new(Float64Array::from(float64_data[i].clone())),
                         DataType::Timestamp(TimeUnit::Nanosecond, _) => {
                             Arc::new(TimestampNanosecondArray::from(timestamp_data[i].clone()))
+                        }
+                        DataType::Boolean => {
+                            Arc::new(BooleanArray::from(bool_data[i].clone()))
                         }
                         _ => Arc::new(StringArray::from(string_data[i].clone())),
                     };
@@ -173,10 +183,22 @@ pub fn infer_field_schema(range: &Range<Data>, infer_schema_length: usize) -> Ap
 
     let num_columns = headers.len();
     let mut data_types: Vec<HashSet<DataType>> = vec![HashSet::new(); num_columns];
+    let mut bool_like_counts: Vec<usize> = vec![0; num_columns];
+    let mut non_empty_counts: Vec<usize> = vec![0; num_columns];
 
-    for row in range.rows().take(infer_schema_length) {
+    let data_rows: Box<dyn Iterator<Item = _> + '_> = if range.headers().is_some() {
+        Box::new(range.rows().skip(1).take(infer_schema_length))
+    } else {
+        Box::new(range.rows().take(infer_schema_length))
+    };
+
+    for row in data_rows {
         for (i, cell) in row.iter().enumerate() {
             if i < num_columns && !matches!(cell, Data::Empty) {
+                non_empty_counts[i] += 1;
+                if is_bool_like_cell(cell) {
+                    bool_like_counts[i] += 1;
+                }
                 let inferred_type = infer_cell_data_type(cell);
                 data_types[i].insert(inferred_type);
             }
@@ -189,12 +211,16 @@ pub fn infer_field_schema(range: &Range<Data>, infer_schema_length: usize) -> Ap
         .map(|(i, types)| {
             let data_type = if types.is_empty() {
                 DataType::Utf8
+            } else if non_empty_counts[i] > 0 && bool_like_counts[i] == non_empty_counts[i] {
+                DataType::Boolean
             } else if types.contains(&DataType::Int64) {
                 DataType::Int64
             } else if types.contains(&DataType::Float64) {
                 DataType::Float64
             } else if types.contains(&DataType::Timestamp(TimeUnit::Nanosecond, None)) {
                 DataType::Timestamp(TimeUnit::Nanosecond, None)
+            } else if types.contains(&DataType::Boolean) {
+                DataType::Boolean
             } else {
                 DataType::Utf8
             };
@@ -230,18 +256,68 @@ pub(crate) fn excel_cell_to_timestamp_nanos(cell: &Data) -> Option<i64> {
 pub(crate) fn infer_cell_data_type(cell: &Data) -> DataType {
     match cell {
         Data::Int(_) => DataType::Int64,
+        Data::Bool(_) => DataType::Boolean,
         Data::Float(v) => {
-            // Excel stores all numbers as Float64 internally.
-            // If the float value has no fractional part, treat it as Int64
-            // so columns of integer values get inferred as Int64, not Float64.
             if v.fract() == 0.0 {
                 DataType::Int64
             } else {
                 DataType::Float64
             }
         }
+        Data::String(s) => infer_string_data_type(s),
         Data::DateTime(_) | Data::DateTimeIso(_) => DataType::Timestamp(TimeUnit::Nanosecond, None),
+        Data::Error(_) => DataType::Utf8,
         _ => DataType::Utf8,
+    }
+}
+
+fn is_bool_like_cell(cell: &Data) -> bool {
+    match cell {
+        Data::Bool(_) => true,
+        Data::Int(v) => *v == 0 || *v == 1,
+        Data::Float(v) => *v == 0.0 || *v == 1.0,
+        Data::String(s) => matches!(
+            s.trim().to_ascii_uppercase().as_str(),
+            "TRUE" | "FALSE" | "0" | "1"
+        ),
+        _ => false,
+    }
+}
+
+fn infer_string_data_type(value: &str) -> DataType {
+    match value.trim().to_ascii_uppercase().as_str() {
+        "TRUE" | "FALSE" | "0" | "1" => DataType::Boolean,
+        _ => DataType::Utf8,
+    }
+}
+
+fn parse_bool_cell(cell: &Data) -> Option<bool> {
+    match cell {
+        Data::Bool(v) => Some(*v),
+        Data::Int(v) => match *v {
+            0 => Some(false),
+            1 => Some(true),
+            _ => None,
+        },
+        Data::Float(v) => match *v as i64 {
+            0 => Some(false),
+            1 => Some(true),
+            _ => None,
+        },
+        Data::String(s) => match s.trim().to_ascii_uppercase().as_str() {
+            "TRUE" | "1" => Some(true),
+            "FALSE" | "0" => Some(false),
+            _ => None,
+        },
+        Data::Empty => None,
+        _ => None,
+    }
+}
+
+fn cell_to_display_string(cell: &Data) -> String {
+    match cell {
+        Data::Error(e) => format!("{:?}", e),
+        _ => cell.to_string(),
     }
 }
 

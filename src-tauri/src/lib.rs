@@ -1,4 +1,7 @@
 use crate::commands::app::restart_app;
+use crate::commands::excel_cache::{
+    clear_excel_cache, get_excel_cache_stats, get_excel_index_settings, set_excel_index_settings,
+};
 use crate::commands::query::{
     delete_saved_query, delete_sql_history_before, fetch, fetch_column_types, fetch_page,
     generate_sql_content, list_saved_queries, save_query, sql_history, writer,
@@ -31,16 +34,20 @@ pub fn run() {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
+            clear_excel_cache,
             delete_saved_query,
             delete_sql_history_before,
             fetch,
             fetch_column_types,
             fetch_page,
             generate_sql_content,
+            get_excel_cache_stats,
+            get_excel_index_settings,
             list_saved_queries,
             open_url,
             restart_app,
             save_query,
+            set_excel_index_settings,
             sql_history,
             writer
         ])

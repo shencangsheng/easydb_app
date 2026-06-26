@@ -1,6 +1,6 @@
 [package]
 name = "easydb_app"
-version = "2.12.0"
+version = "2.13.0"
 description = "EasyDB APP"
 authors = ["shencangsheng"]
 license = "MIT"
@@ -34,6 +34,9 @@ dirs = "6.0.0"
 datafusion = { version = "53.1.0", features = ["backtrace"] }
 datafusion-table-providers = { version = "0.11.0", features = ["mysql", "postgres"] }
 async-recursion = "1"
+parquet = { version = "58.3.0", features = ["arrow"] }
+sha2 = "0.10"
+serde_json = "1.0"
 
 [dev-dependencies]
 rust_xlsxwriter = "0.95.0"

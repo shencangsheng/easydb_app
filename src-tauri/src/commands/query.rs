@@ -130,10 +130,10 @@ pub fn is_sql_numeric_type(sql_type: &str) -> bool {
 }
 
 #[command]
-pub async fn fetch_column_types(sql: String) -> AppResult<ColumnTypesResult> {
+pub async fn fetch_column_types(app: AppHandle, sql: String) -> AppResult<ColumnTypesResult> {
     run_blocking_async(move || async move {
         let mut context = get_sql_context();
-        let new_sql = register(&mut context, &sql, None, None).await?;
+        let new_sql = register(&mut context, &sql, None, None, Some(&app)).await?;
         let df = get_data_frame(&mut context, &new_sql).await?;
 
         let columns = df
@@ -163,7 +163,7 @@ pub async fn fetch(
         let start = Utc::now();
         let mut context = get_sql_context();
 
-        let new_sql = register(&mut context, &sql, Some(limit), Some(offset))
+        let new_sql = register(&mut context, &sql, Some(limit), Some(offset), Some(&app))
             .await
             .map_err(|err| {
                 let _ = insert_query_history(&app, &sql, "fail");
@@ -229,7 +229,7 @@ pub async fn fetch_page(
             offset
         );
 
-        let new_sql = register(&mut context, &new_sql, None, None)
+        let new_sql = register(&mut context, &new_sql, None, None, Some(&app))
             .await
             .map_err(|err| {
                 let _ = insert_query_history(&app, &sql, "fail");
@@ -345,7 +345,7 @@ pub async fn delete_sql_history_before(
 
 #[command]
 pub async fn writer(
-    _app: AppHandle,
+    app: AppHandle,
     file_type: String,
     sql: String,
     table_name: Option<String>,
@@ -410,7 +410,7 @@ pub async fn writer(
         }
 
         let mut context = get_sql_context();
-        let new_sql = register(&mut context, &sql, None, None).await?;
+        let new_sql = register(&mut context, &sql, None, None, Some(&app)).await?;
         let df = get_data_frame(&mut context, &new_sql).await?;
 
         // Determine file extension
@@ -497,6 +497,7 @@ pub async fn writer(
 
 #[command]
 pub async fn generate_sql_content(
+    app: AppHandle,
     sql: String,
     table_name: String,
     max_values_per_insert: Option<usize>,
@@ -531,6 +532,7 @@ pub async fn generate_sql_content(
             &sql,
             Some(SQL_COPY_ROW_LIMIT + 1),
             None,
+            Some(&app),
         )
         .await?;
         let df = get_data_frame(&mut context, &new_sql).await?;

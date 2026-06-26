@@ -174,8 +174,16 @@ const createMethods = (t: (key: string) => string) => [
         example: "false",
         required: false,
       },
+      {
+        name: "build_index",
+        type: "boolean",
+        default: undefined,
+        desc: t("functions.readExcel.buildIndex"),
+        example: "true",
+        required: false,
+      },
     ],
-    example: `select * from read_excel('data.xlsx', sheet_name => 'Sheet2', infer_schema => false)`,
+    example: `select * from read_excel('data.xlsx', sheet_name => 'Sheet2', infer_schema => false, build_index => true)`,
     isBeta: true,
   },
   {

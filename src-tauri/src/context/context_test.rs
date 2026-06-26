@@ -29,7 +29,7 @@ fn write_temp(suffix: &str, content: &str) -> AppResult<std::path::PathBuf> {
 /// `read_*` table functions into registered tables, then collect the results.
 async fn run_query(sql: &str) -> AppResult<(Vec<ColumnTypeInfo>, Vec<RecordBatch>)> {
     let mut ctx = get_sql_context();
-    let rewritten = register(&mut ctx, sql, None, None).await?;
+    let rewritten = register(&mut ctx, sql, None, None, None).await?;
     collect(&mut ctx, &rewritten).await
 }
 

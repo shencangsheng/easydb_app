@@ -4,6 +4,7 @@ use crate::context::schema::AppResult;
 use tokio::task;
 
 pub mod app;
+pub mod excel_cache;
 pub mod query;
 pub mod utils;
 
