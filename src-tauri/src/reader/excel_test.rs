@@ -1,5 +1,6 @@
 use super::excel::{
-    excel_cell_to_timestamp_nanos, infer_cell_data_type, infer_field_schema, ExcelReader,
+    excel_cell_to_timestamp_nanos, infer_cell_data_type, infer_field_schema,
+    resolve_column_data_type, ExcelReader,
 };
 use calamine::{Data, ExcelDateTime, ExcelDateTimeType, Range};
 use chrono::{DateTime, NaiveDate, NaiveDateTime, Utc};
@@ -140,9 +141,8 @@ fn test_infers_scalar_columns() {
 
 #[test]
 fn test_infer_field_schema_resolves_column_types() {
-    // 3 rows x 3 cols. Row 0 acts as the header (calamine treats the first row
-    // as headers and also feeds it into type inference as Utf8).
-    //   col0 "mix": Int + non-whole Float  -> Int64 wins
+    // 3 rows x 3 cols. Row 0 is the header (skipped during inference).
+    //   col0 "mix": Int + non-whole Float  -> Float64 (any float promotes column)
     //   col1 "dt" : DateTime cells          -> Timestamp(ns)
     //   col2      : entirely empty          -> Utf8 (empty-set default)
     let mut range: Range<Data> = Range::new((0, 0), (2, 2));
@@ -172,7 +172,7 @@ fn test_infer_field_schema_resolves_column_types() {
     assert_eq!(fields.len(), 3);
 
     assert_eq!(fields[0].name(), "mix");
-    assert_eq!(fields[0].data_type(), &DataType::Int64);
+    assert_eq!(fields[0].data_type(), &DataType::Float64);
 
     assert_eq!(fields[1].name(), "dt");
     assert_eq!(
@@ -182,6 +182,70 @@ fn test_infer_field_schema_resolves_column_types() {
 
     // Empty column resolves to the Utf8 default.
     assert_eq!(fields[2].data_type(), &DataType::Utf8);
+}
+
+#[test]
+fn test_infer_field_schema_promotes_to_float_when_any_fractional_value() {
+    // Regression: a column with mostly integers but one fractional value must
+    // be Float64, not Int64 (which would truncate via `as i64` on read).
+    let mut range: Range<Data> = Range::new((0, 0), (4, 0));
+    range.set_value((0, 0), Data::String("amount".to_string()));
+    range.set_value((1, 0), Data::Float(1.0));
+    range.set_value((2, 0), Data::Float(2.0));
+    range.set_value((3, 0), Data::Float(3.0));
+    range.set_value((4, 0), Data::Float(2.5));
+
+    let schema = infer_field_schema(&range, 100).expect("schema inferred");
+    assert_eq!(
+        schema.fields()[0].data_type(),
+        &DataType::Float64,
+        "one fractional cell must promote the whole column to Float64"
+    );
+}
+
+#[test]
+fn test_infer_field_schema_mixed_number_and_string_becomes_utf8() {
+    let mut range: Range<Data> = Range::new((0, 0), (4, 0));
+    range.set_value((0, 0), Data::String("score".to_string()));
+    range.set_value((1, 0), Data::Int(90));
+    range.set_value((2, 0), Data::Int(85));
+    range.set_value((3, 0), Data::String("N/A".to_string()));
+    range.set_value((4, 0), Data::Int(88));
+
+    let schema = infer_field_schema(&range, 100).expect("schema inferred");
+    assert_eq!(
+        schema.fields()[0].data_type(),
+        &DataType::Utf8,
+        "mixed numeric and text cells must fall back to Utf8"
+    );
+}
+
+#[test]
+fn test_resolve_column_data_type_rules() {
+    use std::collections::HashSet;
+
+    assert_eq!(resolve_column_data_type(&HashSet::new()), DataType::Utf8);
+
+    let mut ints = HashSet::new();
+    ints.insert(DataType::Int64);
+    assert_eq!(resolve_column_data_type(&ints), DataType::Int64);
+
+    let mut mixed_numeric = HashSet::new();
+    mixed_numeric.insert(DataType::Int64);
+    mixed_numeric.insert(DataType::Float64);
+    assert_eq!(
+        resolve_column_data_type(&mixed_numeric),
+        DataType::Float64,
+        "any fractional value promotes pure numeric columns"
+    );
+
+    let mut mixed_text_number = HashSet::new();
+    mixed_text_number.insert(DataType::Utf8);
+    mixed_text_number.insert(DataType::Int64);
+    assert_eq!(
+        resolve_column_data_type(&mixed_text_number),
+        DataType::Utf8
+    );
 }
 
 #[test]

@@ -410,7 +410,7 @@ const translations: Record<Language, Translations> = {
         name: "read_excel",
         description: "读取 Excel 文件为表。",
         inferSchema:
-          "是否自动推断数据类型。为 true 时，将根据前 100 行进行推断。",
+          "是否自动推断数据类型。为 true 时，将根据前 1000 行进行推断。",
         sheetName: "要读取的工作表名称，默认读取第一个 sheet。",
       },
       readParquet: {
@@ -669,7 +669,7 @@ const translations: Record<Language, Translations> = {
         name: "read_excel",
         description: "Read Excel file as table.",
         inferSchema:
-          "Whether to automatically infer data types. If true, the first 100 rows are used for inference.",
+          "Whether to automatically infer data types. If true, the first 1000 rows are used for inference.",
         sheetName: "Name of the sheet to read, defaults first sheet.",
       },
       readParquet: {
