@@ -27,7 +27,7 @@ impl ExcelReader {
         Self {
             path,
             sheet_name: None,
-            infer_schema_length: 100,
+            infer_schema_length: 1000,
             try_parse_dates: false,
         }
     }
@@ -174,7 +174,9 @@ pub fn infer_field_schema(range: &Range<Data>, infer_schema_length: usize) -> Ap
     let num_columns = headers.len();
     let mut data_types: Vec<HashSet<DataType>> = vec![HashSet::new(); num_columns];
 
-    for row in range.rows().take(infer_schema_length) {
+    // Skip the header row — same as ExcelReader::finish — so column names
+    // do not pollute type inference as Utf8.
+    for row in range.rows().skip(1).take(infer_schema_length) {
         for (i, cell) in row.iter().enumerate() {
             if i < num_columns && !matches!(cell, Data::Empty) {
                 let inferred_type = infer_cell_data_type(cell);
@@ -187,22 +189,44 @@ pub fn infer_field_schema(range: &Range<Data>, infer_schema_length: usize) -> Ap
         .iter()
         .enumerate()
         .map(|(i, types)| {
-            let data_type = if types.is_empty() {
-                DataType::Utf8
-            } else if types.contains(&DataType::Int64) {
-                DataType::Int64
-            } else if types.contains(&DataType::Float64) {
-                DataType::Float64
-            } else if types.contains(&DataType::Timestamp(TimeUnit::Nanosecond, None)) {
-                DataType::Timestamp(TimeUnit::Nanosecond, None)
-            } else {
-                DataType::Utf8
-            };
+            let data_type = resolve_column_data_type(types);
             Field::new(headers[i].clone(), data_type, true)
         })
         .collect();
 
     Ok(Schema::new(fields))
+}
+
+/// Merge per-cell inferred types into a single column type.
+pub(crate) fn resolve_column_data_type(types: &HashSet<DataType>) -> DataType {
+    if types.is_empty() {
+        return DataType::Utf8;
+    }
+
+    let has_utf8 = types.contains(&DataType::Utf8);
+    let has_numeric =
+        types.contains(&DataType::Int64) || types.contains(&DataType::Float64);
+    let has_timestamp = types.contains(&DataType::Timestamp(TimeUnit::Nanosecond, None));
+
+    // Text mixed with numbers or dates cannot be read losslessly as a scalar
+    // column — fall back to Utf8 so every cell is preserved as text.
+    let category_count = [has_utf8, has_numeric, has_timestamp]
+        .iter()
+        .filter(|&&present| present)
+        .count();
+    if category_count > 1 {
+        return DataType::Utf8;
+    }
+
+    if types.contains(&DataType::Float64) {
+        DataType::Float64
+    } else if types.contains(&DataType::Int64) {
+        DataType::Int64
+    } else if has_timestamp {
+        DataType::Timestamp(TimeUnit::Nanosecond, None)
+    } else {
+        DataType::Utf8
+    }
 }
 
 /// Convert an Excel cell into a UTC timestamp in nanoseconds.
