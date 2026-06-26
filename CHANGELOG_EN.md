@@ -1,5 +1,12 @@
 # Changelog
 
+v2.12.1 - 2026-06-26
+
+- Optimized read_excel() data type inference, sampling rows increased from 100 to 1000, improving type determination accuracy
+- Fixed Excel type inference not skipping header rows, column names are no longer considered Utf8 pollution type detection
+- Fixed integer and decimal mixed columns being misclassified as Int64, causing decimal truncation when reading
+- Mixed text and numeric or date columns are unified back to Utf8 to avoid losing cell content when reading
+
 v2.12.0 - 2026-06-22
 
 - Added multi-select WHERE columns for SQL UPDATE export; generated statements join multiple conditions with AND
