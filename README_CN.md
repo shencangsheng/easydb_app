@@ -189,6 +189,27 @@ WHERE REGEXP_LIKE("Distance", '^([0-9]+)\.([0-9]+)?$');
 
 ### 函数参数说明
 
+每个 `read_*` 函数都支持 `columns`，用来指定某些列的类型。未列出的列仍按推断类型读取。
+
+```sql
+SELECT *
+FROM read_ndjson(
+  'data.ndjson',
+  columns => {control_phase: 'VARCHAR', id: 'BIGINT'}
+)
+```
+
+| 类型 | 含义 |
+| ---- | ---- |
+| `VARCHAR`、`TEXT`、`STRING` | 字符串 |
+| `BIGINT`、`INT`、`INTEGER` | 64 位整数 |
+| `DOUBLE`、`FLOAT` | 64 位浮点数 |
+| `BOOLEAN` | 布尔值 |
+| `TIMESTAMP` | 时间戳 |
+| `DATE` | 日期 |
+
+`read_excel` 支持 `VARCHAR`、`BIGINT`、`DOUBLE`、`BOOLEAN`、`TIMESTAMP`。
+
 <details>
 <summary><code>read_csv()</code> 参数</summary>
 
@@ -198,6 +219,7 @@ WHERE REGEXP_LIKE("Distance", '^([0-9]+)\.([0-9]+)?$');
 | `has_header`     | boolean | true   | 文件是否包含表头行                    |
 | `delimiter`      | string  | `,`    | 字段分隔符，支持转义序列如 `\t`、`\n` |
 | `file_extension` | string  | `.csv` | 文件扩展名                            |
+| `columns`        | map     |        | 指定列类型（见上文）                  |
 
 </details>
 
@@ -208,6 +230,7 @@ WHERE REGEXP_LIKE("Distance", '^([0-9]+)\.([0-9]+)?$');
 | -------------- | ------- | ------------ | -------------------- |
 | `sheet_name`   | string  | 第一个 Sheet | 要读取的工作表名称   |
 | `infer_schema` | boolean | true         | 是否自动推断数据类型 |
+| `columns`      | map     |              | 指定列类型（见上文） |
 
 </details>
 
@@ -217,6 +240,7 @@ WHERE REGEXP_LIKE("Distance", '^([0-9]+)\.([0-9]+)?$');
 | 参数   | 类型   | 默认值   | 说明                                                            |
 | ------ | ------ | -------- | --------------------------------------------------------------- |
 | `conn` | string | **必需** | MySQL 连接字符串，如 `mysql://user:password@host:port/database` |
+| `columns` | map | | 指定列类型（见上文） |
 
 </details>
 
@@ -231,6 +255,7 @@ WHERE REGEXP_LIKE("Distance", '^([0-9]+)\.([0-9]+)?$');
 | `pass`     | string | 可选      | PostgreSQL 密码       |
 | `port`     | string | `5432`    | PostgreSQL 端口号     |
 | `sslmode`  | string | `disable` | SSL 模式              |
+| `columns`  | map    |           | 指定列类型（见上文） |
 
 </details>
 
@@ -240,8 +265,11 @@ WHERE REGEXP_LIKE("Distance", '^([0-9]+)\.([0-9]+)?$');
 | 参数             | 类型   | 默认值   | 说明                                                                 |
 | ---------------- | ------ | -------- | -------------------------------------------------------------------- |
 | `file_extension` | string | 路径扩展名 | 文件扩展名，用于覆盖路径中的扩展名（如 NDJSON 内容存储在 `.json` 文件中） |
+| `columns`        | map    |            | 指定列类型（见上文） |
 
 `read_json()` 会根据文件内容自动判断格式：以 `[` 开头解析为标准 JSON 数组，以 `{` 开头解析为 NDJSON。`.json` 与 `.ndjson` 文件均可使用。
+
+若某个字段在采样行中全是 null，则按字符串读取。文件后部出现的文本不会再报 `expected null`。
 
 </details>
 
@@ -251,6 +279,9 @@ WHERE REGEXP_LIKE("Distance", '^([0-9]+)\.([0-9]+)?$');
 | 参数             | 类型   | 默认值   | 说明         |
 | ---------------- | ------ | -------- | ------------ |
 | `file_extension` | string | `.ndjson` | 文件扩展名   |
+| `columns`        | map    |           | 指定列类型（见上文） |
+
+采样行中全是 null 的字段按字符串读取，与 `read_json()` 相同。
 
 </details>
 
@@ -263,6 +294,7 @@ WHERE REGEXP_LIKE("Distance", '^([0-9]+)\.([0-9]+)?$');
 | `has_header`     | boolean | true   | 文件是否包含表头行   |
 | `delimiter`      | string  | `\t`   | 字段分隔符           |
 | `file_extension` | string  | `.txt` | 文件扩展名           |
+| `columns`        | map     |        | 指定列类型（见上文） |
 
 </details>
 

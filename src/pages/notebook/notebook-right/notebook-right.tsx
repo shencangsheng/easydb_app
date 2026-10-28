@@ -33,6 +33,15 @@ interface Method {
   isBeta?: boolean;
 }
 
+const columnsParam = (t: (key: string) => string): MethodParam => ({
+  name: "columns",
+  type: "map",
+  default: undefined,
+  desc: t("functions.columns"),
+  example: "{name: 'VARCHAR', id: 'BIGINT'}",
+  required: false,
+});
+
 // 创建支持国际化的方法数据
 const createMethods = (t: (key: string) => string) => [
   {
@@ -72,8 +81,9 @@ const createMethods = (t: (key: string) => string) => [
         example: ".csv",
         required: false,
       },
+      columnsParam(t),
     ],
-    example: `select * from read_csv('data.csv', infer_schema => false)`,
+    example: `select * from read_csv('data.csv', columns => {qty: 'VARCHAR'})`,
   },
   {
     name: "read_text",
@@ -112,6 +122,7 @@ const createMethods = (t: (key: string) => string) => [
         example: ".txt",
         required: false,
       },
+      columnsParam(t),
     ],
     example: `select * from read_text('data.txt', infer_schema => false)`,
   },
@@ -136,6 +147,7 @@ const createMethods = (t: (key: string) => string) => [
         example: "true",
         required: false,
       },
+      columnsParam(t),
     ],
     example: `select * from read_tsv('data.tsv', infer_schema => false)`,
   },
@@ -143,15 +155,15 @@ const createMethods = (t: (key: string) => string) => [
     name: "read_json",
     description: t("functions.readJson.description"),
     type: "table-valued" as FunctionType,
-    params: [],
-    example: `select * from read_json('data.json')`,
+    params: [columnsParam(t)],
+    example: `select * from read_json('data.json', columns => {name: 'VARCHAR'})`,
   },
   {
     name: "read_parquet",
     description: t("functions.readParquet.description"),
     type: "table-valued" as FunctionType,
-    params: [],
-    example: `select * from read_parquet('data.parquet')`,
+    params: [columnsParam(t)],
+    example: `select * from read_parquet('data.parquet', columns => {id: 'VARCHAR'})`,
   },
   {
     name: "read_excel",
@@ -174,6 +186,7 @@ const createMethods = (t: (key: string) => string) => [
         example: "false",
         required: false,
       },
+      columnsParam(t),
     ],
     example: `select * from read_excel('data.xlsx', sheet_name => 'Sheet2', infer_schema => false)`,
     isBeta: true,
@@ -191,6 +204,7 @@ const createMethods = (t: (key: string) => string) => [
         example: "mysql://user:password@host:port/database",
         required: true,
       },
+      columnsParam(t),
     ],
     example: `select * from read_mysql('users', conn => 'mysql://user:password@localhost:3306/mydb')`,
     isBeta: true,
@@ -248,6 +262,7 @@ const createMethods = (t: (key: string) => string) => [
         example: "disable",
         required: false,
       },
+      columnsParam(t),
     ],
     example: `select * from read_postgres('users', host => 'localhost', username => 'postgres', db => 'mydb', pass => 'password')`,
     isBeta: true,

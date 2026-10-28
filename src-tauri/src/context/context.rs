@@ -1,10 +1,14 @@
 use crate::commands::query::{arrow_type_to_sql_type, ColumnTypeInfo};
+use crate::context::columns::{
+    apply_column_overrides, column_overrides_from_args, project_column_types, ColumnTypeOverride,
+};
 use crate::context::error::AppError;
 use crate::context::schema::AppResult;
 use crate::reader::excel::ExcelReader;
 use crate::sql::parse::{get_function_args, parse_statements};
 use crate::utils::file_utils::ensure_path_exists;
 use async_recursion::async_recursion;
+use datafusion::arrow::datatypes::{DataType, Field, Schema};
 use datafusion::arrow::record_batch::RecordBatch;
 use datafusion::dataframe::DataFrame;
 use datafusion::prelude::{CsvReadOptions, JsonReadOptions, ParquetReadOptions, SessionContext};
@@ -202,10 +206,9 @@ pub(crate) fn detect_json_newline_delimited(path: &str) -> bool {
 /// - `read_json`   -> `newline_delimited = false` (a single JSON array,
 ///   supported natively since DataFusion 53)
 ///
-/// This helper then applies any user-supplied named arguments. Only
-/// `file_extension` is currently honored, which lets callers point a reader at
-/// files that don't use the conventional extension (e.g. NDJSON stored in a
-/// `.json` file).
+/// This helper then applies any user-supplied named arguments. `file_extension`
+/// is honored here. `columns` is applied later, after schema inference, and is
+/// shared by every `read_*` function.
 pub fn get_json_read_options<'a>(
     args: &'a mut Option<TableFunctionArgs>,
     mut options: JsonReadOptions<'a>,
@@ -230,6 +233,112 @@ pub fn get_json_read_options<'a>(
     }
 
     Ok(options)
+}
+
+/// Rewrite JSON fields whose inferred type is [`DataType::Null`].
+///
+/// Schema inference only inspects a sample of records. A field that is JSON
+/// `null` throughout that sample is recorded as Arrow's `Null` type, which can
+/// decode nothing else. A later string then fails with `expected null got "..."`.
+/// A nullable string accepts both null and text, so an all-null sample is read
+/// as `Utf8`. Concrete types such as `Int64` are left unchanged. Nested struct,
+/// list, and map fields are rewritten the same way.
+pub(crate) fn promote_json_null_schema(schema: &Schema) -> Schema {
+    let fields = schema
+        .fields()
+        .iter()
+        .map(|field| Arc::new(promote_json_null_field(field.as_ref())))
+        .collect::<Vec<_>>();
+    Schema::new_with_metadata(fields, schema.metadata().clone())
+}
+
+fn promote_json_null_field(field: &Field) -> Field {
+    field
+        .clone()
+        .with_data_type(promote_json_null_type(field.data_type()))
+}
+
+fn promote_json_null_type(data_type: &DataType) -> DataType {
+    match data_type {
+        DataType::Null => DataType::Utf8,
+        DataType::Struct(fields) => DataType::Struct(
+            fields
+                .iter()
+                .map(|field| Arc::new(promote_json_null_field(field.as_ref())))
+                .collect(),
+        ),
+        DataType::List(field) => DataType::List(Arc::new(promote_json_null_field(field.as_ref()))),
+        DataType::LargeList(field) => {
+            DataType::LargeList(Arc::new(promote_json_null_field(field.as_ref())))
+        }
+        DataType::ListView(field) => {
+            DataType::ListView(Arc::new(promote_json_null_field(field.as_ref())))
+        }
+        DataType::LargeListView(field) => {
+            DataType::LargeListView(Arc::new(promote_json_null_field(field.as_ref())))
+        }
+        DataType::FixedSizeList(field, size) => {
+            DataType::FixedSizeList(Arc::new(promote_json_null_field(field.as_ref())), *size)
+        }
+        DataType::Map(field, ordered) => {
+            DataType::Map(Arc::new(promote_json_null_field(field.as_ref())), *ordered)
+        }
+        DataType::Dictionary(key, value) => {
+            DataType::Dictionary(key.clone(), Box::new(promote_json_null_type(value)))
+        }
+        other => other.clone(),
+    }
+}
+
+/// Register a JSON/NDJSON file, reading all-null inferred fields as strings.
+///
+/// The scratch context performs DataFusion's normal inference (including
+/// globs and compression). The adjusted schema is then installed explicitly so
+/// the scan does not keep a `Null` column that rejects later values.
+async fn register_json_source<'a>(
+    ctx: &SessionContext,
+    table_name: &str,
+    table_path: &str,
+    options: JsonReadOptions<'a>,
+    overrides: &[ColumnTypeOverride],
+) -> AppResult<()> {
+    let scratch = SessionContext::new();
+    scratch
+        .register_json(table_name, table_path, options.clone())
+        .await?;
+    let frame = scratch.table(table_name).await?;
+    let promoted = promote_json_null_schema(frame.schema().as_arrow());
+    let schema = apply_column_overrides(&promoted, overrides)?;
+    ctx.register_json(table_name, table_path, options.schema(&schema))
+        .await?;
+    Ok(())
+}
+
+/// Infer a delimited file, then re-read it with explicit column types.
+///
+/// With no overrides the caller's options are used as-is, so CSV queries that
+/// do not set `columns` keep a single inference pass.
+async fn register_delimited<'a>(
+    ctx: &SessionContext,
+    table_name: &str,
+    table_path: &str,
+    options: CsvReadOptions<'a>,
+    overrides: &[ColumnTypeOverride],
+) -> AppResult<()> {
+    if overrides.is_empty() {
+        ctx.register_csv(table_name, table_path, options).await?;
+        return Ok(());
+    }
+
+    let scratch = SessionContext::new();
+    scratch
+        .register_csv(table_name, table_path, options.clone())
+        .await?;
+    let frame = scratch.table(table_name).await?;
+    let schema = apply_column_overrides(frame.schema().as_arrow(), overrides)?;
+    ctx.register_csv(table_name, table_path, options.schema(&schema))
+        .await?;
+    Ok(())
 }
 
 pub fn get_table_path(args: &mut Option<TableFunctionArgs>) -> AppResult<String> {
@@ -479,12 +588,16 @@ pub async fn register_table(
             ensure_path_exists(&table_path)?;
         }
 
+        let overrides = column_overrides_from_args(args)?;
+
         match reader_name.as_str() {
             "read_csv" => {
-                ctx.register_csv(
+                register_delimited(
+                    ctx,
                     &table_name,
                     &table_path,
                     get_csv_read_options(args, CsvReadOptions::default())?,
+                    &overrides,
                 )
                 .await?
             }
@@ -492,10 +605,12 @@ pub async fn register_table(
                 let mut options = CsvReadOptions::default();
                 options.delimiter = b'\t';
                 options.file_extension = ".tsv";
-                ctx.register_csv(
+                register_delimited(
+                    ctx,
                     &table_name,
                     &table_path,
                     get_csv_read_options(args, options)?,
+                    &overrides,
                 )
                 .await?
             }
@@ -510,8 +625,14 @@ pub async fn register_table(
                 if let Some(ext) = json_ext.as_deref() {
                     options.file_extension = ext;
                 }
-                ctx.register_json(&table_name, &table_path, get_json_read_options(args, options)?)
-                    .await?
+                register_json_source(
+                    ctx,
+                    &table_name,
+                    &table_path,
+                    get_json_read_options(args, options)?,
+                    &overrides,
+                )
+                .await?
             }
             "read_ndjson" => {
                 // Newline-delimited JSON: one JSON object per line.
@@ -522,30 +643,63 @@ pub async fn register_table(
                 if let Some(ext) = json_ext.as_deref() {
                     options.file_extension = ext;
                 }
-                ctx.register_json(&table_name, &table_path, get_json_read_options(args, options)?)
-                    .await?
+                register_json_source(
+                    ctx,
+                    &table_name,
+                    &table_path,
+                    get_json_read_options(args, options)?,
+                    &overrides,
+                )
+                .await?
             }
             "read_parquet" => {
-                ctx.register_parquet(&table_name, &table_path, ParquetReadOptions::default())
-                    .await?
+                if overrides.is_empty() {
+                    ctx.register_parquet(&table_name, &table_path, ParquetReadOptions::default())
+                        .await?;
+                } else {
+                    let source_name = format!("{table_name}__source");
+                    ctx.register_parquet(&source_name, &table_path, ParquetReadOptions::default())
+                        .await?;
+                    project_column_types(ctx, &source_name, &table_name, &overrides).await?;
+                }
             }
             "read_excel" | "read_xlsx" => {
-                ctx.register_batch(&table_name, read_excel(ExcelReader::new(table_path), args)?)?;
+                ctx.register_batch(
+                    &table_name,
+                    read_excel(
+                        ExcelReader::new(table_path).with_column_overrides(overrides),
+                        args,
+                    )?,
+                )?;
             }
             "read_mysql" => {
-                register_mysql(ctx, &table_name, &table_path, args).await?;
+                if overrides.is_empty() {
+                    register_mysql(ctx, &table_name, &table_path, args).await?;
+                } else {
+                    let source_name = format!("{table_name}__source");
+                    register_mysql(ctx, &source_name, &table_path, args).await?;
+                    project_column_types(ctx, &source_name, &table_name, &overrides).await?;
+                }
             }
             "read_postgres" => {
-                register_postgres(ctx, &table_name, &table_path, args).await?;
+                if overrides.is_empty() {
+                    register_postgres(ctx, &table_name, &table_path, args).await?;
+                } else {
+                    let source_name = format!("{table_name}__source");
+                    register_postgres(ctx, &source_name, &table_path, args).await?;
+                    project_column_types(ctx, &source_name, &table_name, &overrides).await?;
+                }
             }
             "read_text" => {
                 let mut options = CsvReadOptions::default();
                 options.delimiter = b'\t';
                 options.file_extension = ".txt";
-                ctx.register_csv(
+                register_delimited(
+                    ctx,
                     &table_name,
                     &table_path,
                     get_csv_read_options(args, options)?,
+                    &overrides,
                 )
                 .await?
             }

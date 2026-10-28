@@ -375,3 +375,52 @@ fn test_excel_reader_finish_pipeline() {
 
     let _ = std::fs::remove_file(&path);
 }
+
+#[test]
+fn test_excel_reader_columns_override_reads_number_as_text() {
+    use crate::context::columns::ColumnTypeOverride;
+    use datafusion::arrow::array::StringArray;
+
+    let path = write_xlsx_fixture();
+    let path_str = path.to_str().expect("utf8 path").to_string();
+    let result = ExcelReader::new(path_str)
+        .with_column_overrides(vec![ColumnTypeOverride {
+            name: "id".to_string(),
+            data_type: DataType::Utf8,
+        }])
+        .finish();
+    let batch = match result {
+        Ok(batch) => batch,
+        Err(error) => {
+            let _ = std::fs::remove_file(&path);
+            panic!("finish failed: {error:?}");
+        }
+    };
+
+    assert_eq!(batch.schema().field(0).data_type(), &DataType::Utf8);
+    assert_eq!(batch.schema().field(1).data_type(), &DataType::Float64);
+    let ids = batch
+        .column(0)
+        .as_any()
+        .downcast_ref::<StringArray>()
+        .expect("id stored as text");
+    assert!(ids.value(0).contains('1'), "id text was {}", ids.value(0));
+
+    let _ = std::fs::remove_file(&path);
+}
+
+#[test]
+fn test_excel_reader_columns_override_rejects_unsupported_type() {
+    use crate::context::columns::ColumnTypeOverride;
+
+    let path = write_xlsx_fixture();
+    let path_str = path.to_str().expect("utf8 path").to_string();
+    let result = ExcelReader::new(path_str)
+        .with_column_overrides(vec![ColumnTypeOverride {
+            name: "id".to_string(),
+            data_type: DataType::Date32,
+        }])
+        .finish();
+    let _ = std::fs::remove_file(&path);
+    assert!(result.is_err(), "DATE is not an Excel column override");
+}

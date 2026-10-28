@@ -190,6 +190,27 @@ WHERE REGEXP_LIKE("Distance", '^([0-9]+)\.([0-9]+)?$');
 
 ### Function Parameters
 
+Every `read_*` function accepts `columns`, which sets the type of named columns. Other columns keep their inferred type.
+
+```sql
+SELECT *
+FROM read_ndjson(
+  'data.ndjson',
+  columns => {control_phase: 'VARCHAR', id: 'BIGINT'}
+)
+```
+
+| Type | Meaning |
+| ---- | ------- |
+| `VARCHAR`, `TEXT`, `STRING` | string |
+| `BIGINT`, `INT`, `INTEGER` | 64-bit integer |
+| `DOUBLE`, `FLOAT` | 64-bit float |
+| `BOOLEAN` | boolean |
+| `TIMESTAMP` | timestamp |
+| `DATE` | date |
+
+`read_excel` accepts `VARCHAR`, `BIGINT`, `DOUBLE`, `BOOLEAN`, and `TIMESTAMP`.
+
 <details>
 <summary><code>read_csv()</code> parameters</summary>
 
@@ -199,6 +220,7 @@ WHERE REGEXP_LIKE("Distance", '^([0-9]+)\.([0-9]+)?$');
 | `has_header`     | boolean | true    | Whether the file contains a header row                     |
 | `delimiter`      | string  | `,`     | Field delimiter, supports escape sequences like `\t`, `\n` |
 | `file_extension` | string  | `.csv`  | File extension                                             |
+| `columns`        | map     |         | Column type overrides (see above)                          |
 
 </details>
 
@@ -209,6 +231,7 @@ WHERE REGEXP_LIKE("Distance", '^([0-9]+)\.([0-9]+)?$');
 | -------------- | ------- | ----------- | ----------------------------- |
 | `sheet_name`   | string  | First sheet | Name of the worksheet to read |
 | `infer_schema` | boolean | true        | Auto-infer data types         |
+| `columns`      | map     |             | Column type overrides (see above) |
 
 </details>
 
@@ -218,6 +241,7 @@ WHERE REGEXP_LIKE("Distance", '^([0-9]+)\.([0-9]+)?$');
 | Parameter | Type   | Default      | Description                                                              |
 | --------- | ------ | ------------ | ------------------------------------------------------------------------ |
 | `conn`    | string | **Required** | MySQL connection string, e.g. `mysql://user:password@host:port/database` |
+| `columns` | map    |              | Column type overrides (see above)                                        |
 
 </details>
 
@@ -232,6 +256,7 @@ WHERE REGEXP_LIKE("Distance", '^([0-9]+)\.([0-9]+)?$');
 | `pass`     | string | Optional     | PostgreSQL password      |
 | `port`     | string | `5432`       | PostgreSQL port number   |
 | `sslmode`  | string | `disable`    | SSL mode                 |
+| `columns`  | map    |              | Column type overrides (see above) |
 
 </details>
 
@@ -241,8 +266,11 @@ WHERE REGEXP_LIKE("Distance", '^([0-9]+)\.([0-9]+)?$');
 | Parameter        | Type   | Default          | Description                                                                 |
 | ---------------- | ------ | ---------------- | --------------------------------------------------------------------------- |
 | `file_extension` | string | Path extension   | File extension override (e.g. NDJSON content stored in a `.json` file)      |
+| `columns`        | map    |                  | Column type overrides (see above)                                           |
 
 `read_json()` auto-detects the format from file content: leading `[` is parsed as a standard JSON array, leading `{` as NDJSON. Works with both `.json` and `.ndjson` files.
+
+A field that is null in every sampled row is read as a string. Later text values then load instead of failing with `expected null`.
 
 </details>
 
@@ -252,6 +280,9 @@ WHERE REGEXP_LIKE("Distance", '^([0-9]+)\.([0-9]+)?$');
 | Parameter        | Type   | Default   | Description    |
 | ---------------- | ------ | --------- | -------------- |
 | `file_extension` | string | `.ndjson` | File extension |
+| `columns`        | map    |           | Column type overrides (see above) |
+
+A field that is null in every sampled row is read as a string, same as `read_json()`.
 
 </details>
 
@@ -264,6 +295,7 @@ WHERE REGEXP_LIKE("Distance", '^([0-9]+)\.([0-9]+)?$');
 | `has_header`     | boolean | true    | Whether the file contains a header row |
 | `delimiter`      | string  | `\t`    | Field delimiter                        |
 | `file_extension` | string  | `.txt`  | File extension                         |
+| `columns`        | map     |         | Column type overrides (see above)      |
 
 </details>
 

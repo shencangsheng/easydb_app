@@ -18,6 +18,11 @@ impl Dialect for EasyDBDialect {
     fn supports_named_fn_args_with_expr_name(&self) -> bool {
         false
     }
+
+    /// Enables `columns => {name: 'VARCHAR'}` on every `read_*` function.
+    fn supports_dictionary_syntax(&self) -> bool {
+        true
+    }
 }
 
 pub fn parse_statements(sql: &str) -> AppResult<Vec<Statement>> {

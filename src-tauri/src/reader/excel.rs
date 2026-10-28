@@ -1,10 +1,13 @@
+use crate::context::columns::{
+    apply_column_overrides, ensure_excel_column_type, ColumnTypeOverride,
+};
 use crate::context::error::AppError;
 use crate::context::schema::AppResult;
 use crate::utils::file_utils::find_files;
 use calamine::{open_workbook, Data, HeaderRow, Range, Reader, Xlsx};
 use chrono::{DateTime, NaiveDate, NaiveDateTime, Utc};
 use datafusion::arrow::array::{
-    Array, Float64Array, Int64Array, StringArray, TimestampNanosecondArray,
+    Array, BooleanArray, Float64Array, Int64Array, StringArray, TimestampNanosecondArray,
 };
 use datafusion::arrow::datatypes::{DataType, Field, Schema, TimeUnit};
 use datafusion::arrow::record_batch::RecordBatch;
@@ -20,6 +23,7 @@ pub struct ExcelReader {
     sheet_name: Option<String>,
     infer_schema_length: usize,
     try_parse_dates: bool,
+    column_overrides: Vec<ColumnTypeOverride>,
 }
 
 impl ExcelReader {
@@ -29,6 +33,7 @@ impl ExcelReader {
             sheet_name: None,
             infer_schema_length: 1000,
             try_parse_dates: false,
+            column_overrides: Vec::new(),
         }
     }
 
@@ -42,12 +47,18 @@ impl ExcelReader {
         self
     }
 
+    pub(crate) fn with_column_overrides(mut self, column_overrides: Vec<ColumnTypeOverride>) -> Self {
+        self.column_overrides = column_overrides;
+        self
+    }
+
     pub fn finish(self) -> AppResult<RecordBatch> {
         let mut schema: Option<Schema> = None;
         let mut string_data: Vec<Vec<Option<String>>> = Vec::new();
         let mut int64_data: Vec<Vec<Option<i64>>> = Vec::new();
         let mut float64_data: Vec<Vec<Option<f64>>> = Vec::new();
         let mut timestamp_data: Vec<Vec<Option<i64>>> = Vec::new();
+        let mut bool_data: Vec<Vec<Option<bool>>> = Vec::new();
 
         let default_sheet = "Sheet1".to_string();
         let files = find_files(&self.path)?;
@@ -58,16 +69,21 @@ impl ExcelReader {
                 xlsx.with_header_row(HeaderRow::Row(0))
                     .worksheet_range(match self.sheet_name {
                         Some(ref sheet_name) => sheet_name,
-                        None => sheet_names.get(0).unwrap_or(&default_sheet)
+                        None => sheet_names.get(0).unwrap_or(&default_sheet),
                     })?;
 
             if schema.is_none() {
                 let inferred = infer_field_schema(&range, self.infer_schema_length)?;
+                let inferred = apply_column_overrides(&inferred, &self.column_overrides)?;
+                for field in inferred.fields() {
+                    ensure_excel_column_type(field.name(), field.data_type())?;
+                }
                 let num_columns = inferred.fields().len();
                 string_data = vec![Vec::new(); num_columns];
                 int64_data = vec![Vec::new(); num_columns];
                 float64_data = vec![Vec::new(); num_columns];
                 timestamp_data = vec![Vec::new(); num_columns];
+                bool_data = vec![Vec::new(); num_columns];
                 schema = Some(inferred);
             }
 
@@ -95,6 +111,9 @@ impl ExcelReader {
                                 DataType::Timestamp(TimeUnit::Nanosecond, _) => {
                                     let value = excel_cell_to_timestamp_nanos(cell);
                                     timestamp_data[i].push(value);
+                                }
+                                DataType::Boolean => {
+                                    bool_data[i].push(excel_bool_cell(cell));
                                 }
                                 _ => {
                                     let value = match cell {
@@ -129,6 +148,7 @@ impl ExcelReader {
                         DataType::Timestamp(TimeUnit::Nanosecond, _) => {
                             Arc::new(TimestampNanosecondArray::from(timestamp_data[i].clone()))
                         }
+                        DataType::Boolean => Arc::new(BooleanArray::from(bool_data[i].clone())),
                         _ => Arc::new(StringArray::from(string_data[i].clone())),
                     };
                     arrays.push(array);
@@ -204,8 +224,7 @@ pub(crate) fn resolve_column_data_type(types: &HashSet<DataType>) -> DataType {
     }
 
     let has_utf8 = types.contains(&DataType::Utf8);
-    let has_numeric =
-        types.contains(&DataType::Int64) || types.contains(&DataType::Float64);
+    let has_numeric = types.contains(&DataType::Int64) || types.contains(&DataType::Float64);
     let has_timestamp = types.contains(&DataType::Timestamp(TimeUnit::Nanosecond, None));
 
     // Text mixed with numbers or dates cannot be read losslessly as a scalar
@@ -249,6 +268,20 @@ pub(crate) fn excel_cell_to_timestamp_nanos(cell: &Data) -> Option<i64> {
     }?;
 
     DateTime::<Utc>::from_naive_utc_and_offset(naive_dt, Utc).timestamp_nanos_opt()
+}
+
+fn excel_bool_cell(cell: &Data) -> Option<bool> {
+    match cell {
+        Data::Bool(value) => Some(*value),
+        Data::Int(value) => Some(*value != 0),
+        Data::Float(value) => Some(*value != 0.0),
+        Data::String(value) => match value.trim().to_ascii_lowercase().as_str() {
+            "true" | "1" | "yes" => Some(true),
+            "false" | "0" | "no" => Some(false),
+            _ => None,
+        },
+        _ => None,
+    }
 }
 
 pub(crate) fn infer_cell_data_type(cell: &Data) -> DataType {
