@@ -5,6 +5,7 @@ use crate::reader::excel::ExcelReader;
 use crate::sql::parse::{get_function_args, parse_statements};
 use crate::utils::file_utils::ensure_path_exists;
 use async_recursion::async_recursion;
+use datafusion::arrow::datatypes::{DataType, Field, Schema};
 use datafusion::arrow::record_batch::RecordBatch;
 use datafusion::dataframe::DataFrame;
 use datafusion::prelude::{CsvReadOptions, JsonReadOptions, ParquetReadOptions, SessionContext};
@@ -230,6 +231,83 @@ pub fn get_json_read_options<'a>(
     }
 
     Ok(options)
+}
+
+/// Rewrite JSON fields whose inferred type is [`DataType::Null`].
+///
+/// Schema inference only inspects a sample of records. A field that is JSON
+/// `null` throughout that sample is recorded as Arrow's `Null` type, which can
+/// decode nothing else. A later string then fails with `expected null got "..."`.
+/// A nullable string accepts both null and text, so an all-null sample is read
+/// as `Utf8`. Concrete types such as `Int64` are left unchanged. Nested struct,
+/// list, and map fields are rewritten the same way.
+pub(crate) fn promote_json_null_schema(schema: &Schema) -> Schema {
+    let fields = schema
+        .fields()
+        .iter()
+        .map(|field| Arc::new(promote_json_null_field(field.as_ref())))
+        .collect::<Vec<_>>();
+    Schema::new_with_metadata(fields, schema.metadata().clone())
+}
+
+fn promote_json_null_field(field: &Field) -> Field {
+    field
+        .clone()
+        .with_data_type(promote_json_null_type(field.data_type()))
+}
+
+fn promote_json_null_type(data_type: &DataType) -> DataType {
+    match data_type {
+        DataType::Null => DataType::Utf8,
+        DataType::Struct(fields) => DataType::Struct(
+            fields
+                .iter()
+                .map(|field| Arc::new(promote_json_null_field(field.as_ref())))
+                .collect(),
+        ),
+        DataType::List(field) => DataType::List(Arc::new(promote_json_null_field(field.as_ref()))),
+        DataType::LargeList(field) => {
+            DataType::LargeList(Arc::new(promote_json_null_field(field.as_ref())))
+        }
+        DataType::ListView(field) => {
+            DataType::ListView(Arc::new(promote_json_null_field(field.as_ref())))
+        }
+        DataType::LargeListView(field) => {
+            DataType::LargeListView(Arc::new(promote_json_null_field(field.as_ref())))
+        }
+        DataType::FixedSizeList(field, size) => {
+            DataType::FixedSizeList(Arc::new(promote_json_null_field(field.as_ref())), *size)
+        }
+        DataType::Map(field, ordered) => {
+            DataType::Map(Arc::new(promote_json_null_field(field.as_ref())), *ordered)
+        }
+        DataType::Dictionary(key, value) => {
+            DataType::Dictionary(key.clone(), Box::new(promote_json_null_type(value)))
+        }
+        other => other.clone(),
+    }
+}
+
+/// Register a JSON/NDJSON file, reading all-null inferred fields as strings.
+///
+/// The scratch context performs DataFusion's normal inference (including
+/// globs and compression). The adjusted schema is then installed explicitly so
+/// the scan does not keep a `Null` column that rejects later values.
+async fn register_json_source<'a>(
+    ctx: &SessionContext,
+    table_name: &str,
+    table_path: &str,
+    options: JsonReadOptions<'a>,
+) -> AppResult<()> {
+    let scratch = SessionContext::new();
+    scratch
+        .register_json(table_name, table_path, options.clone())
+        .await?;
+    let frame = scratch.table(table_name).await?;
+    let schema = promote_json_null_schema(frame.schema().as_arrow());
+    ctx.register_json(table_name, table_path, options.schema(&schema))
+        .await?;
+    Ok(())
 }
 
 pub fn get_table_path(args: &mut Option<TableFunctionArgs>) -> AppResult<String> {
@@ -510,8 +588,13 @@ pub async fn register_table(
                 if let Some(ext) = json_ext.as_deref() {
                     options.file_extension = ext;
                 }
-                ctx.register_json(&table_name, &table_path, get_json_read_options(args, options)?)
-                    .await?
+                register_json_source(
+                    ctx,
+                    &table_name,
+                    &table_path,
+                    get_json_read_options(args, options)?,
+                )
+                .await?
             }
             "read_ndjson" => {
                 // Newline-delimited JSON: one JSON object per line.
@@ -522,8 +605,13 @@ pub async fn register_table(
                 if let Some(ext) = json_ext.as_deref() {
                     options.file_extension = ext;
                 }
-                ctx.register_json(&table_name, &table_path, get_json_read_options(args, options)?)
-                    .await?
+                register_json_source(
+                    ctx,
+                    &table_name,
+                    &table_path,
+                    get_json_read_options(args, options)?,
+                )
+                .await?
             }
             "read_parquet" => {
                 ctx.register_parquet(&table_name, &table_path, ParquetReadOptions::default())

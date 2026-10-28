@@ -1,15 +1,18 @@
 use super::context::{
     collect, detect_json_newline_delimited, get_json_read_options, get_sql_context,
-    path_file_extension, register,
+    path_file_extension, promote_json_null_schema, register,
 };
 use crate::commands::query::ColumnTypeInfo;
 use crate::context::schema::AppResult;
 use crate::sql::parse::parse_statements;
+use datafusion::arrow::array::Array;
+use datafusion::arrow::datatypes::{DataType, Field, Schema};
 use datafusion::arrow::record_batch::RecordBatch;
 use datafusion::arrow::util::display::{ArrayFormatter, FormatOptions};
 use datafusion::prelude::JsonReadOptions;
 use sqlparser::ast::SetExpr::Select;
 use sqlparser::ast::{Statement, TableFactor, TableFunctionArgs};
+use std::sync::Arc;
 
 // ═══════════════════════════════════════════════════════════════════════
 // Test helpers
@@ -322,5 +325,157 @@ async fn test_read_json_array_is_filterable() -> AppResult<()> {
 
     assert_eq!(columns.len(), 1);
     assert_eq!(column_strings(&batches, 0)?, vec!["alice", "carol", "eve"]);
+    Ok(())
+}
+
+/// DataFusion samples this many records when inferring a JSON schema
+/// (`DEFAULT_SCHEMA_INFER_MAX_RECORD`). A value past this window never
+/// influences the inferred type.
+const JSON_INFER_SAMPLE: usize = 1000;
+
+#[test]
+fn test_promote_json_null_schema_treats_null_fields_as_utf8() {
+    let schema = Schema::new(vec![
+        Field::new("control_phase", DataType::Null, true),
+        Field::new("id", DataType::Int64, true),
+        Field::new(
+            "meta",
+            DataType::Struct(vec![Arc::new(Field::new("phase", DataType::Null, true))].into()),
+            true,
+        ),
+        Field::new(
+            "tags",
+            DataType::List(Arc::new(Field::new("item", DataType::Null, true))),
+            true,
+        ),
+    ]);
+
+    let promoted = promote_json_null_schema(&schema);
+
+    assert_eq!(promoted.field(0).data_type(), &DataType::Utf8);
+    assert_eq!(promoted.field(1).data_type(), &DataType::Int64);
+    match promoted.field(2).data_type() {
+        DataType::Struct(fields) => assert_eq!(fields[0].data_type(), &DataType::Utf8),
+        other => panic!("expected struct, got {other}"),
+    }
+    match promoted.field(3).data_type() {
+        DataType::List(field) => assert_eq!(field.data_type(), &DataType::Utf8),
+        other => panic!("expected list, got {other}"),
+    }
+}
+
+#[test]
+fn test_promote_json_null_schema_keeps_schema_without_null_types() {
+    let schema = Schema::new(vec![
+        Field::new("id", DataType::Int64, true),
+        Field::new("name", DataType::Utf8, true),
+    ]);
+
+    let promoted = promote_json_null_schema(&schema);
+
+    assert_eq!(promoted.field(0).data_type(), &DataType::Int64);
+    assert_eq!(promoted.field(1).data_type(), &DataType::Utf8);
+}
+
+/// Build NDJSON where `control_phase` is null for the entire inference sample
+/// and a string only on a later row. Mirrors issue #23:
+/// `expected null got "8,4"`.
+fn null_then_string_ndjson() -> String {
+    let mut content = String::new();
+    for i in 0..JSON_INFER_SAMPLE {
+        content.push_str(&format!(
+            "{{\"id\":{i},\"cross_id\":\"row-{i}\",\"control_phase\":null}}\n"
+        ));
+    }
+    content.push_str(&format!(
+        "{{\"id\":{JSON_INFER_SAMPLE},\"cross_id\":\"123456\",\"control_phase\":\"8,4\"}}\n"
+    ));
+    content
+}
+
+fn assert_null_column_is_utf8(columns: &[ColumnTypeInfo]) {
+    let phase = col_index(columns, "control_phase");
+    let id = col_index(columns, "id");
+    assert_eq!(columns[phase].arrow_type, "Utf8");
+    assert_eq!(columns[id].arrow_type, "Int64");
+}
+
+#[tokio::test]
+async fn test_read_ndjson_all_null_sample_reads_later_string() -> AppResult<()> {
+    let path = write_temp("null_then_string.ndjson", &null_then_string_ndjson())?;
+    let sql = format!(
+        "SELECT id, cross_id, control_phase FROM read_ndjson('{}') WHERE cross_id = '123456'",
+        path.to_string_lossy()
+    );
+
+    let result = run_query(&sql).await;
+    let _ = std::fs::remove_file(&path);
+    let (columns, batches) = result?;
+
+    assert_null_column_is_utf8(&columns);
+    assert_eq!(total_rows(&batches), 1);
+    assert_eq!(
+        column_strings(&batches, col_index(&columns, "control_phase"))?,
+        vec!["8,4"]
+    );
+    Ok(())
+}
+
+#[tokio::test]
+async fn test_read_ndjson_all_null_column_is_utf8() -> AppResult<()> {
+    let path = write_temp(
+        "all_null.ndjson",
+        "{\"id\":1,\"control_phase\":null}\n{\"id\":2,\"control_phase\":null}\n",
+    )?;
+    let sql = format!(
+        "SELECT id, control_phase FROM read_ndjson('{}') ORDER BY id",
+        path.to_string_lossy()
+    );
+
+    let result = run_query(&sql).await;
+    let _ = std::fs::remove_file(&path);
+    let (columns, batches) = result?;
+
+    assert_null_column_is_utf8(&columns);
+    assert_eq!(total_rows(&batches), 2);
+    let phase = col_index(&columns, "control_phase");
+    assert!(
+        batches.iter().all(|batch| {
+            let column = batch.column(phase);
+            (0..batch.num_rows()).all(|row| column.is_null(row))
+        }),
+        "all-null string column should stay null"
+    );
+    Ok(())
+}
+
+#[tokio::test]
+async fn test_read_json_array_all_null_sample_reads_later_string() -> AppResult<()> {
+    let mut body = String::from("[\n");
+    for i in 0..JSON_INFER_SAMPLE {
+        body.push_str(&format!(
+            "{{\"id\":{i},\"cross_id\":\"row-{i}\",\"control_phase\":null}},\n"
+        ));
+    }
+    body.push_str(&format!(
+        "{{\"id\":{JSON_INFER_SAMPLE},\"cross_id\":\"123456\",\"control_phase\":\"8,4\"}}\n]"
+    ));
+
+    let path = write_temp("null_then_string.json", &body)?;
+    let sql = format!(
+        "SELECT id, cross_id, control_phase FROM read_json('{}') WHERE cross_id = '123456'",
+        path.to_string_lossy()
+    );
+
+    let result = run_query(&sql).await;
+    let _ = std::fs::remove_file(&path);
+    let (columns, batches) = result?;
+
+    assert_null_column_is_utf8(&columns);
+    assert_eq!(total_rows(&batches), 1);
+    assert_eq!(
+        column_strings(&batches, col_index(&columns, "control_phase"))?,
+        vec!["8,4"]
+    );
     Ok(())
 }

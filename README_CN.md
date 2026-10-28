@@ -243,6 +243,8 @@ WHERE REGEXP_LIKE("Distance", '^([0-9]+)\.([0-9]+)?$');
 
 `read_json()` 会根据文件内容自动判断格式：以 `[` 开头解析为标准 JSON 数组，以 `{` 开头解析为 NDJSON。`.json` 与 `.ndjson` 文件均可使用。
 
+若某个字段在采样行中全是 null，则按字符串读取。文件后部出现的文本不会再报 `expected null`。
+
 </details>
 
 <details>
@@ -251,6 +253,8 @@ WHERE REGEXP_LIKE("Distance", '^([0-9]+)\.([0-9]+)?$');
 | 参数             | 类型   | 默认值   | 说明         |
 | ---------------- | ------ | -------- | ------------ |
 | `file_extension` | string | `.ndjson` | 文件扩展名   |
+
+采样行中全是 null 的字段按字符串读取，与 `read_json()` 相同。
 
 </details>
 

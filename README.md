@@ -244,6 +244,8 @@ WHERE REGEXP_LIKE("Distance", '^([0-9]+)\.([0-9]+)?$');
 
 `read_json()` auto-detects the format from file content: leading `[` is parsed as a standard JSON array, leading `{` as NDJSON. Works with both `.json` and `.ndjson` files.
 
+A field that is null in every sampled row is read as a string. Later text values then load instead of failing with `expected null`.
+
 </details>
 
 <details>
@@ -252,6 +254,8 @@ WHERE REGEXP_LIKE("Distance", '^([0-9]+)\.([0-9]+)?$');
 | Parameter        | Type   | Default   | Description    |
 | ---------------- | ------ | --------- | -------------- |
 | `file_extension` | string | `.ndjson` | File extension |
+
+A field that is null in every sampled row is read as a string, same as `read_json()`.
 
 </details>
 
