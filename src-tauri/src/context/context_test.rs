@@ -160,7 +160,10 @@ fn test_detect_json_newline_delimited_skips_utf8_bom() -> AppResult<()> {
     let path = write_temp("detect_bom_array.json", "\u{feff}[ {\"a\":1} ]")?;
     let result = detect_json_newline_delimited(&path.to_string_lossy());
     let _ = std::fs::remove_file(&path);
-    assert!(!result, "BOM-prefixed array should not be newline-delimited");
+    assert!(
+        !result,
+        "BOM-prefixed array should not be newline-delimited"
+    );
     Ok(())
 }
 
@@ -190,8 +193,7 @@ fn test_get_json_read_options_preserves_base_when_no_args() -> AppResult<()> {
 
 #[test]
 fn test_get_json_read_options_overrides_file_extension() -> AppResult<()> {
-    let mut args =
-        first_table_args("SELECT * FROM read_ndjson('x', file_extension => '.custom')")?;
+    let mut args = first_table_args("SELECT * FROM read_ndjson('x', file_extension => '.custom')")?;
     let base = JsonReadOptions::default();
     let result = get_json_read_options(&mut args, base)?;
 
@@ -477,5 +479,90 @@ async fn test_read_json_array_all_null_sample_reads_later_string() -> AppResult<
         column_strings(&batches, col_index(&columns, "control_phase"))?,
         vec!["8,4"]
     );
+    Ok(())
+}
+
+#[tokio::test]
+async fn test_read_csv_columns_override_reads_integer_as_text() -> AppResult<()> {
+    let path = write_temp("typed.csv", "id,qty\n1,10\n2,20\n")?;
+    let sql = format!(
+        "SELECT id, qty FROM read_csv('{}', columns => {{qty: 'VARCHAR'}}) ORDER BY id",
+        path.to_string_lossy()
+    );
+
+    let result = run_query(&sql).await;
+    let _ = std::fs::remove_file(&path);
+    let (columns, batches) = result?;
+
+    assert_eq!(columns[col_index(&columns, "id")].arrow_type, "Int64");
+    assert_eq!(columns[col_index(&columns, "qty")].arrow_type, "Utf8");
+    assert_eq!(
+        column_strings(&batches, col_index(&columns, "qty"))?,
+        vec!["10", "20"]
+    );
+    Ok(())
+}
+
+#[tokio::test]
+async fn test_read_tsv_columns_override_reads_integer_as_text() -> AppResult<()> {
+    let path = write_temp("typed.tsv", "id\tqty\n1\t10\n2\t20\n")?;
+    let sql = format!(
+        "SELECT qty FROM read_tsv('{}', columns => {{qty: 'VARCHAR'}}) ORDER BY id",
+        path.to_string_lossy()
+    );
+
+    let result = run_query(&sql).await;
+    let _ = std::fs::remove_file(&path);
+    let (columns, batches) = result?;
+
+    assert_eq!(columns[col_index(&columns, "qty")].arrow_type, "Utf8");
+    assert_eq!(column_strings(&batches, 0)?, vec!["10", "20"]);
+    Ok(())
+}
+
+#[tokio::test]
+async fn test_read_ndjson_columns_override_sets_string_and_int() -> AppResult<()> {
+    let path = write_temp(
+        "typed.ndjson",
+        "{\"id\":1,\"control_phase\":null}\n{\"id\":2,\"control_phase\":\"8,4\"}\n",
+    )?;
+    let sql = format!(
+        "SELECT id, control_phase FROM read_ndjson('{}', columns => {{control_phase: 'VARCHAR', id: 'BIGINT'}}) ORDER BY id",
+        path.to_string_lossy()
+    );
+
+    let result = run_query(&sql).await;
+    let _ = std::fs::remove_file(&path);
+    let (columns, batches) = result?;
+
+    assert_eq!(columns[col_index(&columns, "id")].arrow_type, "Int64");
+    assert_eq!(
+        columns[col_index(&columns, "control_phase")].arrow_type,
+        "Utf8"
+    );
+    assert_eq!(
+        column_strings(&batches, col_index(&columns, "control_phase"))?,
+        vec!["", "8,4"]
+    );
+    Ok(())
+}
+
+#[tokio::test]
+async fn test_read_csv_columns_override_unknown_column_errors() -> AppResult<()> {
+    let path = write_temp("missing_col.csv", "id\n1\n")?;
+    let sql = format!(
+        "SELECT * FROM read_csv('{}', columns => {{missing: 'VARCHAR'}})",
+        path.to_string_lossy()
+    );
+
+    let result = run_query(&sql).await;
+    let _ = std::fs::remove_file(&path);
+    match result {
+        Err(crate::context::error::AppError::BadRequest { message }) => {
+            assert!(message.contains("missing"), "{message}");
+        }
+        Err(error) => panic!("expected unknown column error, got {error}"),
+        Ok(_) => panic!("expected unknown column error"),
+    }
     Ok(())
 }

@@ -268,6 +268,12 @@ function CustomAceEditor({
               meta: translate("functions.readCsv.fileExtension"),
               value: "file_extension",
             },
+            {
+              caption: "columns",
+              snippet: "columns => {${1:name}: '${2:VARCHAR}'}",
+              meta: translate("functions.columns"),
+              value: "columns",
+            },
           ];
 
           // Add table columns to completion list (with double quotes)

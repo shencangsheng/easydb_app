@@ -134,6 +134,7 @@ export interface Translations {
     usageExample: string;
     tableValued: string;
     scalarValued: string;
+    columns: string;
     readCsv: {
       name: string;
       description: string;
@@ -377,6 +378,8 @@ const translations: Record<Language, Translations> = {
       usageExample: "使用示例",
       tableValued: "表值函数",
       scalarValued: "标量函数",
+      columns:
+        "指定列的数据类型，例如 columns => {name: 'VARCHAR', id: 'BIGINT'}。未列出的列仍按推断类型读取。可选类型：VARCHAR、BIGINT、DOUBLE、BOOLEAN、TIMESTAMP、DATE。",
       readCsv: {
         name: "read_csv",
         description: "读取 CSV 文件为表。",
@@ -633,6 +636,8 @@ const translations: Record<Language, Translations> = {
       usageExample: "Usage Example",
       tableValued: "Table-Valued Functions",
       scalarValued: "Scalar-Valued Functions",
+      columns:
+        "Set column data types, for example columns => {name: 'VARCHAR', id: 'BIGINT'}. Columns not listed keep their inferred type. Types: VARCHAR, BIGINT, DOUBLE, BOOLEAN, TIMESTAMP, DATE.",
       readCsv: {
         name: "read_csv",
         description: "Read CSV file as table.",
